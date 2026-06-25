@@ -24,4 +24,17 @@ class FeedbackBoardServiceProvider extends PackageServiceProvider
             ->hasViews()
             ->hasRoute('web');
     }
+
+    public function packageBooted(): void
+    {
+        \Illuminate\Support\Facades\Gate::define('feedback-board.manage', function ($user) {
+            $resolver = config('feedback-board.authorization.developer_resolver');
+            return is_callable($resolver) ? (bool) $resolver($user) : false;
+        });
+
+        \Illuminate\Support\Facades\Gate::policy(
+            \YousefAman\FeedbackBoard\Models\FeedbackItem::class,
+            \YousefAman\FeedbackBoard\Policies\FeedbackItemPolicy::class,
+        );
+    }
 }
