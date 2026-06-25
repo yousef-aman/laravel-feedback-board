@@ -14,7 +14,12 @@ class FeedbackBoardServiceProvider extends PackageServiceProvider
         $package
             ->name('feedback-board')
             ->hasConfigFile()
-            ->hasMigrations([])
+            ->hasMigrations([
+                'create_feedback_items_table',
+                'create_feedback_comments_table',
+                'create_feedback_attachments_table',
+                'create_feedback_activities_table',
+            ])
             ->hasTranslations()
             ->hasViews()
             ->hasRoute('web');

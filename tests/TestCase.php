@@ -19,4 +19,12 @@ class TestCase extends Orchestra
             'driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '',
         ]);
     }
+
+    protected function defineDatabaseMigrations(): void
+    {
+        \Illuminate\Support\Facades\Schema::create('users', function ($t) {
+            $t->id(); $t->string('name')->nullable(); $t->string('email')->nullable();
+        });
+        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+    }
 }
