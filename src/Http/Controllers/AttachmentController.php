@@ -12,8 +12,7 @@ class AttachmentController
     public function show(FeedbackAttachment $attachment)
     {
         abort_unless(
-            app(\YousefAman\FeedbackBoard\Policies\FeedbackItemPolicy::class)
-                ->view(auth()->user(), $attachment->item),
+            \Illuminate\Support\Facades\Gate::allows('view', $attachment->item),
             403
         );
 
