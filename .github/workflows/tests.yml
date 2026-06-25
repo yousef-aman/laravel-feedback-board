@@ -1,0 +1,16 @@
+name: tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.2', '8.3']
+        laravel: ['11.*', '12.*']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with: { php-version: '${{ matrix.php }}' }
+      - run: composer require "laravel/framework:${{ matrix.laravel }}" --no-update
+      - run: composer update --prefer-dist --no-interaction
+      - run: vendor/bin/pest
