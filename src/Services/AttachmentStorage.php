@@ -26,6 +26,7 @@ class AttachmentStorage
         $disk = config('feedback-board.attachments.disk', 'local');
         $dir = config('feedback-board.attachments.directory', 'feedback-board').'/'.$item->getKey();
         $path = $file->store($dir, $disk);
+        throw_unless($path !== false, \RuntimeException::class, 'Attachment storage failed.');
 
         return $item->attachments()->create([
             'feedback_comment_id' => $comment?->getKey(),
