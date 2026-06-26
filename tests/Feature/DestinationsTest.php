@@ -15,12 +15,12 @@ it('default driver is mail', function () {
 });
 
 it('MailDriver implements DestinationDriver', function () {
-    expect(new MailDriver(app()))->toBeInstanceOf(DestinationDriver::class);
+    expect(new MailDriver())->toBeInstanceOf(DestinationDriver::class);
 });
 
 it('MailDriver send is a no-op (returns void without throwing)', function () {
     $item = FeedbackItem::factory()->create();
-    $driver = new MailDriver(app());
+    $driver = new MailDriver();
     // Should not throw — deliberate no-op in MVP
     $result = $driver->send($item);
     expect($result)->toBeNull();
@@ -37,5 +37,11 @@ it('DispatchToDestinations listener is subscribed to package events', function (
     // Dispatch the event — if listener throws, the test will fail
     // We just verify no exception is thrown (driver is a no-op)
     \YousefAman\FeedbackBoard\Events\FeedbackItemCreated::dispatch($item);
-    expect(true)->toBeTrue();
+    expect(true)->toBeTrue(); // no exception = listener ran without error
+});
+
+it('the dispatch listener is queued', function () {
+    expect(new \YousefAman\FeedbackBoard\Listeners\DispatchToDestinations(
+        app(\YousefAman\FeedbackBoard\Destinations\DestinationManager::class)
+    ))->toBeInstanceOf(\Illuminate\Contracts\Queue\ShouldQueue::class);
 });

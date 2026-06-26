@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace YousefAman\FeedbackBoard\Listeners;
 
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Events\Dispatcher;
 use YousefAman\FeedbackBoard\Destinations\DestinationManager;
 use YousefAman\FeedbackBoard\Events\FeedbackItemCreated;
 use YousefAman\FeedbackBoard\Events\FeedbackReplied;
 use YousefAman\FeedbackBoard\Events\FeedbackStatusChanged;
 
-class DispatchToDestinations
+class DispatchToDestinations implements ShouldQueue
 {
     public function __construct(protected DestinationManager $manager) {}
 
