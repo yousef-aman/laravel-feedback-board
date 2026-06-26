@@ -51,6 +51,8 @@ class FeedbackBoardServiceProvider extends PackageServiceProvider
         \Livewire\Livewire::component('feedback-board::feedback-form', \YousefAman\FeedbackBoard\Livewire\FeedbackForm::class);
         \Livewire\Livewire::component('feedback-board::my-reports-board', \YousefAman\FeedbackBoard\Livewire\MyReportsBoard::class);
         \Livewire\Livewire::component('feedback-board::feedback-item-modal', \YousefAman\FeedbackBoard\Livewire\FeedbackItemModal::class);
+        \Livewire\Livewire::component('feedback-board::feedback-kanban', \YousefAman\FeedbackBoard\Livewire\FeedbackKanban::class);
+        \Livewire\Livewire::component('feedback-board::feedback-detail', \YousefAman\FeedbackBoard\Livewire\FeedbackDetail::class);
         \Illuminate\Support\Facades\Blade::componentNamespace('YousefAman\\FeedbackBoard\\View\\Components', 'feedback-board');
         // anonymous components in resources/views/components are auto-registered via ->hasViews('feedback-board')
     }
