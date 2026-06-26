@@ -17,4 +17,10 @@ return [
 
     'route_prefix' => 'feedback-board',
     'route_middleware' => ['web', 'auth'],
+
+    'notifications' => [
+        // array of emails OR a callable returning a Collection of notifiables
+        'developers' => array_filter([env('FEEDBACK_BOARD_DEVELOPER_EMAIL')]),
+        'channels' => ['mail', 'database'],
+    ],
 ];
