@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- phpunit.xml.dist -->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         bootstrap="vendor/autoload.php" colors="true">
+    <testsuites>
+        <testsuite name="Feedback Board Test Suite">
+            <directory>tests</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include><directory>src</directory></include>
+    </source>
+</phpunit>
