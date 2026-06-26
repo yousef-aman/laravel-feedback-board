@@ -13,6 +13,9 @@ Route::middleware(config('feedback-board.route_middleware', ['web', 'auth']))
     ->group(function () {
         Route::get('attachments/{attachment}', [AttachmentController::class, 'show'])->name('attachments.show');
         Route::view('feedback', 'feedback-board::pages.feedback')->name('page');
+        Route::view('feedback/board', 'feedback-board::pages.board')
+            ->middleware('can:viewAny,YousefAman\\FeedbackBoard\\Models\\FeedbackItem')
+            ->name('board.page');
     });
 
 Route::middleware(['throttle:60,1', VerifyIngestSignature::class])

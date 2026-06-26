@@ -12,5 +12,9 @@ return [
         'reply_subject' => 'New reply on your feedback',
         'resolved_subject' => 'Resolved: :title', 'resolved_line' => 'Your report was resolved.',
     ],
-    'board' => ['my_reports' => 'My reports', 'reply' => 'Reply', 'internal_note' => 'Internal note'],
+    'board' => [
+        'my_reports' => 'My reports', 'reply' => 'Reply', 'internal_note' => 'Internal note',
+        'title' => 'Feedback board', 'thread' => 'Thread', 'activity' => 'Activity', 'attachments' => 'Attachments',
+        'assign_me' => 'Assign to me', 'unassign' => 'Unassign',
+    ],
 ];
