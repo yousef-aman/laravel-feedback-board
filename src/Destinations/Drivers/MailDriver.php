@@ -19,8 +19,6 @@ class MailDriver implements DestinationDriver
      * (Slack, webhook, …) can be swapped in via the DestinationManager
      * without touching any call-site code.
      */
-    public function __construct(protected \Illuminate\Contracts\Container\Container $app) {}
-
     public function send(FeedbackItem $item): void
     {
         // No-op: mail is handled by the notifications layer.
