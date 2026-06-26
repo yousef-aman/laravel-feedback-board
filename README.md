@@ -9,8 +9,8 @@ Feedback Board is self-hosted by design. Reports are captured inside the authent
 ## Requirements
 
 - PHP 8.2+
-- Laravel 11+
-- Filament 3+ (optional, for the developer Kanban board)
+- Laravel ^11 || ^12
+- Filament ^4 || ^5 (optional, for the developer Kanban board)
 
 ## Installation
 
@@ -130,11 +130,18 @@ Key configuration options in `config/feedback-board.php`:
 
 | Key | Type | Description |
 |-----|------|-------------|
-| `authorization.developer_resolver` | callable | Returns `bool` — whether the current user is a developer |
-| `notifications.developers` | array\|callable | Developer users to notify on new reports |
-| `ingest.rate_limit` | int | Max submissions per minute per user (default: 5) |
-| `destinations` | array | Active destination drivers (e.g. `['log', 'database']`) |
-| `locale` | string | Default locale for package strings (default: `'en'`) |
+| `authorization.developer_resolver` | callable\|null | Returns `bool` — whether the current user is a developer |
+| `attachments.disk` | string | Storage disk for uploaded attachments (default: `'local'`) |
+| `attachments.max_kb` | int | Maximum upload size in kilobytes (default: `10240`) |
+| `route_prefix` | string | URL prefix for package routes (default: `'feedback-board'`) |
+| `route_middleware` | array | Middleware applied to package routes (default: `['web', 'auth']`) |
+| `notifications.developers` | array\|callable | Developer users/notifiables to notify on new reports |
+| `notifications.channels` | array | Notification channels (default: `['mail', 'database']`) |
+| `destinations.default` | string | Default destination driver name (default: `'mail'`) |
+| `destinations.enabled` | array | Active destination drivers — empty by default (all opt-in; Phase 2 enables webhook/github/slack/etc.) |
+| `ingest.enabled` | bool | Enable the remote ingest endpoint (default: `false`) |
+| `ingest.secret` | string\|null | HMAC secret for ingest signature verification |
+| `ingest.tolerance` | int | Timestamp drift tolerance in seconds (default: `300`); rate limiting is handled by the route (`throttle:60,1`) |
 
 ## Roadmap (Phase 2)
 

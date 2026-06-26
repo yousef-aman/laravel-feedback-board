@@ -27,10 +27,10 @@ it('MailDriver send is a no-op (returns void without throwing)', function () {
     expect($result)->toBeNull();
 });
 
-it('destinations config block exists with expected keys', function () {
+it('no destinations enabled by default in the MVP', function () {
     expect(config('feedback-board.destinations'))->toBeArray()
         ->and(config('feedback-board.destinations.default'))->toBe('mail')
-        ->and(config('feedback-board.destinations.enabled'))->toContain('mail');
+        ->and(config('feedback-board.destinations.enabled'))->toBe([]);
 });
 
 it('DispatchToDestinations listener is subscribed to package events', function () {

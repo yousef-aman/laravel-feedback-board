@@ -66,14 +66,16 @@ class FeedbackDetail extends Component
     public function setPriority(string $priority): void
     {
         $this->guard();
-        $this->item->update(['priority' => FeedbackPriority::from($priority)]);
+        $p = \YousefAman\FeedbackBoard\Enums\FeedbackPriority::tryFrom($priority) ?? abort(422);
+        $this->item->update(['priority' => $p]);
         $this->item->refresh();
     }
 
     public function changeStatus(string $status, TransitionStatus $transition): void
     {
         $this->guard();
-        $transition->handle($this->item, FeedbackStatus::from($status), auth()->user());
+        $s = FeedbackStatus::tryFrom($status) ?? abort(422);
+        $transition->handle($this->item, $s, auth()->user());
         $this->item->refresh();
     }
 

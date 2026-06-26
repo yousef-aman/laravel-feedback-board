@@ -8,6 +8,7 @@ use Livewire\Component;
 use YousefAman\FeedbackBoard\Actions\TransitionStatus;
 use YousefAman\FeedbackBoard\Enums\FeedbackStatus;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
+use YousefAman\FeedbackBoard\Policies\FeedbackItemPolicy;
 
 class FeedbackKanban extends Component
 {
@@ -24,11 +25,19 @@ class FeedbackKanban extends Component
     {
         $item = FeedbackItem::findOrFail($itemId);
         $this->authorize('transition', $item);
-        $transition->handle($item, FeedbackStatus::from($status), auth()->user());
+        $s = FeedbackStatus::tryFrom($status) ?? abort(422);
+        $transition->handle($item, $s, auth()->user());
     }
 
     public function render()
     {
+        // Defense-in-depth: if a non-developer somehow mounts this component outside the
+        // gated route, return empty columns so item data does not leak. The per-action
+        // authorize('transition') in moveTo() remains the primary write guard.
+        if (! FeedbackItemPolicy::isDeveloper(auth()->user())) {
+            return view('feedback-board::livewire.feedback-kanban', ['columns' => collect(), 'selected' => null]);
+        }
+
         $columns = collect(FeedbackStatus::cases())->mapWithKeys(fn ($s) => [
             $s->value => FeedbackItem::where('status', $s->value)->latest()->get(),
         ]);
