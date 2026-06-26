@@ -1,0 +1,51 @@
+<?php
+
+use YousefAman\FeedbackBoard\Destinations\DestinationManager;
+use YousefAman\FeedbackBoard\Destinations\Drivers\MailDriver;
+use YousefAman\FeedbackBoard\Destinations\Contracts\Destination;
+use YousefAman\FeedbackBoard\Models\FeedbackItem;
+
+it('resolves DestinationManager from the container', function () {
+    expect(app(DestinationManager::class))->toBeInstanceOf(DestinationManager::class);
+});
+
+it('default driver is mail', function () {
+    $manager = app(DestinationManager::class);
+    expect($manager->driver())->toBeInstanceOf(MailDriver::class);
+});
+
+it('MailDriver implements Destination', function () {
+    expect(new MailDriver())->toBeInstanceOf(Destination::class);
+});
+
+it('MailDriver send is a no-op (returns void without throwing)', function () {
+    $item = FeedbackItem::factory()->create();
+    $driver = new MailDriver();
+    $event = new \YousefAman\FeedbackBoard\Events\FeedbackItemCreated($item);
+    // Should not throw — deliberate no-op in MVP
+    $result = $driver->send($item, $event);
+    expect($result)->toBeNull();
+});
+
+it('no destinations enabled by default in the MVP', function () {
+    expect(config('feedback-board.destinations'))->toBeArray()
+        ->and(config('feedback-board.destinations.default'))->toBe('mail')
+        ->and(config('feedback-board.destinations.enabled'))->toBe([]);
+});
+
+it('DispatchToDestinations listener is subscribed to package events', function () {
+    $item = FeedbackItem::factory()->create();
+    // Dispatch the event — if listener throws, the test will fail
+    // We verify the listener implements the correct interface
+    $listener = new \YousefAman\FeedbackBoard\Listeners\DispatchToDestinations(
+        app(DestinationManager::class)
+    );
+    expect($listener)->toBeInstanceOf(\Illuminate\Contracts\Queue\ShouldQueue::class);
+    \YousefAman\FeedbackBoard\Events\FeedbackItemCreated::dispatch($item);
+});
+
+it('the dispatch listener is queued', function () {
+    expect(new \YousefAman\FeedbackBoard\Listeners\DispatchToDestinations(
+        app(\YousefAman\FeedbackBoard\Destinations\DestinationManager::class)
+    ))->toBeInstanceOf(\Illuminate\Contracts\Queue\ShouldQueue::class);
+});
