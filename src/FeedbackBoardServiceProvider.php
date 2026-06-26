@@ -25,6 +25,14 @@ class FeedbackBoardServiceProvider extends PackageServiceProvider
             ->hasRoute('web');
     }
 
+    public function packageRegistered(): void
+    {
+        $this->app->singleton(
+            \YousefAman\FeedbackBoard\Destinations\DestinationManager::class,
+            fn ($app) => new \YousefAman\FeedbackBoard\Destinations\DestinationManager($app),
+        );
+    }
+
     public function packageBooted(): void
     {
         \Illuminate\Support\Facades\Gate::define('feedback-board.manage', function ($user) {
@@ -38,5 +46,6 @@ class FeedbackBoardServiceProvider extends PackageServiceProvider
         );
 
         \Illuminate\Support\Facades\Event::subscribe(\YousefAman\FeedbackBoard\Listeners\SendFeedbackNotifications::class);
+        \Illuminate\Support\Facades\Event::subscribe(\YousefAman\FeedbackBoard\Listeners\DispatchToDestinations::class);
     }
 }
