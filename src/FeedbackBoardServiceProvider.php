@@ -36,5 +36,7 @@ class FeedbackBoardServiceProvider extends PackageServiceProvider
             \YousefAman\FeedbackBoard\Models\FeedbackItem::class,
             \YousefAman\FeedbackBoard\Policies\FeedbackItemPolicy::class,
         );
+
+        \Illuminate\Support\Facades\Event::subscribe(\YousefAman\FeedbackBoard\Listeners\SendFeedbackNotifications::class);
     }
 }
