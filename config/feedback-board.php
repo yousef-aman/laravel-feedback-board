@@ -23,4 +23,9 @@ return [
         'developers' => array_filter([env('FEEDBACK_BOARD_DEVELOPER_EMAIL')]),
         'channels' => ['mail', 'database'],
     ],
+
+    'destinations' => [
+        'default' => 'mail',
+        'enabled' => ['mail'],
+    ],
 ];
