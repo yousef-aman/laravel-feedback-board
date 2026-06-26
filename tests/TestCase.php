@@ -18,6 +18,7 @@ class TestCase extends Orchestra
         $app['config']->set('database.connections.testing', [
             'driver' => 'sqlite', 'database' => ':memory:', 'prefix' => '',
         ]);
+        $app['config']->set('app.key', 'base64:'.base64_encode(str_repeat('a', 32)));
     }
 
     protected function defineDatabaseMigrations(): void
