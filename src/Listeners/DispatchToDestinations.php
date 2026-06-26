@@ -17,24 +17,24 @@ class DispatchToDestinations implements ShouldQueue
 
     public function onCreated(FeedbackItemCreated $event): void
     {
-        $this->dispatchEnabled($event->item);
+        $this->dispatchEnabled($event->item, $event);
     }
 
     public function onReplied(FeedbackReplied $event): void
     {
-        $this->dispatchEnabled($event->comment->item);
+        $this->dispatchEnabled($event->comment->item, $event);
     }
 
     public function onStatusChanged(FeedbackStatusChanged $event): void
     {
-        $this->dispatchEnabled($event->item);
+        $this->dispatchEnabled($event->item, $event);
     }
 
-    protected function dispatchEnabled(\YousefAman\FeedbackBoard\Models\FeedbackItem $item): void
+    protected function dispatchEnabled(\YousefAman\FeedbackBoard\Models\FeedbackItem $item, object $event): void
     {
         $enabled = config('feedback-board.destinations.enabled', []);
         foreach ($enabled as $driverName) {
-            $this->manager->driver($driverName)->send($item);
+            $this->manager->driver($driverName)->send($item, $event);
         }
     }
 

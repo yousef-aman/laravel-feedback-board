@@ -2,7 +2,7 @@
 
 use YousefAman\FeedbackBoard\Destinations\DestinationManager;
 use YousefAman\FeedbackBoard\Destinations\Drivers\MailDriver;
-use YousefAman\FeedbackBoard\Destinations\Contracts\DestinationDriver;
+use YousefAman\FeedbackBoard\Destinations\Contracts\Destination;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
 
 it('resolves DestinationManager from the container', function () {
@@ -14,15 +14,16 @@ it('default driver is mail', function () {
     expect($manager->driver())->toBeInstanceOf(MailDriver::class);
 });
 
-it('MailDriver implements DestinationDriver', function () {
-    expect(new MailDriver())->toBeInstanceOf(DestinationDriver::class);
+it('MailDriver implements Destination', function () {
+    expect(new MailDriver())->toBeInstanceOf(Destination::class);
 });
 
 it('MailDriver send is a no-op (returns void without throwing)', function () {
     $item = FeedbackItem::factory()->create();
     $driver = new MailDriver();
+    $event = new \YousefAman\FeedbackBoard\Events\FeedbackItemCreated($item);
     // Should not throw — deliberate no-op in MVP
-    $result = $driver->send($item);
+    $result = $driver->send($item, $event);
     expect($result)->toBeNull();
 });
 
@@ -35,9 +36,12 @@ it('destinations config block exists with expected keys', function () {
 it('DispatchToDestinations listener is subscribed to package events', function () {
     $item = FeedbackItem::factory()->create();
     // Dispatch the event — if listener throws, the test will fail
-    // We just verify no exception is thrown (driver is a no-op)
+    // We verify the listener implements the correct interface
+    $listener = new \YousefAman\FeedbackBoard\Listeners\DispatchToDestinations(
+        app(DestinationManager::class)
+    );
+    expect($listener)->toBeInstanceOf(\Illuminate\Contracts\Queue\ShouldQueue::class);
     \YousefAman\FeedbackBoard\Events\FeedbackItemCreated::dispatch($item);
-    expect(true)->toBeTrue(); // no exception = listener ran without error
 });
 
 it('the dispatch listener is queued', function () {

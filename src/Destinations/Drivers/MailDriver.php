@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace YousefAman\FeedbackBoard\Destinations\Drivers;
 
-use YousefAman\FeedbackBoard\Destinations\Contracts\DestinationDriver;
+use YousefAman\FeedbackBoard\Destinations\Contracts\Destination;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
 
-class MailDriver implements DestinationDriver
+class MailDriver implements Destination
 {
     /**
      * Deliberate NO-OP in the MVP.
@@ -19,7 +19,7 @@ class MailDriver implements DestinationDriver
      * (Slack, webhook, …) can be swapped in via the DestinationManager
      * without touching any call-site code.
      */
-    public function send(FeedbackItem $item): void
+    public function send(FeedbackItem $item, object $event): void
     {
         // No-op: mail is handled by the notifications layer.
     }
