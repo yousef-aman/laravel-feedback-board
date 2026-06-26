@@ -6,10 +6,10 @@ namespace YousefAman\FeedbackBoard\Destinations\Contracts;
 
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
 
-interface DestinationDriver
+interface Destination
 {
     /**
      * Send (or forward) a feedback item to the destination.
      */
-    public function send(FeedbackItem $item): void;
+    public function send(FeedbackItem $item, object $event): void;
 }
