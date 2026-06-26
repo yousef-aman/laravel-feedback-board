@@ -25,10 +25,10 @@ class VerifyIngestSignature
         $expected = hash_hmac('sha256', $ts.'.'.$request->getContent(), $secret);
         abort_unless(hash_equals($expected, $sig), 403, 'Bad signature');
 
-        // replay protection: a given signature may be used once within the window
+        // replay protection: Cache::add is atomic — returns false if the key already exists,
+        // closing the TOCTOU race that a has() + put() pair would leave open.
         $nonceKey = 'feedback-board:ingest:'.$sig;
-        abort_if(Cache::has($nonceKey), 403, 'Replay');
-        Cache::put($nonceKey, true, $tolerance);
+        abort_unless(Cache::add($nonceKey, true, $tolerance), 403, 'Replay');
 
         return $next($request);
     }

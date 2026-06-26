@@ -25,8 +25,10 @@ return [
     ],
 
     'destinations' => [
+        // drivers are opt-in; Phase 2 enables webhook/github/slack/etc.
+        // (Mail already flows through the notification layer; the MailDriver stays for contract parity.)
         'default' => 'mail',
-        'enabled' => ['mail'],
+        'enabled' => [],
     ],
 
     'ingest' => [
