@@ -28,4 +28,10 @@ return [
         'default' => 'mail',
         'enabled' => ['mail'],
     ],
+
+    'ingest' => [
+        'enabled' => env('FEEDBACK_BOARD_INGEST_ENABLED', false),
+        'secret' => env('FEEDBACK_BOARD_INGEST_SECRET'),
+        'tolerance' => 300, // seconds
+    ],
 ];
