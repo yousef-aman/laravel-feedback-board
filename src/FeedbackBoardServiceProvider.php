@@ -49,8 +49,8 @@ class FeedbackBoardServiceProvider extends PackageServiceProvider
         \Illuminate\Support\Facades\Event::subscribe(\YousefAman\FeedbackBoard\Listeners\DispatchToDestinations::class);
 
         \Livewire\Livewire::component('feedback-board::feedback-form', \YousefAman\FeedbackBoard\Livewire\FeedbackForm::class);
-        \Livewire\Livewire::component('feedback-board::my-reports-list', \YousefAman\FeedbackBoard\Livewire\MyReportsList::class);
-        \Livewire\Livewire::component('feedback-board::reply-inline', \YousefAman\FeedbackBoard\Livewire\ReplyInline::class);
+        \Livewire\Livewire::component('feedback-board::my-reports-board', \YousefAman\FeedbackBoard\Livewire\MyReportsBoard::class);
+        \Livewire\Livewire::component('feedback-board::feedback-item-modal', \YousefAman\FeedbackBoard\Livewire\FeedbackItemModal::class);
         \Illuminate\Support\Facades\Blade::componentNamespace('YousefAman\\FeedbackBoard\\View\\Components', 'feedback-board');
         // anonymous components in resources/views/components are auto-registered via ->hasViews('feedback-board')
     }
