@@ -50,7 +50,7 @@ class FeedbackForm extends Component
         $this->dispatch('feedback-submitted', id: $item->id);
     }
 
-    public function render()
+    public function render(): \Illuminate\Contracts\View\View
     {
         return view('feedback-board::livewire.feedback-form');
     }

@@ -6,6 +6,7 @@
         <option value="bug">{{ __('feedback-board::feedback-board.type.bug') }}</option>
         <option value="feature">{{ __('feedback-board::feedback-board.type.feature') }}</option>
         <option value="question">{{ __('feedback-board::feedback-board.type.question') }}</option>
+        <option value="other">{{ __('feedback-board::feedback-board.type.other') }}</option>
     </select>
 
     <textarea wire:model="description" placeholder="{{ __('feedback-board::feedback-board.form.description') }}"></textarea>
