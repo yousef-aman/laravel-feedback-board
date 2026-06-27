@@ -33,6 +33,7 @@ Phase 2-A adds **outbound destination drivers** that mirror feedback events to e
 | `Destinations\Support\DestinationEvent` | `item(object $event): ?FeedbackItem` and `name(object $event): string`. Single source of the event→item and event→name mappings (DRY across listener, job, drivers). Returns `null` item when the underlying item/comment was deleted. |
 | `Destinations\Support\WebhookPayload` | Builds the **whitelisted** outbound array from a `FeedbackItem` + event. No raw `toArray()`. |
 | `Destinations\Support\DeliveryError` | Maps an exception/response to a **sanitized** fixed-vocabulary error code (see §5). Never returns raw messages, URLs, or bodies. |
+| `Destinations\Exceptions\RetryAfter` | Thrown by a driver to request a soft queue backoff (`public int $seconds`); caught by `DeliverToDestination::handle()` → `release($seconds)`. |
 | `Jobs\DeliverToDestination` | `ShouldQueue` job; one instance per `(event, driver, deliveryId)`. Isolates failure and retry per destination. |
 | `Listeners\DispatchToDestinations` | Refactored: **no longer `ShouldQueue`**; a thin synchronous fan-out that enqueues `DeliverToDestination` jobs. **Sole owner of event-name filtering.** |
 
@@ -161,14 +162,14 @@ The `Destination::send()` contract gains the `$deliveryId` parameter; `MailDrive
           }
       });
   } catch (LockTimeoutException $e) {
-      $this->release(30);                                       // contention → soft queue retry, not a failure
+      throw new RetryAfter(30);                                 // contention → job catches → soft queue retry
   }
   ```
   - **Lock store** must be atomic (`redis`/`memcached`/`dynamodb`/`database`); `file`/`array` are process-local and provide no cross-worker exclusion — explicitly unsupported (§4).
   - **Lock TTL (60s) > worst-case critical section:** `(connectTimeout 4 + timeout 8) × (1 + retries 2) + save`. The HTTP bound (§above) keeps the section well under the TTL so the lock cannot expire mid-create and let a second worker duplicate the issue.
   - **Comment idempotency:** the `$deliveryId` marker (re-read inside the lock) makes a retried comment a no-op. The `PATCH state=closed` is naturally idempotent (closing a closed issue is a no-op), so it runs after the marker check.
   - **Residual create risk (documented):** GitHub issue creation has no idempotency key. If the `POST /issues` succeeds but `persistRef` save fails inside the lock, a retry re-creates. The window is tiny (save immediately follows create, under lock) and creation is manual/single-dispatch; accepted for this cycle, noted in §10.
-- **Rate limits:** secondary write limit ~80/min can return `403` **or** `429` with `Retry-After` → `$this->release((int) $retryAfter)`. See §5 for why `release` interacts with `retryUntil`, not a numeric `$tries`. Other `4xx` (422 validation, 404 repo) are **permanent** → no HTTP retry; the job fails to `failed()`.
+- **Rate limits:** secondary write limit ~80/min can return `403` **or** `429` with `Retry-After`. A driver cannot call `release()` (it is not the job), so it throws `Destinations\Exceptions\RetryAfter((int) $retryAfter)`; `DeliverToDestination::handle()` catches it and calls `$this->release($seconds)`. See §5 for why this interacts with `retryUntil`, not a numeric `$tries`. Other `4xx` (422 validation, 404 repo) are **permanent** → no HTTP retry; the job fails to `failed()`.
 
 ### 3.3 SlackDriver
 
@@ -183,6 +184,8 @@ The `Destination::send()` contract gains the `$deliveryId` parameter; `MailDrive
 
 ```php
 'destinations' => [
+    'default' => 'mail',             // retained for contract parity (MailDriver no-op)
+
     // Fully-automatic drivers only. GitHub is intentionally absent:
     // its first issue is created by the manual developer action.
     'enabled' => [],                 // e.g. ['webhook', 'slack']
@@ -214,14 +217,15 @@ Rules:
 - **Per-driver event filter** is authoritative and enforced **only** in `DispatchToDestinations`. The single exception is the manual GitHub create (`feedback.created`), which is intentionally not in `github.events` and is dispatched by the developer action, bypassing the filter (§2.3).
 - All config reads use the fully-qualified `feedback-board.destinations.*` path.
 - Secrets come from `env()` only; the published config never contains literal secret values. (Per-project DB-stored, encrypted secrets are deferred — not in this cycle.)
-- A driver with a missing required key (`url` / `webhook_url` / `token`+`repo` empty) is a **silent no-op**: `DeliverToDestination` logs a warning (no secret values) and returns without throwing, so the queue does not retry a misconfiguration.
+- A driver with a missing required key (`url` / `webhook_url` / `token`+`repo` empty) is a **silent no-op**: the **driver's** `send()` logs a warning (no secret values) and returns without throwing, so the queue does not retry a misconfiguration. (The driver owns knowledge of its own required keys.)
 - The existing `'default' => 'mail'` key and `MailDriver` remain for contract parity.
 
 ## 5. Failure & Retry
 
 Two independent layers:
 
-1. **HTTP layer (inside each driver):** `Http::timeout(8)->connectTimeout(4)->retry(2, 200, throw: false)` retrying **only** connection errors, `429`, and `5xx`. Permanent `4xx` is not retried.
+1. **HTTP layer (inside each driver):** `Http::timeout(8)->connectTimeout(4)->retry(2, 200, TransientRetry::when(), throw: false)`. A shared `TransientRetry::when()` predicate retries **only** connection errors, `429`, and `5xx`; permanent `4xx` (422/404/401) is not retried. (Laravel's `retry()` with no `when` callback retries on *every* non-2xx — the predicate is required to honor "no retry on permanent 4xx".)
+   A driver signals a rate-limit/contention backoff by throwing `Destinations\Exceptions\RetryAfter($seconds)`; `DeliverToDestination::handle()` catches it and calls `$this->release($seconds)` (re-queues without erroring). Drivers never call `release()` directly.
 2. **Queue layer (`DeliverToDestination`):** **time-bounded**, not count-bounded —
    ```php
    public int $maxExceptions = 4;
@@ -291,9 +295,12 @@ src/
       MailDriver.php                  (modify: send() signature + $deliveryId)
     Support/
       SignsPayloads.php               (create — pure sign()/verifySignature(); ingest refactored onto it)
+      TransientRetry.php              (create — shared Http::retry predicate: connection/429/5xx only)
       DestinationEvent.php            (create — event→item(?)/event→name)
       WebhookPayload.php              (create — whitelist builder)
       DeliveryError.php               (create — sanitized error-code mapper)
+    Exceptions/
+      RetryAfter.php                  (create — driver→job soft-backoff signal)
   Jobs/
     DeliverToDestination.php          (create)
   Listeners/
