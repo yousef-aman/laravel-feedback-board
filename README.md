@@ -149,6 +149,39 @@ Key configuration options in `config/feedback-board.php`:
 - **AI triage (A/B/C)** — automatic classification and prioritisation using your own Claude runner
 - **Multi-tenant developer hub** — a centralised dashboard aggregating reports across multiple client applications
 
+## Destinations (outbound)
+
+Mirror feedback events to external systems. Configure under `feedback-board.destinations`.
+
+### Webhook (signed)
+Set `FEEDBACK_WEBHOOK_URL` and `FEEDBACK_WEBHOOK_SECRET`, then add `'webhook'` to
+`destinations.enabled`. Each POST carries `X-Feedback-Timestamp`, `X-Feedback-Signature`
+(HMAC-SHA256 over `"{timestamp}.{rawBody}"`, bare hex — identical to the ingest contract),
+`X-Feedback-Event`, and `X-Feedback-Delivery`. The payload is a curated whitelist; verify
+the signature against the **raw request body** before trusting it.
+
+### Slack
+Create an Incoming Webhook, set `FEEDBACK_SLACK_WEBHOOK_URL`, add `'slack'` to
+`destinations.enabled`. The webhook URL is a secret — it is never logged or stored in error state.
+
+### GitHub Issues
+Set `FEEDBACK_GITHUB_TOKEN` (a **fine-grained PAT** scoped to a single repo with
+`Issues: write` — least privilege; the classic `repo` scope also works but grants far
+broader access, avoid it) and `FEEDBACK_GITHUB_REPO` (`owner/name`). GitHub is **not**
+added to `destinations.enabled`: the first issue is created by the developer's manual
+"Send to GitHub" action; later replies and status changes auto-comment on it.
+Set `feedback-board.destinations.github.close_on_resolved` to close the issue on resolve.
+
+GitHub idempotency uses an atomic cache lock — set `FEEDBACK_DESTINATIONS_LOCK_STORE` to an
+atomic store (`redis`, `memcached`, `dynamodb`, or `database`). If left unset it falls back to
+your app's default cache store; a non-lockable default such as `file` will **throw** on the
+first GitHub delivery, so set this explicitly when your default cache is `file`. The `array`
+store is atomic but process-local (no cross-worker protection).
+
+Delivery failures are isolated per destination, retried with backoff for up to 15 minutes,
+and recorded as a sanitized code in `external_refs.{driver}_last_error` (never the raw error,
+URL, or token). Internal notes are never forwarded to any destination.
+
 ## License
 
 MIT
