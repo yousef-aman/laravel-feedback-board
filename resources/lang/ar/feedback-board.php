@@ -17,4 +17,7 @@ return [
         'title' => 'لوحة الملاحظات', 'thread' => 'النقاش', 'activity' => 'النشاط', 'attachments' => 'المرفقات',
         'assign_me' => 'إسناد لي', 'unassign' => 'إلغاء الإسناد',
     ],
+    'destinations' => [
+        'delivery_failed' => 'فشل إرسال الملاحظة',
+    ],
 ];
