@@ -7,6 +7,7 @@ namespace YousefAman\FeedbackBoard\Destinations;
 use Illuminate\Support\Manager;
 use YousefAman\FeedbackBoard\Destinations\Contracts\Destination;
 use YousefAman\FeedbackBoard\Destinations\Drivers\MailDriver;
+use YousefAman\FeedbackBoard\Destinations\Drivers\SlackDriver;
 use YousefAman\FeedbackBoard\Destinations\Drivers\WebhookDriver;
 
 class DestinationManager extends Manager
@@ -24,5 +25,10 @@ class DestinationManager extends Manager
     protected function createWebhookDriver(): Destination
     {
         return new WebhookDriver();
+    }
+
+    protected function createSlackDriver(): Destination
+    {
+        return new SlackDriver();
     }
 }
