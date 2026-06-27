@@ -131,3 +131,12 @@ it('is a no-op when token or repo is missing', function () {
 
     Http::assertNothingSent();
 });
+
+it('fails the job and persists no ref when a create response lacks an issue number', function () {
+    Http::fake(['api.github.com/repos/acme/app/issues' => Http::response(['node_id' => 'N'], 201)]); // no 'number'
+    $item = FeedbackItem::factory()->create();
+
+    expect(fn () => (new GithubIssueDriver())->send($item, new FeedbackItemCreated($item), 'dlv-bad'))
+        ->toThrow(RuntimeException::class);
+    expect($item->refresh()->external_refs['github'] ?? null)->toBeNull();
+});

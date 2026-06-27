@@ -27,7 +27,7 @@ class WebhookDriver implements Destination
         }
 
         // json_encode ONCE; sign those exact bytes; send the same bytes via withBody.
-        $rawBody = json_encode(WebhookPayload::build($item, $event, $deliveryId), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $rawBody = json_encode(WebhookPayload::build($item, $event, $deliveryId), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
         $ts = (string) now()->timestamp;
         $signature = $this->sign($ts, $rawBody, $secret);
 

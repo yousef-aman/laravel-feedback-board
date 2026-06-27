@@ -42,6 +42,11 @@ class SlackDriver implements Destination
             ]);
 
         // Slack Incoming Webhooks return HTTP 200 with the literal text "ok".
+        // A Slack 429 (after internal retries by TransientRetry) will reach here with a
+        // non-200 status and deliberately throw, failing the job. This is intentional:
+        // Slack messages are fire-and-forget notifications; we do NOT soft-release with
+        // RetryAfter for Slack — a missed Slack ping is an acceptable loss, and the
+        // simplicity of failing fast beats silently queuing retries indefinitely.
         if ($response->status() !== 200 || trim($response->body()) !== 'ok') {
             throw new RuntimeException('feedback-board: slack delivery rejected (status '.$response->status().').');
         }

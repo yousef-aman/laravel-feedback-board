@@ -49,11 +49,14 @@ class GithubIssueDriver implements Destination
                         return;
                     }
                     $resp = $this->client($token)->post($this->base($repo).'/issues', [
-                        'title' => mb_strimwidth($item->title, 0, 250, '…'),
-                        'body' => $this->issueBody($item),
+                        'title' => mb_strimwidth($fresh->title, 0, 250, '…'),
+                        'body' => $this->issueBody($fresh),
                     ]);
                     $this->guardResponse($resp);
                     $data = $resp->json();
+                    if (! isset($data['number'])) {
+                        throw new \RuntimeException('feedback-board: github create returned no issue number');
+                    }
                     $refs = $fresh->external_refs ?? [];
                     $refs['github'] = [
                         'issue_number' => $data['number'],
