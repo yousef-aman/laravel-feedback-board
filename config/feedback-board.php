@@ -25,10 +25,37 @@ return [
     ],
 
     'destinations' => [
-        // drivers are opt-in; Phase 2 enables webhook/github/slack/etc.
-        // (Mail already flows through the notification layer; the MailDriver stays for contract parity.)
-        'default' => 'mail',
-        'enabled' => [],
+        'default' => 'mail',        // retained for contract parity (MailDriver no-op)
+
+        // Fully-automatic drivers only. GitHub is intentionally absent:
+        // its first issue is created by the manual developer action.
+        'enabled' => [],            // e.g. ['webhook', 'slack']
+
+        // Atomic cache store backing the per-item GitHub lock and the *_last_error
+        // write. MUST be one of redis|memcached|dynamodb|database. null = app default
+        // store. WARNING: if the resolved store is not a LockProvider (e.g. the `file`
+        // driver), Cache::store(...)->lock() THROWS on the first GitHub delivery and the
+        // first failure write — set this to an atomic store in any app whose default
+        // cache is `file`. `array` is atomic but process-local (tests use it).
+        'lock_store' => env('FEEDBACK_DESTINATIONS_LOCK_STORE'),
+
+        'webhook' => [
+            'url' => env('FEEDBACK_WEBHOOK_URL'),
+            'secret' => env('FEEDBACK_WEBHOOK_SECRET'),
+            'events' => ['feedback.created', 'feedback.replied', 'feedback.status_changed'],
+        ],
+
+        'slack' => [
+            'webhook_url' => env('FEEDBACK_SLACK_WEBHOOK_URL'),
+            'events' => ['feedback.created', 'feedback.status_changed'],
+        ],
+
+        'github' => [
+            'token' => env('FEEDBACK_GITHUB_TOKEN'),
+            'repo' => env('FEEDBACK_GITHUB_REPO'),          // "owner/name"
+            'events' => ['feedback.replied', 'feedback.status_changed'],  // auto-comment gate only
+            'close_on_resolved' => false,
+        ],
     ],
 
     'ingest' => [
