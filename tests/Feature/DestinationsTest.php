@@ -23,7 +23,7 @@ it('MailDriver send is a no-op (returns void without throwing)', function () {
     $driver = new MailDriver();
     $event = new \YousefAman\FeedbackBoard\Events\FeedbackItemCreated($item);
     // Should not throw — deliberate no-op in MVP
-    $result = $driver->send($item, $event);
+    $result = $driver->send($item, $event, 'delivery-1');
     expect($result)->toBeNull();
 });
 
@@ -33,19 +33,12 @@ it('no destinations enabled by default in the MVP', function () {
         ->and(config('feedback-board.destinations.enabled'))->toBe([]);
 });
 
-it('DispatchToDestinations listener is subscribed to package events', function () {
-    $item = FeedbackItem::factory()->create();
-    // Dispatch the event — if listener throws, the test will fail
-    // We verify the listener implements the correct interface
-    $listener = new \YousefAman\FeedbackBoard\Listeners\DispatchToDestinations(
-        app(DestinationManager::class)
-    );
-    expect($listener)->toBeInstanceOf(\Illuminate\Contracts\Queue\ShouldQueue::class);
-    \YousefAman\FeedbackBoard\Events\FeedbackItemCreated::dispatch($item);
-});
-
-it('the dispatch listener is queued', function () {
-    expect(new \YousefAman\FeedbackBoard\Listeners\DispatchToDestinations(
-        app(\YousefAman\FeedbackBoard\Destinations\DestinationManager::class)
-    ))->toBeInstanceOf(\Illuminate\Contracts\Queue\ShouldQueue::class);
+it('the dispatch listener is registered and synchronous (not ShouldQueue)', function () {
+    $listener = app(\YousefAman\FeedbackBoard\Listeners\DispatchToDestinations::class);
+    expect($listener)->not->toBeInstanceOf(\Illuminate\Contracts\Queue\ShouldQueue::class)
+        ->and(array_keys($listener->subscribe(app('events'))))->toBe([
+            \YousefAman\FeedbackBoard\Events\FeedbackItemCreated::class,
+            \YousefAman\FeedbackBoard\Events\FeedbackReplied::class,
+            \YousefAman\FeedbackBoard\Events\FeedbackStatusChanged::class,
+        ]);
 });

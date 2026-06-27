@@ -79,6 +79,12 @@ class FeedbackDetail extends Component
         $this->item->refresh();
     }
 
+    public function sendToGithub(\YousefAman\FeedbackBoard\Actions\SendItemToGithub $action): void
+    {
+        $action->handle($this->item, auth()->user());
+        $this->dispatch('feedback-sent-to-github'); // optimistic UI hook
+    }
+
     public function render()
     {
         return view('feedback-board::livewire.feedback-detail', [
