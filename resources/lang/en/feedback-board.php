@@ -17,4 +17,7 @@ return [
         'title' => 'Feedback board', 'thread' => 'Thread', 'activity' => 'Activity', 'attachments' => 'Attachments',
         'assign_me' => 'Assign to me', 'unassign' => 'Unassign',
     ],
+    'destinations' => [
+        'delivery_failed' => 'Feedback delivery failed',
+    ],
 ];
