@@ -23,7 +23,7 @@ it('MailDriver send is a no-op (returns void without throwing)', function () {
     $driver = new MailDriver();
     $event = new \YousefAman\FeedbackBoard\Events\FeedbackItemCreated($item);
     // Should not throw — deliberate no-op in MVP
-    $result = $driver->send($item, $event);
+    $result = $driver->send($item, $event, 'delivery-1');
     expect($result)->toBeNull();
 });
 
