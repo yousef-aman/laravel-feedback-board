@@ -40,9 +40,19 @@ it('writes a completed triage block via the resolved driver', function () {
 });
 
 it('is a no-op for a deleted item', function () {
-    app(TriageManager::class)->extend('spy', fn () => spyDriver(fn () => throw new RuntimeException('should not be called')));
+    $spy = new class implements TriageDriver {
+        public bool $called = false;
+        public function triage(string $title, ?string $description): TriageResult
+        {
+            $this->called = true;
+            return new TriageResult(null, null, 'should not reach here', 'spy');
+        }
+    };
+    app(TriageManager::class)->extend('spy', fn () => $spy);
+
     (new TriageFeedbackItem(999999))->handle(app(TriageManager::class));
-    expect(true)->toBeTrue(); // no exception
+
+    expect($spy->called)->toBeFalse(); // the driver was never invoked
 });
 
 it('writes a failed terminal state with a sanitized code', function () {
@@ -94,6 +104,20 @@ it('rethrows a transient error so the queue can retry', function () {
 
     expect(fn () => (new TriageFeedbackItem($item->id))->handle(app(TriageManager::class)))
         ->toThrow(TriageException::class, 'http_5xx');
+});
+
+it('fails closed and writes terminal failed state for an unexpected non-TriageException', function () {
+    // Setting an unknown driver causes TriageManager::driver() to throw InvalidArgumentException
+    // (not a TriageException). The job must catch it, write failed, and NOT propagate.
+    config()->set('feedback-board.ai.default', 'nope');
+    $item = FeedbackItem::factory()->create();
+
+    // Must not throw — the catch(\Throwable) branch handles it.
+    (new TriageFeedbackItem($item->id))->handle(app(TriageManager::class));
+
+    $triage = $item->refresh()->ai_state['triage'];
+    expect($triage['status'])->toBe('failed')
+        ->and($triage['error_code'])->toBe('unknown');
 });
 
 it('passes only the title and description to the driver — never reporter PII', function () {

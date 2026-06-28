@@ -87,6 +87,7 @@ class FeedbackDetail extends Component
 
     public function requestTriage(\YousefAman\FeedbackBoard\Actions\RequestTriage $action): void
     {
+        $this->guard();
         $action->handle($this->item, auth()->user());
         $this->item->refresh();
         $this->dispatch('feedback-triage-requested');
@@ -94,6 +95,7 @@ class FeedbackDetail extends Component
 
     public function applyTriage(string $field, \YousefAman\FeedbackBoard\Actions\ApplyTriageSuggestion $action): void
     {
+        $this->guard();
         $action->handle($this->item, auth()->user(), [$field]);
         $this->item->refresh();
     }

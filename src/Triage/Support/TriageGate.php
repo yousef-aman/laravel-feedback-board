@@ -14,10 +14,10 @@ final class TriageGate
 
         $driver = (string) config('feedback-board.ai.default', 'anthropic');
 
-        if ($driver === 'anthropic') {
-            return (string) config('feedback-board.ai.anthropic.api_key') !== '';
-        }
-
-        return true;
+        return match ($driver) {
+            'anthropic' => is_string(config('feedback-board.ai.anthropic.api_key')) && config('feedback-board.ai.anthropic.api_key') !== '',
+            'fake' => true,
+            default => false, // unknown/typo driver → not configured (fail closed)
+        };
     }
 }

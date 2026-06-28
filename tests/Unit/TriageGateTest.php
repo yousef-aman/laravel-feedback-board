@@ -26,3 +26,9 @@ it('is true for the fake driver with no key', function () {
     config()->set('feedback-board.ai.default', 'fake');
     expect(TriageGate::configured())->toBeTrue();
 });
+
+it('is false for an unknown/typo driver name (fail closed)', function () {
+    config()->set('feedback-board.ai.enabled', true);
+    config()->set('feedback-board.ai.default', 'nope');
+    expect(TriageGate::configured())->toBeFalse();
+});

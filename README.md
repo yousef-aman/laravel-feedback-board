@@ -215,7 +215,9 @@ Livewire detail panel or the Filament resource.
 
 **Lock store.** Like destinations, the per-item `ai_state` lock needs an atomic
 cache store (`redis`/`memcached`/`database`/`dynamodb`). Set
-`FEEDBACK_BOARD_AI_LOCK_STORE` if your default cache is `file`.
+`FEEDBACK_BOARD_AI_LOCK_STORE` if your default cache is `file`. The `array`
+store is atomic but process-local (fine for a single process / tests, not for
+multi-worker deployments).
 
 ## License
 

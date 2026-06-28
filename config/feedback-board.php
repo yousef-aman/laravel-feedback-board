@@ -86,7 +86,7 @@ return [
             'api_key' => env('FEEDBACK_BOARD_ANTHROPIC_KEY'),
             'model' => env('FEEDBACK_BOARD_ANTHROPIC_MODEL', 'claude-haiku-4-5'),
             'timeout' => 30,
-            'max_tokens' => 512,
+            'max_tokens' => 1024,
         ],
     ],
 ];

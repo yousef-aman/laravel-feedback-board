@@ -7,7 +7,7 @@ it('ships ai config defaults', function () {
         ->and(config('feedback-board.ai.default'))->toBe('anthropic')
         ->and(config('feedback-board.ai.max_input_chars'))->toBe(4000)
         ->and(config('feedback-board.ai.anthropic.model'))->toBe('claude-haiku-4-5')
-        ->and(config('feedback-board.ai.anthropic.max_tokens'))->toBe(512);
+        ->and(config('feedback-board.ai.anthropic.max_tokens'))->toBe(1024);
 });
 
 it('does not mass-assign server-authored columns but still allows server writes', function () {
