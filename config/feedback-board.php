@@ -63,4 +63,30 @@ return [
         'secret' => env('FEEDBACK_BOARD_INGEST_SECRET'),
         'tolerance' => 300, // seconds
     ],
+
+    'ai' => [
+        // Opt-in. With this false — or the selected driver unconfigured — the
+        // listener does not dispatch and the manual action returns 422.
+        'enabled' => env('FEEDBACK_BOARD_AI_ENABLED', false),
+
+        'default' => env('FEEDBACK_BOARD_AI_DRIVER', 'anthropic'),
+
+        'queue' => env('FEEDBACK_BOARD_AI_QUEUE'), // null = default queue
+
+        // Atomic cache store backing the per-item ai_state lock. MUST be a
+        // LockProvider (redis|memcached|dynamodb|database). null = app default.
+        // `array` is atomic but process-local (tests use it). Same caveat as
+        // destinations.lock_store: a `file` store THROWS on lock().
+        'lock_store' => env('FEEDBACK_BOARD_AI_LOCK_STORE'),
+
+        // Combined title+description budget sent to the model (cost bound).
+        'max_input_chars' => 4000,
+
+        'anthropic' => [
+            'api_key' => env('FEEDBACK_BOARD_ANTHROPIC_KEY'),
+            'model' => env('FEEDBACK_BOARD_ANTHROPIC_MODEL', 'claude-haiku-4-5'),
+            'timeout' => 30,
+            'max_tokens' => 512,
+        ],
+    ],
 ];
