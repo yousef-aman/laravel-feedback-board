@@ -20,4 +20,16 @@ return [
     'destinations' => [
         'delivery_failed' => 'Feedback delivery failed',
     ],
+    'triage' => [
+        'analyzing' => 'AI is analyzing…',
+        'failed' => 'AI analysis failed',
+        'summary' => 'AI summary',
+        'suggested_type' => 'Suggested type',
+        'suggested_priority' => 'Suggested priority',
+        'apply_type' => 'Apply type',
+        'apply_priority' => 'Apply priority',
+        'triage' => 'Triage with AI',
+        'retriage' => 'Re-run AI triage',
+        'view_suggestion' => 'View AI suggestion',
+    ],
 ];
