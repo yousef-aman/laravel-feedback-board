@@ -28,6 +28,35 @@
         @endforeach
     </ul>
 
+    @php($triage = $item->ai_state['triage'] ?? null)
+    @if ($triage)
+        <div class="fb-triage" wire:key="triage-{{ $item->id }}"
+             @if(($triage['status'] ?? null) === 'pending') wire:poll.5s @endif>
+            @if (($triage['status'] ?? null) === 'pending')
+                <p>{{ __('feedback-board::feedback-board.triage.analyzing') }}</p>
+            @elseif (($triage['status'] ?? null) === 'failed')
+                <p>{{ __('feedback-board::feedback-board.triage.failed') }}</p>
+                <button type="button" wire:click="requestTriage">{{ __('feedback-board::feedback-board.triage.retriage') }}</button>
+            @elseif (($triage['status'] ?? null) === 'completed')
+                <p><strong>{{ __('feedback-board::feedback-board.triage.summary') }}:</strong> {{ $triage['summary'] }}</p>
+
+                @if (($triage['suggested_type'] ?? null) && $triage['suggested_type'] !== ($item->type?->value))
+                    <button type="button" wire:click="applyTriage('type')">
+                        {{ __('feedback-board::feedback-board.triage.apply_type') }}: {{ $triage['suggested_type'] }}
+                    </button>
+                @endif
+
+                @if (($triage['suggested_priority'] ?? null) && $triage['suggested_priority'] !== ($item->priority?->value))
+                    <button type="button" wire:click="applyTriage('priority')">
+                        {{ __('feedback-board::feedback-board.triage.apply_priority') }}: {{ $triage['suggested_priority'] }}
+                    </button>
+                @endif
+
+                <button type="button" wire:click="requestTriage">{{ __('feedback-board::feedback-board.triage.retriage') }}</button>
+            @endif
+        </div>
+    @endif
+
     <h4>{{ __('feedback-board::feedback-board.board.thread') }}</h4>
     @foreach ($comments as $c)
         <div wire:key="dc-{{ $c->id }}" class="fb-comment fb-comment--{{ $c->author_role->value }} @if($c->is_internal) fb-comment--internal @endif">
