@@ -20,4 +20,16 @@ return [
     'destinations' => [
         'delivery_failed' => 'فشل إرسال الملاحظة',
     ],
+    'triage' => [
+        'analyzing' => 'يحلّل الذكاء الاصطناعي…',
+        'failed' => 'فشل تحليل الذكاء الاصطناعي',
+        'summary' => 'ملخّص الذكاء الاصطناعي',
+        'suggested_type' => 'النوع المقترح',
+        'suggested_priority' => 'الأولوية المقترحة',
+        'apply_type' => 'تطبيق النوع',
+        'apply_priority' => 'تطبيق الأولوية',
+        'triage' => 'تصنيف بالذكاء الاصطناعي',
+        'retriage' => 'إعادة التصنيف',
+        'view_suggestion' => 'عرض اقتراح الذكاء الاصطناعي',
+    ],
 ];

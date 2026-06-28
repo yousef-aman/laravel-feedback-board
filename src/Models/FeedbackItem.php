@@ -17,7 +17,7 @@ class FeedbackItem extends Model
     protected $fillable = [
         'project', 'reporter_type', 'reporter_id', 'reporter_name', 'reporter_email',
         'title', 'description', 'type', 'status', 'priority',
-        'assignee_type', 'assignee_id', 'meta', 'external_refs', 'ai_state', 'resolved_at',
+        'assignee_type', 'assignee_id', 'meta', 'resolved_at',
     ];
 
     protected $casts = [
