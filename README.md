@@ -182,6 +182,43 @@ Delivery failures are isolated per destination, retried with backoff for up to 1
 and recorded as a sanitized code in `external_refs.{driver}_last_error` (never the raw error,
 URL, or token). Internal notes are never forwarded to any destination.
 
+## AI Triage (Level A)
+
+Optional, in-app AI triage that suggests a **type** and **priority** and a short
+**summary** for each new report. Suggestions are stored on the item; a developer
+reviews and applies them — the AI never changes a report's fields on its own.
+
+**Opt-in.** Disabled by default. Enable it and configure a provider:
+
+```env
+FEEDBACK_BOARD_AI_ENABLED=true
+FEEDBACK_BOARD_AI_DRIVER=anthropic
+FEEDBACK_BOARD_ANTHROPIC_KEY=sk-ant-...
+# optional:
+FEEDBACK_BOARD_ANTHROPIC_MODEL=claude-haiku-4-5
+FEEDBACK_BOARD_AI_QUEUE=
+FEEDBACK_BOARD_AI_LOCK_STORE=redis
+```
+
+When AI is enabled but its driver is unconfigured (e.g. no API key), triage stays
+inert — nothing is dispatched and the manual button returns 422.
+
+**What leaves your app.** Only the report's **title and description** are sent to
+the model, jointly truncated to `ai.max_input_chars` (default 4000) to bound cost.
+Reporter identity, email, attachments, and all internal fields are never sent. The
+API key is read from the environment, never logged, and never stored; failures
+record only a short sanitized error code.
+
+**Triggering.** Triage runs automatically on new reports (after the creating
+transaction commits) and can be re-run from the "Triage with AI" button in the
+Livewire detail panel or the Filament resource.
+
+**Lock store.** Like destinations, the per-item `ai_state` lock needs an atomic
+cache store (`redis`/`memcached`/`database`/`dynamodb`). Set
+`FEEDBACK_BOARD_AI_LOCK_STORE` if your default cache is `file`. The `array`
+store is atomic but process-local (fine for a single process / tests, not for
+multi-worker deployments).
+
 ## License
 
 MIT

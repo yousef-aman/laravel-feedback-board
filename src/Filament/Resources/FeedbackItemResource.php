@@ -8,7 +8,10 @@ use Filament\Actions\Action;
 use Filament\Resources\Resource;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use YousefAman\FeedbackBoard\Actions\ApplyTriageSuggestion;
+use YousefAman\FeedbackBoard\Actions\RequestTriage;
 use YousefAman\FeedbackBoard\Actions\SendItemToGithub;
+use YousefAman\FeedbackBoard\Triage\Support\TriageGate;
 use YousefAman\FeedbackBoard\Filament\Resources\FeedbackItemResource\Pages\ListFeedbackItems;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
 use YousefAman\FeedbackBoard\Policies\FeedbackItemPolicy;
@@ -43,6 +46,43 @@ class FeedbackItemResource extends Resource
                     // Hard authorization lives inside SendItemToGithub::handle()
                     // (abort_unless) — UI visibility above is not the gate.
                     app(SendItemToGithub::class)->handle($record, auth()->user())),
+
+            Action::make('triage')
+                ->label(__('feedback-board::feedback-board.triage.triage'))
+                ->visible(fn (): bool => FeedbackItemPolicy::isDeveloper(auth()->user()) && TriageGate::configured())
+                ->action(fn (FeedbackItem $record) =>
+                    app(RequestTriage::class)->handle($record, auth()->user())),
+
+            Action::make('applyType')
+                ->label(__('feedback-board::feedback-board.triage.apply_type'))
+                ->visible(fn (FeedbackItem $record): bool =>
+                    FeedbackItemPolicy::isDeveloper(auth()->user())
+                    && ($record->ai_state['triage']['status'] ?? null) === 'completed'
+                    && ($t = $record->ai_state['triage']['suggested_type'] ?? null) !== null
+                    && $t !== $record->type?->value)
+                ->action(fn (FeedbackItem $record) =>
+                    app(ApplyTriageSuggestion::class)->handle($record, auth()->user(), ['type'])),
+
+            Action::make('applyPriority')
+                ->label(__('feedback-board::feedback-board.triage.apply_priority'))
+                ->visible(fn (FeedbackItem $record): bool =>
+                    FeedbackItemPolicy::isDeveloper(auth()->user())
+                    && ($record->ai_state['triage']['status'] ?? null) === 'completed'
+                    && ($p = $record->ai_state['triage']['suggested_priority'] ?? null) !== null
+                    && $p !== $record->priority?->value)
+                ->action(fn (FeedbackItem $record) =>
+                    app(ApplyTriageSuggestion::class)->handle($record, auth()->user(), ['priority'])),
+
+            Action::make('viewSuggestion')
+                ->label(__('feedback-board::feedback-board.triage.view_suggestion'))
+                ->visible(fn (FeedbackItem $record): bool =>
+                    FeedbackItemPolicy::isDeveloper(auth()->user())
+                    && ($record->ai_state['triage']['status'] ?? null) === 'completed')
+                ->modalContent(fn (FeedbackItem $record) => view(
+                    'feedback-board::filament.triage-suggestion',
+                    ['triage' => $record->ai_state['triage'] ?? []],
+                ))
+                ->modalSubmitAction(false),
         ])->defaultSort('created_at', 'desc');
     }
 
