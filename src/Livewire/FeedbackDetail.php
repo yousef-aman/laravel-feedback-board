@@ -85,6 +85,19 @@ class FeedbackDetail extends Component
         $this->dispatch('feedback-sent-to-github'); // optimistic UI hook
     }
 
+    public function requestTriage(\YousefAman\FeedbackBoard\Actions\RequestTriage $action): void
+    {
+        $action->handle($this->item, auth()->user());
+        $this->item->refresh();
+        $this->dispatch('feedback-triage-requested');
+    }
+
+    public function applyTriage(string $field, \YousefAman\FeedbackBoard\Actions\ApplyTriageSuggestion $action): void
+    {
+        $action->handle($this->item, auth()->user(), [$field]);
+        $this->item->refresh();
+    }
+
     public function render()
     {
         return view('feedback-board::livewire.feedback-detail', [
