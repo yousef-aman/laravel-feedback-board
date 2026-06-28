@@ -52,3 +52,23 @@ it('escapes a malicious summary in the rendered panel', function () {
         ->assertDontSee('<script>alert(1)</script>', false)   // raw markup absent
         ->assertSee('alert(1)');                              // escaped text present
 });
+
+it('shows wire:poll.5s while triage is pending', function () {
+    $dev = TestUser::create(['name' => 'Dev']);
+    $item = FeedbackItem::factory()->create();
+    $item->ai_state = ['triage' => ['status' => 'pending']];
+    $item->save();
+
+    Livewire::actingAs($dev)->test(FeedbackDetail::class, ['item' => $item])
+        ->assertSee('wire:poll.5s', false); // raw attribute must appear in the markup
+});
+
+it('does not poll once triage reaches a terminal state', function () {
+    $dev = TestUser::create(['name' => 'Dev']);
+    $item = FeedbackItem::factory()->create();
+    $item->ai_state = ['triage' => ['status' => 'completed', 'summary' => 'done', 'model' => 'fake']];
+    $item->save();
+
+    Livewire::actingAs($dev)->test(FeedbackDetail::class, ['item' => $item])
+        ->assertDontSee('wire:poll', false); // no poll attribute in any form
+});

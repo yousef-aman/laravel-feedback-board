@@ -57,6 +57,11 @@ class TriageFeedbackItem implements ShouldQueue
             $this->writeFailed($this->itemId, $e->errorCode);
 
             return;
+        } catch (\Throwable $e) {
+            // Unexpected, unsanitized error (e.g. unknown driver) → fail closed, terminal, no retry.
+            $this->writeFailed($this->itemId, TriageError::code($e)); // maps to 'unknown'
+
+            return;
         }
 
         $this->writeTriage($this->itemId, [

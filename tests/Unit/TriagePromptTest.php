@@ -19,6 +19,19 @@ it('bounds the combined title and description to max chars', function () {
     expect(mb_strlen($user))->toBeLessThanOrEqual(4000)
         ->and($user)->toContain(str_repeat('T', 200))
         ->and($user)->not->toContain(str_repeat('T', 201));
+
+    // The truncated description text (at least the first character) appears in the output.
+    expect($user)->toContain('D');
+});
+
+it('omits the Description label when description is empty or null', function () {
+    $userEmpty = TriagePrompt::user('T', '', 4000);
+    $userNull = TriagePrompt::user('T', null, 4000);
+
+    expect($userEmpty)->not->toContain('Description:')
+        ->and($userNull)->not->toContain('Description:')
+        ->and($userEmpty)->toBe('Title: T')
+        ->and($userNull)->toBe('Title: T');
 });
 
 it('builds a forced-tool schema requiring summary', function () {

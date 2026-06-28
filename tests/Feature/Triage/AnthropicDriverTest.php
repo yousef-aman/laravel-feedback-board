@@ -62,7 +62,8 @@ it('throws invalid_output when summary is missing', function () {
 
 it('sanitizes a non-2xx response and never leaks the key', function () {
     \Illuminate\Support\Facades\Log::spy();
-    Http::fake(['api.anthropic.com/*' => Http::response(['error' => 'bad key'], 401)]);
+    // The fake body embeds the literal key so the not->toContain assertion is non-vacuous.
+    Http::fake(['api.anthropic.com/*' => Http::response(['error' => 'invalid x-api-key: sk-ant-secret'], 401)]);
 
     try {
         (new AnthropicDriver())->triage('t', 'd');
