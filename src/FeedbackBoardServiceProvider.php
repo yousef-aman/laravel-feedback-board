@@ -52,6 +52,7 @@ class FeedbackBoardServiceProvider extends PackageServiceProvider
 
         \Illuminate\Support\Facades\Event::subscribe(\YousefAman\FeedbackBoard\Listeners\SendFeedbackNotifications::class);
         \Illuminate\Support\Facades\Event::subscribe(\YousefAman\FeedbackBoard\Listeners\DispatchToDestinations::class);
+        \Illuminate\Support\Facades\Event::subscribe(\YousefAman\FeedbackBoard\Listeners\TriageNewFeedback::class);
 
         \Livewire\Livewire::component('feedback-board::feedback-form', \YousefAman\FeedbackBoard\Livewire\FeedbackForm::class);
         \Livewire\Livewire::component('feedback-board::my-reports-board', \YousefAman\FeedbackBoard\Livewire\MyReportsBoard::class);
