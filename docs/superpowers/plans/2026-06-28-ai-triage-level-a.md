@@ -20,7 +20,7 @@
 - AI never writes canonical columns. Suggestions live in `ai_state['triage']` until a developer applies them.
 - Untrusted `summary`/`model` are rendered escaped only — Blade `{{ }}` (never `{!! !!}`), Filament `TextEntry`/`TextColumn` never `->html()`/`->markdown()`.
 - Secrets: API key from env only; never logged or stored. The driver converts every throwable to a `TriageException` carrying only a sanitized code and **no `$previous`**, so `(string) $exception` cannot reach the key. Failures store a sanitized `error_code` only.
-- Transactional dispatch: the job sets `public bool $afterCommit = true;`.
+- Transactional dispatch: the job sets `$this->afterCommit = true;` in its constructor (a class-level `public bool $afterCommit` is a PHP 8.4 fatal — incompatible with the `Queueable` trait's untyped property).
 - Reuse `Destinations\Support\TransientRetry`. Do **not** reuse `RetryAfter`/`release()` — the triage job is throw/fail-based and always reaches a terminal `ai_state`.
 - Suggested enum values stored only when they pass `FeedbackType::tryFrom` / `FeedbackPriority::tryFrom`; otherwise `null`.
 - Error vocabulary (closed set, default `unknown`): `connection_error | http_5xx | http_429 | auth_401 | validation_422 | not_found_404 | not_configured | invalid_output | unknown`.
@@ -460,9 +460,12 @@ use RuntimeException;
  */
 final class TriageException extends RuntimeException
 {
-    public function __construct(public readonly string $code)
+    // NB: the property is `errorCode`, NOT `code` — Throwable already defines a
+    // protected int $code, so a `string $code` property cannot be declared on a
+    // subclass. Downstream reads `$e->errorCode`.
+    public function __construct(public readonly string $errorCode)
     {
-        parent::__construct($code);
+        parent::__construct($errorCode);
     }
 }
 ```
@@ -488,7 +491,7 @@ final class TriageError
     public static function code(Throwable $e): string
     {
         if ($e instanceof TriageException) {
-            return $e->code;
+            return $e->errorCode;
         }
 
         if ($e instanceof ConnectionException) {
@@ -765,7 +768,7 @@ it('sanitizes a non-2xx response and never leaks the key', function () {
         $this->fail('expected TriageException');
     } catch (TriageException $e) {
         // The string form is what Laravel persists to failed_jobs — it must be key-free.
-        expect($e->code)->toBe('auth_401')
+        expect($e->errorCode)->toBe('auth_401')
             ->and((string) $e)->not->toContain('sk-ant-secret')
             ->and($e->getMessage())->not->toContain('sk-ant-secret')
             ->and($e->getPrevious())->toBeNull();
@@ -781,7 +784,7 @@ it('sanitizes a connection error without leaking the key', function () {
         (new AnthropicDriver())->triage('t', 'd');
         $this->fail('expected TriageException');
     } catch (TriageException $e) {
-        expect($e->code)->toBe('connection_error')
+        expect($e->errorCode)->toBe('connection_error')
             ->and((string) $e)->not->toContain('sk-ant-secret')
             ->and($e->getPrevious())->toBeNull();
     }
@@ -1018,7 +1021,7 @@ git commit -m "feat(triage): TriageGate configuration check"
 
 **Interfaces:**
 - Consumes: `TriageManager`, `FeedbackItem`, `TriageException`, `TriageError`, `Cache`, `LockTimeoutException`.
-- Produces: `TriageFeedbackItem implements ShouldQueue` with `public bool $afterCommit = true; public int $tries = 3;`, constructor `__construct(public int $itemId)`, `backoff(): array`, `handle(TriageManager $manager)`, `failed(Throwable $e)`. Writes `ai_state['triage']` under lock `feedback-board:ai_state:{id}` on store `feedback-board.ai.lock_store`. Resolves the driver from `feedback-board.ai.default`.
+- Produces: `TriageFeedbackItem implements ShouldQueue` with `public int $tries = 3;` and `$this->afterCommit = true;` set in the constructor `__construct(public int $itemId)`, plus `backoff(): array`, `handle(TriageManager $manager)`, `failed(Throwable $e)`. Writes `ai_state['triage']` under lock `feedback-board:ai_state:{id}` on store `feedback-board.ai.lock_store`. Resolves the driver from `feedback-board.ai.default`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1124,10 +1127,14 @@ it('rethrows a transient error so the queue can retry', function () {
 
 it('passes only the title and description to the driver — never reporter PII', function () {
     $seen = null;
-    app(TriageManager::class)->extend('spy', fn () => spyDriver(function ($t, $d) use (&$seen) {
-        $seen = [$t, $d];
-        return new TriageResult(null, null, 's', 'spy');
-    }));
+    // Outer factory MUST be a real closure with use (&$seen), not an arrow fn — an
+    // arrow fn captures $seen by value, so the inner closure's write never reaches here.
+    app(TriageManager::class)->extend('spy', function () use (&$seen) {
+        return spyDriver(function ($t, $d) use (&$seen) {
+            $seen = [$t, $d];
+            return new TriageResult(null, null, 's', 'spy');
+        });
+    });
     $item = FeedbackItem::factory()->create([
         'title' => 'Visible title',
         'description' => 'Visible description',
@@ -1175,12 +1182,17 @@ class TriageFeedbackItem implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable;
 
-    /** Never run against an uncommitted/rolled-back row. */
-    public bool $afterCommit = true;
-
     public int $tries = 3;
 
-    public function __construct(public int $itemId) {}
+    public function __construct(public int $itemId)
+    {
+        // Set on the trait's untyped $afterCommit property in the constructor.
+        // A class-level `public bool $afterCommit = true;` is FATAL in PHP 8.4
+        // (incompatible redeclaration of Queueable's untyped $afterCommit). Setting
+        // it here runs before PendingDispatch reads it, so after-commit still applies:
+        // the job never runs against an uncommitted/rolled-back row.
+        $this->afterCommit = true;
+    }
 
     /** @return array<int, int> */
     public function backoff(): array
@@ -1201,14 +1213,14 @@ class TriageFeedbackItem implements ShouldQueue
         } catch (TriageException $e) {
             // Transient → rethrow so the job retries (tries/backoff); failed() writes
             // the terminal state on exhaustion.
-            if (in_array($e->code, ['http_429', 'http_5xx', 'connection_error'], true)) {
+            if (in_array($e->errorCode, ['http_429', 'http_5xx', 'connection_error'], true)) {
                 throw $e;
             }
             // Permanent → write the terminal failed state NOW. We do not use
             // $this->fail(): InteractsWithQueue::fail() is a no-op when $this->job is
             // null (direct/synchronous invocation), which would leave ai_state stuck
             // 'pending'. Writing directly guarantees the terminal state in every context.
-            $this->writeFailed($this->itemId, $e->code);
+            $this->writeFailed($this->itemId, $e->errorCode);
 
             return;
         }
@@ -1602,6 +1614,8 @@ git commit -m "feat(triage): listener fan-in on FeedbackItemCreated, gated by co
 
 ```php
 <?php
+
+declare(strict_types=1);
 // tests/Feature/Triage/TriageActionsTest.php
 
 use Illuminate\Support\Facades\Bus;
@@ -1625,10 +1639,12 @@ beforeEach(function () {
 function developer(): TestUser { return TestUser::create(['name' => 'Dev']); }
 function regular(): TestUser { return TestUser::create(['name' => 'User']); }
 
-it('RequestTriage forbids non-developers', function () {
+it('RequestTriage forbids non-developers and does not dispatch', function () {
+    Bus::fake();
     $item = FeedbackItem::factory()->create();
     expect(fn () => (new RequestTriage())->handle($item, regular()))
         ->toThrow(HttpException::class);
+    Bus::assertNotDispatched(TriageFeedbackItem::class); // guard fires before dispatch
 });
 
 it('RequestTriage 422s when unconfigured', function () {
@@ -1652,6 +1668,22 @@ it('RequestTriage dispatches for a configured developer', function () {
     (new RequestTriage())->handle($item, developer());
 
     Bus::assertDispatched(TriageFeedbackItem::class);
+});
+
+it('ApplyTriageSuggestion forbids non-developers and does not change the column', function () {
+    $item = FeedbackItem::factory()->create(['type' => FeedbackType::Bug]);
+    $item->ai_state = ['triage' => [
+        'status' => 'completed', 'suggested_type' => 'feature', 'summary' => 's', 'model' => 'fake',
+    ]];
+    $item->save();
+
+    try {
+        (new ApplyTriageSuggestion())->handle($item, regular(), ['type']);
+        $this->fail('expected 403');
+    } catch (HttpException $e) {
+        expect($e->getStatusCode())->toBe(403);
+    }
+    expect($item->refresh()->type)->toBe(FeedbackType::Bug); // column untouched for a non-developer
 });
 
 it('ApplyTriageSuggestion applies whitelisted suggestions', function () {
@@ -1687,8 +1719,8 @@ it('ApplyTriageSuggestion ignores non-whitelisted fields and invalid values', fu
         ->and($fresh->status)->toBe(\YousefAman\FeedbackBoard\Enums\FeedbackStatus::New); // status not whitelisted
 });
 
-it('ApplyTriageSuggestion 422s without a completed triage', function () {
-    $item = FeedbackItem::factory()->create();
+it('ApplyTriageSuggestion 422s without a completed triage and leaves the column unchanged', function () {
+    $item = FeedbackItem::factory()->create(['type' => FeedbackType::Bug]);
     $item->ai_state = ['triage' => ['status' => 'pending']];
     $item->save();
 
@@ -1698,6 +1730,7 @@ it('ApplyTriageSuggestion 422s without a completed triage', function () {
     } catch (HttpException $e) {
         expect($e->getStatusCode())->toBe(422);
     }
+    expect($item->refresh()->type)->toBe(FeedbackType::Bug); // discriminating: no write before the throw
 });
 ```
 
@@ -1790,7 +1823,7 @@ class ApplyTriageSuggestion
 - [ ] **Step 5: Run the tests and make sure they pass**
 
 Run: `vendor/bin/pest tests/Feature/Triage/TriageActionsTest.php`
-Expected: PASS (6 passed).
+Expected: PASS (7 passed).
 
 - [ ] **Step 6: Commit**
 
@@ -2054,6 +2087,9 @@ it('registers the triage record actions on the resource table', function () {
     // are not invoked.
     $livewire = new class extends \Livewire\Component implements \Filament\Tables\Contracts\HasTable {
         use \Filament\Tables\Concerns\InteractsWithTable;
+        // Some Filament v4 point releases declare this abstract on HasTable and the
+        // InteractsWithTable trait does not provide it — satisfy it with a null stub.
+        public function makeFilamentTranslatableContentDriver(): ?\Filament\Support\Contracts\TranslatableContentDriver { return null; }
         public function render() { return view('feedback-board::filament.triage-suggestion', ['triage' => []]); }
     };
 
