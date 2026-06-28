@@ -31,6 +31,11 @@ class FeedbackBoardServiceProvider extends PackageServiceProvider
             \YousefAman\FeedbackBoard\Destinations\DestinationManager::class,
             fn ($app) => new \YousefAman\FeedbackBoard\Destinations\DestinationManager($app),
         );
+
+        $this->app->singleton(
+            \YousefAman\FeedbackBoard\Triage\TriageManager::class,
+            fn ($app) => new \YousefAman\FeedbackBoard\Triage\TriageManager($app),
+        );
     }
 
     public function packageBooted(): void
