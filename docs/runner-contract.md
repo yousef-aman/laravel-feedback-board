@@ -39,17 +39,27 @@ When a runner task is dispatched, the package sends a signed POST to your config
 ```json
 {
   "task_id": "01J1ZZ...",
+  "event": "runner.task",
   "item": {
     "id": 42,
+    "type": "bug",
+    "status": "open",
+    "priority": "high",
     "title": "Login button unresponsive on Safari",
-    "description": "Clicking the login button on Safari 17 does nothing. No JS errors visible."
+    "description": "Clicking the login button on Safari 17 does nothing. No JS errors visible.",
+    "project": "my-app",
+    "created_at": "2026-06-20T08:00:00+00:00"
   },
   "triage": {
-    "summary": "User-reported UI regression on Safari; likely a JS compatibility issue.",
     "suggested_type": "bug",
-    "suggested_priority": "high"
+    "suggested_priority": "high",
+    "summary": "User-reported UI regression on Safari; likely a JS compatibility issue."
   },
-  "dispatched_at": "2026-06-30T12:00:00Z"
+  "callback": {
+    "ingest_url": "https://app.example.com/feedback-board/ingest",
+    "item_id": 42,
+    "task_id": "01J1ZZ..."
+  }
 }
 ```
 
@@ -57,16 +67,31 @@ When a runner task is dispatched, the package sends a signed POST to your config
 
 - `task_id` — a unique opaque string (ULID) identifying this runner invocation. Echo it
   verbatim in all post-back calls.
+- `event` — always `"runner.task"`.
 - `item.id` — the feedback item's database ID.
+- `item.type` — the item's type enum value (e.g. `"bug"`, `"feature"`), or `null`.
+- `item.status` — the item's current status enum value, or `null`.
+- `item.priority` — the item's priority enum value, or `null`.
 - `item.title` / `item.description` — the raw reporter-submitted text. See the privacy note
   below.
-- `triage.summary` — always a non-null string (the in-app Level A summary, or an empty
-  string if Level A was not run).
+- `item.project` — the project slug the item belongs to, or `null`.
+- `item.created_at` — ISO 8601 timestamp of when the item was created, or `null`.
+- `triage` — **conditional**. This key is present ONLY when Level A in-app triage has
+  completed (`ai_state.triage.status === 'completed'`). When Level A never ran, the entire
+  `triage` key is ABSENT from the envelope.
+- `triage.summary` — the Level A summary string (string, normally non-null; built from
+  `$triage['summary'] ?? null` so may be `null` in rare edge cases).
 - `triage.suggested_type` and `triage.suggested_priority` — MAY be `null`. A completed
   in-app triage can legitimately produce no type or priority suggestion (e.g. the model
   returned an ambiguous response). Your runner MUST handle `null` for both fields and not
   treat them as errors.
-- `dispatched_at` — ISO 8601 UTC timestamp of dispatch.
+- `callback.ingest_url` — the pre-built post-back URL. Present only when the operator has
+  configured `runner.callback_url`; omitted otherwise. Convenience field — you may also
+  store the ingest URL as a CI secret.
+- `callback.item_id` — the feedback item ID (mirrors `item.id`); included for convenience
+  in post-back payloads.
+- `callback.task_id` — the task ID (mirrors `task_id`); included for convenience in
+  post-back payloads.
 
 **Privacy note:** The runner endpoint receives feedback body text — treat it as confidential
 reporter data; do not point it at an untrusted third-party receiver.
@@ -148,7 +173,7 @@ completion or failure.
 | `item_id` | int | yes | The feedback item ID from the envelope |
 | `task_id` | string | yes | Echo the `task_id` from the dispatch envelope verbatim |
 | `status` | string | yes | One of `running`, `completed`, `failed` |
-| `error_code` | string | no | Only when `status` is `"failed"`; must match `^[a-z0-9_]{1,40}$` |
+| `error_code` | string | no | Only when `status` is `"failed"`; must match `^[a-z0-9_]{1,40}$`. If `status` is `failed` and `error_code` is omitted or empty, the stored value defaults to `'unknown'`. |
 
 **Status is monotonic.** Terminal statuses (`completed`, `failed`) are sticky per `task_id`.
 Once a task reaches a terminal status, subsequent `runner_status` posts for the same
@@ -243,11 +268,32 @@ X-Feedback-Delivery: 01J1ZZABCDEF123
 
 {
   "task_id": "01J1ZZABCDEF123",
-  "item": { "id": 99, "title": "NPE on checkout", "description": "..." },
-  "triage": { "summary": "Null pointer on order total calculation.", "suggested_type": "bug", "suggested_priority": "high" },
-  "dispatched_at": "2026-06-30T12:00:00Z"
+  "event": "runner.task",
+  "item": {
+    "id": 99,
+    "type": "bug",
+    "status": "open",
+    "priority": "high",
+    "title": "NPE on checkout",
+    "description": "...",
+    "project": "storefront",
+    "created_at": "2026-06-25T09:30:00+00:00"
+  },
+  "triage": {
+    "suggested_type": "bug",
+    "suggested_priority": "high",
+    "summary": "Null pointer on order total calculation."
+  },
+  "callback": {
+    "ingest_url": "https://app.example.com/feedback-board/ingest",
+    "item_id": 99,
+    "task_id": "01J1ZZABCDEF123"
+  }
 }
 ```
+
+*(The `triage` block is absent when Level A triage has not completed for this item.
+`callback.ingest_url` is absent when `runner.callback_url` is not configured.)*
 
 **Step 3 — Receiver verifies HMAC**, dispatches `repository_dispatch` to GitHub.
 
