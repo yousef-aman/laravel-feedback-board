@@ -219,6 +219,40 @@ cache store (`redis`/`memcached`/`database`/`dynamodb`). Set
 store is atomic but process-local (fine for a single process / tests, not for
 multi-worker deployments).
 
+## AI Runner Contract (Level B/C)
+
+An optional, manual, opt-in extension that lets you connect an external AI coding agent
+(running in your own CI/CD or dev environment) to the Feedback Board.
+
+**How it works:** A developer triggers a runner task from the Filament board. The package
+dispatches a signed HTTPS POST (the "task envelope") to your configured `runner.endpoint`.
+Your receiver verifies the HMAC, forwards the task to a CI job (e.g. GitHub Actions via
+`repository_dispatch`), and the CI job runs your agent. Results are posted back to the
+package's signed ingest endpoint and appear in the board for developer review.
+
+**Key runner config keys:**
+
+| Key | Description |
+|-----|-------------|
+| `runner.enabled` | Enable runner dispatch (default: `false`, opt-in) |
+| `runner.endpoint` | HTTPS URL of your HMAC-verifying receiver |
+| `runner.secret` | HMAC secret (`FEEDBACK_RUNNER_SECRET`) for outbound signing |
+| `runner.queue` | Queue for the dispatch job |
+| `ingest.enabled` | Must be `true` to accept runner post-back results |
+| `ingest.secret` | HMAC secret (`FEEDBACK_BOARD_INGEST_SECRET`) for verifying post-back |
+
+**Important:** The runner runs in your CI/dev environment with scoped credentials — never in
+the production application context. The package never auto-merges; it stores a PR link and
+analysis for the developer to review. Secrets must never be written into a feedback item.
+
+For the full protocol (envelope schema, HMAC formula, `runner_status` / `runner_result`
+post-back actions, security requirements, and a worked end-to-end example) see
+[`docs/runner-contract.md`](docs/runner-contract.md).
+
+Reference implementations:
+- [`docs/examples/runner/receiver.example.php`](docs/examples/runner/receiver.example.php) — minimal HMAC-verifying PHP receiver
+- [`docs/examples/runner/github-actions-feedback-runner.example.yml`](docs/examples/runner/github-actions-feedback-runner.example.yml) — GitHub Actions workflow
+
 ## License
 
 MIT
