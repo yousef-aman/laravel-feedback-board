@@ -17,6 +17,6 @@ class RequestTriage
         abort_unless(FeedbackItemPolicy::isDeveloper($actor), 403);
         abort_unless(TriageGate::configured(), 422);
 
-        TriageDispatcher::dispatch($item);
+        TriageDispatcher::dispatch($item, locked: true);
     }
 }
