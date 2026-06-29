@@ -570,7 +570,10 @@ Code Action, but any runner that implements the contract works.
 - `docs/examples/runner/github-actions-feedback-runner.example.yml`
 - `docs/runner-contract.md`
 - Tests: `tests/Unit/{RunnerGateTest,RunnerTaskPayloadTest,RunnerErrorTest}.php`,
-  `tests/Feature/Runner/{ConfigTest,DispatchActionTest,DispatchJobTest,IngestRunnerStatusTest,IngestRunnerResultTest,StateMachineTest,RunnerLivewireTest,RunnerFilamentTest,RunnerLangTest}.php`.
+  `tests/Feature/Runner/{ConfigTest,RunnerStateTest,DispatcherTest,DispatchActionTest,DispatchJobTest,IngestRunnerStatusTest,IngestRunnerResultTest,RunnerLivewireTest,RunnerFilamentTest,RunnerLangTest,DocsTest}.php`.
+  (State-machine supersession is covered end-to-end across `DispatchActionTest`
+  — terminal re-dispatch mints a fresh `task_id` — and `IngestRunnerStatusTest` —
+  the superseded `task_id` post-back is rejected `409`; no separate `StateMachineTest`.)
 
 **Modify:**
 - `config/feedback-board.php` — add the `runner` block.

@@ -736,6 +736,7 @@ git commit -m "feat(runner): signed RunnerDispatcher with sanitized failures"
 <?php
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Sleep;
 use YousefAman\FeedbackBoard\Jobs\DispatchToRunnerJob;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
 use YousefAman\FeedbackBoard\Runner\Exceptions\RunnerException;
@@ -744,6 +745,7 @@ beforeEach(function () {
     config()->set('feedback-board.ai.lock_store', 'array');
     config()->set('feedback-board.runner.endpoint', 'https://runner.test/task');
     config()->set('feedback-board.runner.secret', 'rsecret');
+    Sleep::fake(); // the 503 retry case sleeps ~200ms via Http::retry; fake it (matches GithubIssueDriverTest)
 });
 
 function dispatchedItem(): FeedbackItem {
@@ -1003,6 +1005,22 @@ it('is a silent no-op (no exception, no new job) while a dispatch is in flight',
     expect($item->refresh()->ai_state['runner']['task_id'])->toBe('live'); // unchanged
     Bus::assertNotDispatched(DispatchToRunnerJob::class);
 });
+
+it('re-dispatches from a terminal state with a FRESH task_id (supersession source)', function () {
+    Bus::fake();
+    $item = FeedbackItem::factory()->create();
+    $item->ai_state = ['runner' => ['status' => 'completed', 'task_id' => 'OLD']];
+    $item->save();
+
+    (new DispatchToRunner())->handle($item, rDeveloper());
+
+    $runner = $item->refresh()->ai_state['runner'];
+    expect($runner['status'])->toBe('dispatched')
+        ->and($runner['task_id'])->not->toBe('OLD')   // new token supersedes the old one
+        ->and($runner['task_id'])->not->toBeNull();
+    Bus::assertDispatched(DispatchToRunnerJob::class);
+    // The stale OLD post-back is then rejected 409 at ingest (see IngestRunnerStatusTest).
+});
 ```
 
 - [ ] **Step 2: Run it to verify it fails**
@@ -1170,6 +1188,14 @@ it('defaults a missing failed error_code to unknown', function () {
     expect($item->refresh()->ai_state['runner']['error_code'])->toBe('unknown');
 });
 
+it('does not let a runner un-fail itself (failed -> completed is an equal-rank no-op)', function () {
+    $item = itemWithRunner('failed', 'T1', ['failed_origin' => 'runner', 'error_code' => 'x']);
+    postRunner(['item_id' => $item->id, 'action' => 'runner_status', 'task_id' => 'T1', 'status' => 'completed'])->assertOk();
+    $runner = $item->refresh()->ai_state['runner'];
+    expect($runner['status'])->toBe('failed')          // rank(completed) == rank(failed): no transition
+        ->and($runner['error_code'])->toBe('x');
+});
+
 it('still rejects an unsigned runner_status', function () {
     $item = itemWithRunner('dispatched', 'T1');
     test()->postJson(route('feedback-board.ingest'), ['item_id' => $item->id, 'action' => 'runner_status', 'task_id' => 'T1', 'status' => 'running'])
@@ -1288,7 +1314,7 @@ The base validator and its three existing arms are **unchanged**:
             'item_id' => ['required', 'integer'],
             'action' => ['required', 'in:runner_status,runner_result'],
             'task_id' => ['required', 'string', 'max:64'],
-            'status' => ['required_if:action,runner_status', 'in:running,completed,failed'],
+            'status' => ['required_if:action,runner_status', 'string', 'in:running,completed,failed'],
             'error_code' => ['nullable', 'string', 'regex:/^[a-z0-9_]{1,40}$/'],
             'analysis' => ['nullable', 'string', 'max:'.(int) config('feedback-board.runner.max_analysis_chars', 10000)],
             'diff' => ['nullable', 'string', 'max:'.(int) config('feedback-board.runner.max_diff_chars', 20000)],
@@ -1346,10 +1372,15 @@ git commit -m "feat(runner): ingest runner_status with correlation + monotonicit
 
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Notification;
+use Livewire\Livewire;
 use YousefAman\FeedbackBoard\Jobs\DeliverToDestination;
+use YousefAman\FeedbackBoard\Livewire\FeedbackItemModal;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
+use YousefAman\FeedbackBoard\Tests\TestUser;
 
-// reuse the helpers from IngestRunnerStatusTest via a local copy
+// NOTE: the whole Pest suite runs in one process; these helper names (signedR/postR/
+// runnerItem) are unique to this file — do NOT reuse signedRunner/postRunner/itemWithRunner
+// (Task 8) or signed/developer/regular (existing tests).
 function signedR(array $payload): array {
     $body = json_encode($payload);
     $ts = (string) now()->timestamp;
@@ -1375,9 +1406,20 @@ beforeEach(function () {
 });
 
 it('posts the analysis as an INTERNAL AI comment and never leaks it', function () {
+    // Make BOTH leak paths LIVE for a non-internal reply, so the guards discriminate:
+    //  - destinations.enabled=['webhook'] (default events include feedback.replied) → a
+    //    non-internal reply WOULD dispatch DeliverToDestination (DispatchToDestinations).
+    //  - a real notifiable reporter → a non-internal Ai reply WOULD notify it
+    //    (SendFeedbackNotifications::onReplied elseif ($item->reporter)).
+    config()->set('feedback-board.destinations.enabled', ['webhook']);
+    config()->set('feedback-board.destinations.webhook.url', 'https://hook.test/x');
+    config()->set('feedback-board.destinations.webhook.secret', 'whs');
     Notification::fake();
     Bus::fake();
+
+    $reporter = TestUser::create(['name' => 'Reporter']);
     $item = runnerItem('running', 'T1');
+    $item->forceFill(['reporter_type' => $reporter->getMorphClass(), 'reporter_id' => $reporter->getKey()])->save();
 
     postR(['item_id' => $item->id, 'action' => 'runner_result', 'task_id' => 'T1', 'analysis' => 'AGENT NOTES'])->assertOk();
 
@@ -1385,21 +1427,36 @@ it('posts the analysis as an INTERNAL AI comment and never leaks it', function (
     expect($comment->body)->toBe('AGENT NOTES')
         ->and($comment->is_internal)->toBeTrue()                        // CRITICAL: internal only
         ->and($item->refresh()->ai_state['runner']['analysis_posted'])->toBeTrue();
-    Notification::assertNothingSent();                                  // reporter not emailed
-    Bus::assertNotDispatched(DeliverToDestination::class);              // not fanned out to destinations
+
+    // Internal ⇒ no reporter email, no destination fan-out (now discriminating).
+    Notification::assertNothingSent();
+    Bus::assertNotDispatched(DeliverToDestination::class);
+
+    // Spec §9: a non-developer (the reporter) viewing the modal must NOT see the internal
+    // analysis. FeedbackItemModal::render filters where(is_internal,false) for non-developers.
+    $this->actingAs($reporter);
+    Livewire::test(FeedbackItemModal::class, ['item' => $item->refresh()])
+        ->assertDontSee('AGENT NOTES');
 });
 
 it('does not duplicate the analysis comment on a re-post', function () {
+    // A byte-identical signed body re-posted in the SAME second is, by design, a replay
+    // (VerifyIngestSignature nonces on the signature). Advance the clock (well inside the
+    // 300s tolerance) so the second post gets a fresh signature and actually reaches
+    // RunnerIngest::result, exercising the analysis_posted compare-and-set.
     $item = runnerItem('running', 'T1');
     postR(['item_id' => $item->id, 'action' => 'runner_result', 'task_id' => 'T1', 'analysis' => 'ONCE'])->assertOk();
+    $this->travel(2)->seconds();
     postR(['item_id' => $item->id, 'action' => 'runner_result', 'task_id' => 'T1', 'analysis' => 'ONCE'])->assertOk();
     expect($item->comments()->where('body', 'ONCE')->count())->toBe(1);
 });
 
-it('stores the diff under the cap', function () {
+it('stores the diff under the cap and advances a non-terminal status to completed', function () {
     $item = runnerItem('running', 'T1');
     postR(['item_id' => $item->id, 'action' => 'runner_result', 'task_id' => 'T1', 'diff' => '--- a/x'])->assertOk();
-    expect($item->refresh()->ai_state['runner']['diff'])->toBe('--- a/x');
+    $fresh = $item->refresh();
+    expect($fresh->ai_state['runner']['diff'])->toBe('--- a/x')
+        ->and($fresh->ai_state['runner']['status'])->toBe('completed'); // §4.2 opportunistic advance
 });
 
 it('accepts a valid https pr_url and advances to completed', function () {
@@ -1696,10 +1753,18 @@ In `resources/views/livewire/feedback-detail.blade.php`, after the triage panel'
     @endif
 ```
 
+> **Why no developer re-check in the blade:** spec §6 says the panel shows only to a
+> developer, but `FeedbackDetail::mount()` already hard-aborts 403 for non-developers
+> (`FeedbackDetail.php:25`) before `render()` runs (Livewire guarantees mount→render
+> order), so the whole component is developer-only. The `@if ($runnerConfigured)` gate is
+> therefore sufficient; do NOT rely on the blade gate for authorization. (You may add
+> `&& FeedbackItemPolicy::isDeveloper(auth()->user())` to the `@if` to mirror §6 literally —
+> behavior-neutral, optional.)
+
 - [ ] **Step 5: Run the test to verify it passes**
 
 Run: `vendor/bin/pest tests/Feature/Runner/RunnerLivewireTest.php`
-Expected: PASS. (Lang keys are added in Task 12; until then `__()` returns the key string, which the `assertSee` for the PR URL does not depend on. If an assertion needs a key, run Task 12 first.)
+Expected: PASS. (Lang keys are added in Task 12; until then `__()` returns the key string. The PR-URL `assertSee` does not depend on a lang key. After Task 12, optionally add `->assertSee(__('feedback-board::feedback-board.runner.completed'))` to the completed-panel test — mirroring `TriageLivewireTest` — so a future blade key rename is caught.)
 
 - [ ] **Step 6: Commit**
 
