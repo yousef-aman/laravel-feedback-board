@@ -89,4 +89,31 @@ return [
             'max_tokens' => 1024,
         ],
     ],
+
+    'runner' => [
+        // Opt-in. With this false — or endpoint/secret missing — the manual
+        // "Send to agent" action returns 422 and the UI panel is hidden.
+        'enabled' => env('FEEDBACK_BOARD_RUNNER_ENABLED', false),
+
+        'endpoint' => env('FEEDBACK_RUNNER_ENDPOINT'),   // runner task-receive URL
+        'secret' => env('FEEDBACK_RUNNER_SECRET'),       // HMAC secret for the outbound task
+
+        'timeout' => 8,
+        'connect_timeout' => 4,
+
+        'max_analysis_chars' => 10000,   // cap on the analysis comment body
+        'max_diff_chars' => 20000,       // cap on the stored suggested diff
+
+        // Optional explicit ingest URL placed in the envelope's callback. If null,
+        // the envelope omits it (the runner is pre-configured with its ingest URL).
+        'callback_url' => env('FEEDBACK_RUNNER_CALLBACK_URL'),
+
+        // UI-only "may be stale" hint after this many seconds. No background reaper.
+        'stale_after' => 1800,
+
+        // NOTE: all ai_state.runner writes reuse feedback-board.ai.lock_store, which
+        // MUST be a LockProvider (redis|memcached|dynamodb|database) whenever
+        // runner is enabled — a `file` store THROWS on lock(). The first runner write
+        // happens synchronously inside the dispatch action.
+    ],
 ];
