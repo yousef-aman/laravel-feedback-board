@@ -116,6 +116,13 @@ it('rejects a result whose task_id mismatches', function () {
 
 // FIX 3 regression: a contended github lock must not 503 and must not lose the analysis comment.
 it('returns 200 and posts the analysis comment even when the github lock is held by a concurrent writer', function () {
+    // Sleep::fake(syncWithCarbon: true) fakes Sleep::usleep() AND advances Carbon's clock by
+    // the faked duration on each call. Lock::block() uses now() for elapsed-time checks, so
+    // Carbon must advance — otherwise the 8s budget is measured in real wall-clock time (~8s).
+    // With syncWithCarbon each 250ms sleep tick advances now() by 250ms, so 32 iterations
+    // exhaust the 8-second budget with no real sleeping.
+    \Illuminate\Support\Sleep::fake(syncWithCarbon: true);
+
     // Acquire the github lock without releasing it — simulating a concurrent GitHub delivery
     // that holds it beyond the 8-second block budget.
     $item = runnerItem('running', 'T99');
