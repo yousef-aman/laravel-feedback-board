@@ -100,6 +100,14 @@ class FeedbackDetail extends Component
         $this->item->refresh();
     }
 
+    public function dispatchToRunner(\YousefAman\FeedbackBoard\Actions\DispatchToRunner $action): void
+    {
+        $this->guard();
+        $action->handle($this->item, auth()->user());
+        $this->item->refresh();
+        $this->dispatch('feedback-runner-dispatched');
+    }
+
     public function render()
     {
         return view('feedback-board::livewire.feedback-detail', [
