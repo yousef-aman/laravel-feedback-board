@@ -9,8 +9,10 @@ use Filament\Resources\Resource;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use YousefAman\FeedbackBoard\Actions\ApplyTriageSuggestion;
+use YousefAman\FeedbackBoard\Actions\DispatchToRunner;
 use YousefAman\FeedbackBoard\Actions\RequestTriage;
 use YousefAman\FeedbackBoard\Actions\SendItemToGithub;
+use YousefAman\FeedbackBoard\Runner\Support\RunnerGate;
 use YousefAman\FeedbackBoard\Triage\Support\TriageGate;
 use YousefAman\FeedbackBoard\Filament\Resources\FeedbackItemResource\Pages\ListFeedbackItems;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
@@ -81,6 +83,28 @@ class FeedbackItemResource extends Resource
                 ->modalContent(fn (FeedbackItem $record) => view(
                     'feedback-board::filament.triage-suggestion',
                     ['triage' => $record->ai_state['triage'] ?? []],
+                ))
+                ->modalSubmitAction(false),
+
+            Action::make('sendToRunner')
+                ->label(__('feedback-board::feedback-board.runner.send'))
+                ->visible(fn (FeedbackItem $record): bool =>
+                    FeedbackItemPolicy::isDeveloper(auth()->user())
+                    && RunnerGate::configured()
+                    && (bool) config('feedback-board.ingest.enabled')
+                    && ! in_array(($record->ai_state['runner']['status'] ?? null), ['dispatched', 'running'], true))
+                ->action(fn (FeedbackItem $record) =>
+                    // Hard authorization lives inside DispatchToRunner::handle() (abort_unless).
+                    app(DispatchToRunner::class)->handle($record, auth()->user())),
+
+            Action::make('viewRunnerResult')
+                ->label(__('feedback-board::feedback-board.runner.view_result'))
+                ->visible(fn (FeedbackItem $record): bool =>
+                    FeedbackItemPolicy::isDeveloper(auth()->user())
+                    && ($record->ai_state['runner']['status'] ?? null) !== null)
+                ->modalContent(fn (FeedbackItem $record) => view(
+                    'feedback-board::filament.runner-result',
+                    ['runner' => $record->ai_state['runner'] ?? []],
                 ))
                 ->modalSubmitAction(false),
         ])->defaultSort('created_at', 'desc');

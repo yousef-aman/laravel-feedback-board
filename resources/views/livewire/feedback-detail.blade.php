@@ -57,6 +57,38 @@
         </div>
     @endif
 
+    @php($runner = $item->ai_state['runner'] ?? null)
+    @php($runnerConfigured = (bool) \YousefAman\FeedbackBoard\Runner\Support\RunnerGate::configured())
+    @if ($runnerConfigured)
+        <div class="fb-runner" wire:key="runner-{{ $item->id }}"
+             @if(in_array(($runner['status'] ?? null), ['dispatched','running'], true)) wire:poll.5s @endif>
+            @if (! config('feedback-board.ingest.enabled'))
+                <p class="fb-runner-warn">{{ __('feedback-board::feedback-board.runner.ingest_disabled') }}</p>
+            @elseif (($runner['status'] ?? null) === null)
+                <button type="button" wire:click="dispatchToRunner">{{ __('feedback-board::feedback-board.runner.send') }}</button>
+            @else
+                @if (in_array($runner['status'], ['dispatched','running'], true))
+                    <p>{{ __('feedback-board::feedback-board.runner.'.$runner['status']) }} — {{ $runner['dispatched_at'] ?? '' }}</p>
+                @elseif ($runner['status'] === 'failed')
+                    <p>{{ __('feedback-board::feedback-board.runner.failed') }}: {{ $runner['error_code'] ?? '' }}</p>
+                @elseif ($runner['status'] === 'completed')
+                    <p>{{ __('feedback-board::feedback-board.runner.completed') }}</p>
+                @endif
+
+                @if (($runner['diff'] ?? null) !== null)
+                    <details><summary>{{ __('feedback-board::feedback-board.runner.diff') }}</summary><pre>{{ $runner['diff'] }}</pre></details>
+                @endif
+                @if (($runner['pr_url'] ?? null) !== null)
+                    <a href="{{ $runner['pr_url'] }}" target="_blank" rel="noopener noreferrer">{{ $runner['pr_url'] }}</a>
+                @endif
+
+                @if (! in_array($runner['status'], ['dispatched','running'], true))
+                    <button type="button" wire:click="dispatchToRunner">{{ __('feedback-board::feedback-board.runner.resend') }}</button>
+                @endif
+            @endif
+        </div>
+    @endif
+
     <h4>{{ __('feedback-board::feedback-board.board.thread') }}</h4>
     @foreach ($comments as $c)
         <div wire:key="dc-{{ $c->id }}" class="fb-comment fb-comment--{{ $c->author_role->value }} @if($c->is_internal) fb-comment--internal @endif">

@@ -32,4 +32,16 @@ return [
         'retriage' => 'Re-run AI triage',
         'view_suggestion' => 'View AI suggestion',
     ],
+    'runner' => [
+        'send' => 'Send to agent',
+        'resend' => 'Re-send to agent',
+        'status' => 'Status',
+        'dispatched' => 'Dispatched to agent',
+        'running' => 'Agent is working…',
+        'completed' => 'Agent finished',
+        'failed' => 'Agent run failed',
+        'diff' => 'Suggested diff',
+        'view_result' => 'View agent result',
+        'ingest_disabled' => 'Ingest is disabled — agent post-back will fail. Enable feedback-board ingest.',
+    ],
 ];
