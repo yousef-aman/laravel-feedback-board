@@ -112,16 +112,21 @@ final class RunnerIngest
             return; // 200 no-op
         }
 
-        // external_refs.pr_url under the github lock (mirrors DeliverToDestination::failed).
-        if ($prUrl !== null) {
-            self::writePrRef($item->id, $prUrl);
-        }
-
-        // Comment created AFTER the flag is persisted: a crash here yields a rare missing
-        // comment, never a duplicate. is_internal=true is mandatory (no reporter leak).
+        // Comment created AFTER the flag is persisted inside the lock: a crash here yields a
+        // rare missing comment, never a duplicate. is_internal=true is mandatory (no reporter
+        // leak). Must run BEFORE writePrRef so that a contended github lock never 503s the
+        // request and strands the comment permanently.
         if ($shouldPostAnalysis) {
             app(\YousefAman\FeedbackBoard\Actions\ReplyToFeedback::class)
                 ->handle($item->fresh(), (string) $analysis, null, AuthorRole::Ai, isInternal: true);
+        }
+
+        // Mirror pr_url into external_refs under the github lock (best-effort). A contended
+        // lock that exceeds the 8-second block budget is swallowed: ai_state.runner.pr_url is
+        // the canonical source of truth; the external_refs mirror is cosmetic and will be
+        // applied on the next successful delivery. Never 503 the runner over a lock timeout.
+        if ($prUrl !== null) {
+            self::writePrRef($item->id, $prUrl);
         }
     }
 
@@ -147,14 +152,20 @@ final class RunnerIngest
     private static function writePrRef(int $id, string $prUrl): void
     {
         $store = config('feedback-board.destinations.lock_store');
-        \Illuminate\Support\Facades\Cache::store($store)->lock('feedback-board:github:'.$id, 10)->block(8, function () use ($id, $prUrl) {
-            $fresh = FeedbackItem::find($id);
-            if ($fresh === null) {
-                return;
-            }
-            $fresh->forceFill([
-                'external_refs' => array_merge($fresh->external_refs ?? [], ['pr_url' => $prUrl]),
-            ])->save();
-        });
+
+        try {
+            \Illuminate\Support\Facades\Cache::store($store)->lock('feedback-board:github:'.$id, 10)->block(8, function () use ($id, $prUrl) {
+                $fresh = FeedbackItem::find($id);
+                if ($fresh === null) {
+                    return;
+                }
+                $fresh->forceFill([
+                    'external_refs' => array_merge($fresh->external_refs ?? [], ['pr_url' => $prUrl]),
+                ])->save();
+            });
+        } catch (\Illuminate\Contracts\Cache\LockTimeoutException) {
+            // best-effort: ai_state.runner.pr_url is the source of truth;
+            // external_refs.pr_url mirror skipped — never 503 the runner over a lock timeout.
+        }
     }
 }

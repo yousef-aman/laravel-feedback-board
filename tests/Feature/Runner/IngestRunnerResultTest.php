@@ -114,6 +114,35 @@ it('rejects a result whose task_id mismatches', function () {
     expect($item->refresh()->ai_state['runner']['diff'] ?? null)->toBeNull();
 });
 
+// FIX 3 regression: a contended github lock must not 503 and must not lose the analysis comment.
+it('returns 200 and posts the analysis comment even when the github lock is held by a concurrent writer', function () {
+    // Acquire the github lock without releasing it — simulating a concurrent GitHub delivery
+    // that holds it beyond the 8-second block budget.
+    $item = runnerItem('running', 'T99');
+    $heldLock = \Illuminate\Support\Facades\Cache::store('array')
+        ->lock('feedback-board:github:'.$item->id, 10)
+        ->get();
+    expect($heldLock)->toBeTrue(); // confirm we actually hold it
+
+    postR([
+        'item_id' => $item->id,
+        'action' => 'runner_result',
+        'task_id' => 'T99',
+        'analysis' => 'LOCK TEST ANALYSIS',
+        'pr_url' => 'https://github.com/o/r/pull/99',
+    ])->assertOk(); // must NOT be 503
+
+    // Exactly one internal analysis comment must exist.
+    expect($item->comments()->where('body', 'LOCK TEST ANALYSIS')->count())->toBe(1);
+    expect($item->comments()->where('body', 'LOCK TEST ANALYSIS')->first()->is_internal)->toBeTrue();
+
+    // ai_state.runner.pr_url is set (canonical source of truth).
+    expect($item->refresh()->ai_state['runner']['pr_url'])->toBe('https://github.com/o/r/pull/99');
+
+    // external_refs.pr_url may be absent — best-effort (lock was contended).
+    // We do NOT assert it is set, only that the response was 200 and the comment landed.
+});
+
 it('heals a dispatch-failed item but rejects a runner-failed one', function () {
     $heal = runnerItem('failed', 'T1', ['failed_origin' => 'dispatch']);
     postR(['item_id' => $heal->id, 'action' => 'runner_result', 'task_id' => 'T1', 'pr_url' => 'https://github.com/o/r/pull/9'])->assertOk();
