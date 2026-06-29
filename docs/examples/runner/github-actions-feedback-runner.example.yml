@@ -40,5 +40,6 @@ jobs:
               -H "X-Feedback-Signature: $SIG" \
               --data "$BODY"
           }
+          post "{\"item_id\":$ITEM_ID,\"action\":\"runner_status\",\"task_id\":\"$TASK_ID\",\"status\":\"running\"}"
           post "{\"item_id\":$ITEM_ID,\"action\":\"runner_result\",\"task_id\":\"$TASK_ID\",\"analysis\":\"$ANALYSIS\",\"pr_url\":\"$PR_URL\"}"
           post "{\"item_id\":$ITEM_ID,\"action\":\"runner_status\",\"task_id\":\"$TASK_ID\",\"status\":\"completed\"}"
