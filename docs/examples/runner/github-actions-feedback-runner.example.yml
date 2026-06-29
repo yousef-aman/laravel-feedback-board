@@ -1,0 +1,44 @@
+name: Feedback Runner
+on:
+  repository_dispatch:
+    types: [feedback_task]
+
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run the coding agent (Claude Code Action or your tool of choice)
+        id: agent
+        env:
+          ITEM_TITLE: ${{ github.event.client_payload.item.title }}
+          ITEM_DESC: ${{ github.event.client_payload.item.description }}
+        run: |
+          # ... run your agent here; produce $GITHUB_OUTPUT: analysis, diff, pr_url ...
+          echo "analysis=Investigated; root cause in X." >> "$GITHUB_OUTPUT"
+
+      - name: Post results back to the feedback board (signed ingest)
+        env:
+          INGEST_URL: ${{ secrets.FEEDBACK_INGEST_URL }}
+          INGEST_SECRET: ${{ secrets.FEEDBACK_BOARD_INGEST_SECRET }}
+          ITEM_ID: ${{ github.event.client_payload.item.id }}
+          TASK_ID: ${{ github.event.client_payload.task_id }}
+          ANALYSIS: ${{ steps.agent.outputs.analysis }}
+          PR_URL: ${{ steps.agent.outputs.pr_url }}
+        run: |
+          post() {
+            BODY="$1"
+            TS=$(date +%s)
+            SIG=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "$INGEST_SECRET" | awk '{print $2}')
+            curl -sS -X POST "$INGEST_URL" \
+              -H "Content-Type: application/json" \
+              -H "X-Feedback-Timestamp: $TS" \
+              -H "X-Feedback-Signature: $SIG" \
+              --data "$BODY"
+          }
+          post "{\"item_id\":$ITEM_ID,\"action\":\"runner_result\",\"task_id\":\"$TASK_ID\",\"analysis\":\"$ANALYSIS\",\"pr_url\":\"$PR_URL\"}"
+          post "{\"item_id\":$ITEM_ID,\"action\":\"runner_status\",\"task_id\":\"$TASK_ID\",\"status\":\"completed\"}"
