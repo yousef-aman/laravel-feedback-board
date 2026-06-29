@@ -71,3 +71,27 @@ it('failed() writes the terminal failed state', function () {
 it('sets afterCommit on the job', function () {
     expect((new DispatchToRunnerJob(1, 't'))->afterCommit)->toBeTrue();
 });
+
+// FIX 2 — monotonicity guard: writeFailed must not regress a runner-advanced status.
+
+it('failed() does NOT overwrite status=running when the runner already advanced past dispatched', function () {
+    $item = FeedbackItem::factory()->create();
+    $item->ai_state = ['runner' => ['status' => 'running', 'task_id' => 'live']];
+    $item->save();
+
+    (new DispatchToRunnerJob($item->id, 'live'))->failed(new RunnerException('http_5xx'));
+
+    expect($item->refresh()->ai_state['runner']['status'])->toBe('running');
+});
+
+it('failed() does NOT overwrite status=completed when the runner already completed', function () {
+    $item = FeedbackItem::factory()->create();
+    $item->ai_state = ['runner' => ['status' => 'completed', 'task_id' => 'live', 'analysis_posted' => true]];
+    $item->save();
+
+    (new DispatchToRunnerJob($item->id, 'live'))->failed(new RunnerException('http_5xx'));
+
+    $runner = $item->refresh()->ai_state['runner'];
+    expect($runner['status'])->toBe('completed')
+        ->and($runner['analysis_posted'])->toBeTrue();
+});

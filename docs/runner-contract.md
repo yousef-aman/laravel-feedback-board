@@ -43,7 +43,7 @@ When a runner task is dispatched, the package sends a signed POST to your config
   "item": {
     "id": 42,
     "type": "bug",
-    "status": "open",
+    "status": "in_progress",
     "priority": "high",
     "title": "Login button unresponsive on Safari",
     "description": "Clicking the login button on Safari 17 does nothing. No JS errors visible.",
@@ -272,7 +272,7 @@ X-Feedback-Delivery: 01J1ZZABCDEF123
   "item": {
     "id": 99,
     "type": "bug",
-    "status": "open",
+    "status": "new",
     "priority": "high",
     "title": "NPE on checkout",
     "description": "...",
@@ -313,11 +313,10 @@ diff, and a link to PR #42. Developer reviews the PR, applies it if appropriate.
 
 | Config key | Env var | Description |
 |------------|---------|-------------|
-| `runner.enabled` | `FEEDBACK_RUNNER_ENABLED` | Enable the runner dispatch (default: `false`) |
+| `runner.enabled` | `FEEDBACK_BOARD_RUNNER_ENABLED` | Enable the runner dispatch (default: `false`) |
 | `runner.endpoint` | `FEEDBACK_RUNNER_ENDPOINT` | HTTPS URL of your receiver script |
 | `runner.secret` | `FEEDBACK_RUNNER_SECRET` | HMAC secret for outbound runner POST |
-| `runner.timeout` | `FEEDBACK_RUNNER_TIMEOUT` | HTTP timeout in seconds (default: `10`) |
-| `runner.queue` | `FEEDBACK_RUNNER_QUEUE` | Queue name for the dispatch job |
+| `runner.callback_url` | `FEEDBACK_RUNNER_CALLBACK_URL` | Optional explicit ingest URL placed in the task envelope's callback block |
 | `ingest.enabled` | `FEEDBACK_BOARD_INGEST_ENABLED` | Must be `true` for post-back to be accepted |
 | `ingest.secret` | `FEEDBACK_BOARD_INGEST_SECRET` | HMAC secret for verifying ingest POST-back |
 

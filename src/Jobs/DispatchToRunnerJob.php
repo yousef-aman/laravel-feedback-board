@@ -69,6 +69,9 @@ class DispatchToRunnerJob implements ShouldQueue
             if (($fresh->ai_state['runner']['task_id'] ?? null) !== $this->taskId) {
                 return; // a newer dispatch owns the slot now
             }
+            if (($fresh->ai_state['runner']['status'] ?? null) !== 'dispatched') {
+                return; // the runner already advanced this task_id (running/completed/failed) — do not regress
+            }
             RunnerState::merge($fresh, [
                 'status' => 'failed',
                 'failed_origin' => 'dispatch',

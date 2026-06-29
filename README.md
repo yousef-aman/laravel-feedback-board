@@ -232,14 +232,14 @@ package's signed ingest endpoint and appear in the board for developer review.
 
 **Key runner config keys:**
 
-| Key | Description |
-|-----|-------------|
-| `runner.enabled` | Enable runner dispatch (default: `false`, opt-in) |
-| `runner.endpoint` | HTTPS URL of your HMAC-verifying receiver |
-| `runner.secret` | HMAC secret (`FEEDBACK_RUNNER_SECRET`) for outbound signing |
-| `runner.queue` | Queue for the dispatch job |
-| `ingest.enabled` | Must be `true` to accept runner post-back results |
-| `ingest.secret` | HMAC secret (`FEEDBACK_BOARD_INGEST_SECRET`) for verifying post-back |
+| Key | Env var | Description |
+|-----|---------|-------------|
+| `runner.enabled` | `FEEDBACK_BOARD_RUNNER_ENABLED` | Enable runner dispatch (default: `false`, opt-in) |
+| `runner.endpoint` | `FEEDBACK_RUNNER_ENDPOINT` | HTTPS URL of your HMAC-verifying receiver |
+| `runner.secret` | `FEEDBACK_RUNNER_SECRET` | HMAC secret for outbound signing |
+| `runner.callback_url` | `FEEDBACK_RUNNER_CALLBACK_URL` | Optional explicit ingest URL placed in the task envelope |
+| `ingest.enabled` | `FEEDBACK_BOARD_INGEST_ENABLED` | Must be `true` to accept runner post-back results |
+| `ingest.secret` | `FEEDBACK_BOARD_INGEST_SECRET` | HMAC secret for verifying post-back |
 
 **Important:** The runner runs in your CI/dev environment with scoped credentials — never in
 the production application context. The package never auto-merges; it stores a PR link and
