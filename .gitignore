@@ -4,3 +4,6 @@ composer.lock
 .idea/
 .phpunit.result.cache
 .DS_Store
+
+# SDD process scratch (implementer/review reports, ledger)
+.superpowers/
