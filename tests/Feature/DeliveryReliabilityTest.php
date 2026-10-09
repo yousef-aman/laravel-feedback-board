@@ -82,6 +82,22 @@ it('keeps the report when a destination delivery fails on the sync queue', funct
     Exceptions::assertReported(\Illuminate\Http\Client\ConnectionException::class);
 });
 
+it('keeps the report when AI triage fails on the sync queue', function () {
+    Exceptions::fake();
+    config()->set('queue.default', 'sync');
+    config()->set('feedback-board.ai.enabled', true);
+    config()->set('feedback-board.ai.default', 'anthropic');
+    config()->set('feedback-board.ai.anthropic.api_key', 'sk-ant-secret');
+    Http::fake(['*' => Http::response(['error' => 'overloaded'], 529)]);
+
+    app(CreateFeedbackItem::class)->handle(['title' => 'Triaged', 'type' => FeedbackType::Bug], null);
+
+    $item = FeedbackItem::where('title', 'Triaged')->first();
+    expect($item)->not->toBeNull()
+        ->and($item->ai_state['triage']['status'] ?? null)->toBe('failed');
+    Exceptions::assertReported(\YousefAman\FeedbackBoard\Triage\Exceptions\TriageException::class);
+});
+
 it('keeps a developer reply and a resolve when the reporter notification fails', function () {
     Exceptions::fake();
     useFailingMailer();
