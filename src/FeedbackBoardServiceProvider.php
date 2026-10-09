@@ -27,6 +27,8 @@ class FeedbackBoardServiceProvider extends PackageServiceProvider
 
     public function packageRegistered(): void
     {
+        $this->app->singleton(FeedbackBoard::class);
+
         $this->app->singleton(
             \YousefAman\FeedbackBoard\Destinations\DestinationManager::class,
             fn ($app) => new \YousefAman\FeedbackBoard\Destinations\DestinationManager($app),
@@ -40,10 +42,11 @@ class FeedbackBoardServiceProvider extends PackageServiceProvider
 
     public function packageBooted(): void
     {
-        \Illuminate\Support\Facades\Gate::define('feedback-board.manage', function ($user) {
-            $resolver = config('feedback-board.authorization.developer_resolver');
-            return is_callable($resolver) ? (bool) $resolver($user) : false;
-        });
+        // Untyped, non-nullable parameter: Gate denies guests before this runs.
+        \Illuminate\Support\Facades\Gate::define(
+            'feedback-board.manage',
+            fn ($user) => app(FeedbackBoard::class)->resolveDeveloper($user),
+        );
 
         \Illuminate\Support\Facades\Gate::policy(
             \YousefAman\FeedbackBoard\Models\FeedbackItem::class,
