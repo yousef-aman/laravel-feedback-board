@@ -4,7 +4,7 @@
 
 **Goal:** Make `yousefaman/feedback-board` installable and deployable on Laravel 12/13 × Livewire 3/4 × Filament 4/5. This covers `config:cache`/`view:cache`-safe operation, notifications that can never lose a user's action, a `feedback-board:install` command, a CI matrix and accurate docs.
 
-**Architecture:** The package keeps its spatie/laravel-package-tools service provider. A new container singleton, `FeedbackBoard`, and its facade replace closures in config for developer access and recipients. The `feedback-board.manage` gate delegates to it. Notification sends move behind `DB::afterCommit` + `rescue()`. A Filament-only Blade view moves to a second view root, which is loaded only when Filament's panel provider is registered. A dedicated Pest test case boots a real Filament panel for smoke coverage.
+**Architecture:** The package keeps its spatie/laravel-package-tools service provider. A new container singleton, `FeedbackBoard`, and its facade replace closures in config for developer access and recipients. The `feedback-board.manage` gate delegates to it. Notification sends and destination-job dispatches move behind `DB::afterCommit` + `rescue()`. A Filament-only Blade view moves to a second view root, which is loaded and publishable only when Filament's panel provider is registered. A dedicated Pest test case boots a real Filament panel for smoke coverage.
 
 **Tech Stack:** PHP 8.2+, Laravel 12/13, Livewire 3.8.3+/4.3.4+, Filament 4/5 (optional), spatie/laravel-package-tools ^1.19, Pest 3/4, Orchestra Testbench 10/11, GitHub Actions.
 
@@ -23,14 +23,20 @@ All code and tests in this plan were run in a throwaway copy of the repository b
   - L12.0.1 / LW4.0.0 / F5.0.0 / package-tools 1.19.0
 - **The five Review Focus tests** were run on the first lane only.
 - **The re-run install test is proven to catch a regression.** With Spatie's migration filename reuse disabled, it fails with "actual size 8 matches expected size 4".
+- **After the adversarial review fixes (deltas 6–10):** the full **241-test** suite passed on L12.62 / LW3.8.1 / F4.11.7 and on L13.35 / LW4.4.7 / F5.10.1. Earlier, a reviewer rebuilt the pre-review plan task by task and confirmed every red phase, count and git command. For the review fixes, the new red phases were reproduced against reconstructed pre-task code: Task 4 gives 10 failed / 6 passed, and Task 5 gives 9 failed, then 8 passed / 1 failed. The new intermediate counts (212, 228, 230, 239) are derived from those runs. With delta 9's constraints, the prefer-lowest lanes resolved exactly LW 3.8.3 / F4.0.0 and LW 4.3.4 / F5.0.0, on L12.0.1 with package-tools 1.19.0. Task 8's `v1-lane.sh`, run as written on the `low4` lane with the final code, resolved LW 4.3.4 / F5.0.0 / L12.0.1 / package-tools 1.19.0 and passed **241**.
 
-The prototype found five places where the plan departs from the spec, each for a stated reason:
+The prototype and the review found ten places where the plan departs from the spec, each for a stated reason:
 
 1. **§4.2: only `board-page.blade.php` moves to `resources/views-filament/`.** It is the only view that uses a Filament component (`<x-filament-panels::page>`). `runner-result` and `triage-suggestion` are plain Blade. Moving them broke two existing tests that render them without Filament registered (`RunnerFilamentTest`, `TriageFilamentTest`). Keeping them in place also keeps them publishable with `--tag=feedback-board-views`.
 2. **§5.2: `isDeveloper()` accepts `?Authenticatable`.** A guest (`null`) returns `false` instead of a `TypeError`. This is Review Focus #2: host code calls `FeedbackBoard::isDeveloper(auth()->user())` in layouts that guests also see.
 3. **§9.1.1: the repository resolves L13 / LW4.4.7 / F5.10.1 / Pest 4 after `composer update`, not L12/LW3/F4.** A dry-run on PHP 8.4 confirmed this. The repository stack therefore exposes the Livewire 4 failure as Task 1's red phase, and the L12 / LW3 / F4 combination becomes a scratch lane in Task 8.
 4. **§8: the README's Filament page URL is corrected.** It now reads `/admin/feedback-board-page`, the page's actual slug (verified with `FeedbackBoardPage::getUrl()`). It sits inside the Filament section that §8 already edits.
 5. **§9.2: `FilamentTestCase` needs a narrower `tests/Pest.php` scope.** Pest rejects two test-case classes on overlapping directories, so `TestCase` is now scoped to `Feature`, `Unit` and `Smoke`, and `FilamentTestCase` to `Filament`. `ArchTest.php` needs no test case.
+6. **§5.3: a non-callable, non-null `developer_resolver` is reported and denies; it does not throw.** A probe showed the throw turning every page that checks access into a 500 for every user, including Filament's Dashboard (navigation calls `FeedbackBoardPage::canAccess()`) and reporters' own report pages. `report()` keeps it loud in logs and error tracking, and the result stays deny-by-default.
+7. **§5.3: developer e-mails are trimmed and validated with Laravel's `email` rule (RFC validation), not `FILTER_VALIDATE_EMAIL`.** `FILTER_VALIDATE_EMAIL` rejects addresses the mailer delivers, such as `dev@localhost` with Mailpit and internationalised domains. `FEEDBACK_BOARD_DEVELOPER_EMAIL` is now read as a comma-separated list; previously a list was a single invalid entry.
+8. **§6.2: destination jobs are dispatched after commit, best-effort.** The spec said `DeliverToDestination` was "unchanged". A probe showed that on the `sync` queue a Slack outage rolled back the user's report, because `DispatchToDestinations` dispatches inside the action's transaction. A failing queue push (for example, Redis down) would do the same.
+9. **§2.3: the CI and verification Livewire axis uses `^3.8.3` / `^4.3.4`, not `3.*` / `4.*`.** `composer require livewire/livewire:3.*` replaces the root constraint, so prefer-lowest resolved the vulnerable 3.5.20 / 4.0.0 and never the declared floors.
+10. **§4.2: the board page is publishable.** When Filament is registered, `views-filament` joins the `feedback-board-views` publish tag, which removes the spec's accepted limitation.
 
 ## Global Constraints
 
@@ -50,8 +56,8 @@ The prototype found five places where the plan departs from the spec, each for a
   - The anonymous component `<x-feedback-board::launcher />`.
   - View names: `feedback-board::filament.board-page`, `::filament.runner-result`, `::filament.triage-suggestion`.
 - No closure may appear in the shipped `config/feedback-board.php`. `tests/Smoke/ConfigSerializableTest.php` guards this from Task 4 onward.
-- Developer access stays deny-by-default. The gate parameter stays untyped and non-nullable, so guests are denied before the callback runs.
-- Notifications stay synchronous. They are sent after the action's transaction commits and are best-effort (`rescue(..., report: true)`). The default channel is `['mail']`.
+- Developer access stays deny-by-default. The gate parameter stays untyped and non-nullable, so guests are denied before the callback runs. A misconfiguration is reported, never thrown.
+- Notifications stay synchronous. They are sent after the action's transaction commits and are best-effort (`rescue(..., report: true)`). Destination jobs are dispatched the same way. The default channel is `['mail']`. Nothing the package sends or queues may roll back or fail a user's report, reply or status change.
 - Match the surrounding style: fully qualified facade calls inline in `FeedbackBoardServiceProvider`, compact Pest tests, English comments and console output.
 
 **Testing and git**
@@ -76,13 +82,13 @@ These are inputs the spec implies but no spec-listed test exercises. Each line n
 |---|---|---|
 | `composer.json` | 1 | Constraints, `suggest`, no stability keys |
 | `.github/workflows/tests.yml` | 1 | 14 prefer-stable + 2 prefer-lowest jobs |
-| `src/FeedbackBoardServiceProvider.php` | 1, 3, 4, 6 | Livewire `addNamespace`; Filament view root; `FeedbackBoard` singleton + gate; install command |
+| `src/FeedbackBoardServiceProvider.php` | 1, 3, 4, 6 | Livewire `addNamespace`; Filament view root and its publish path; `FeedbackBoard` singleton + gate; install command |
 | `tests/Feature/LivewireRegistrationTest.php` | 1 | Name resolution on both majors; launcher render |
 | `tests/Pest.php` | 2 | Test-case scoping |
 | `tests/Filament/FilamentTestCase.php` | 2 | Boots a real panel |
 | `tests/Filament/TestPanelProvider.php` | 2 | Panel `admin` with `FeedbackBoardPlugin` |
 | `tests/Filament/FilamentTestUser.php` | 2 | `FilamentUser` test model |
-| `tests/Filament/PanelSmokeTest.php` | 2, 3 | HTTP smoke tests; `view:cache` with Filament |
+| `tests/Filament/PanelSmokeTest.php` | 2, 3 | HTTP smoke tests; `view:cache` with Filament; view publishing |
 | `resources/views/filament/board-page.blade.php` → `resources/views-filament/filament/board-page.blade.php` | 3 | Filament-only view |
 | `tests/Feature/ViewCacheTest.php` | 3 | `view:cache` without Filament |
 | `src/FeedbackBoard.php` | 4 | Developer access and recipients |
@@ -90,14 +96,15 @@ These are inputs the spec implies but no spec-listed test exercises. Each line n
 | `src/Support/DeveloperRecipients.php` | 4 | Delegates to `FeedbackBoard` |
 | `config/feedback-board.php` | 4, 5 | Comments; `channels` default |
 | `tests/Fixtures/DeveloperCheck.php` | 4 | Static-callable fixture |
-| `tests/Feature/DeveloperAccessTest.php` | 4 | §5.5 tests 1–7, §6.3 test 5, Review Focus 1–2 |
+| `tests/Feature/DeveloperAccessTest.php` | 4 | §5.5 tests 1–7, §6.3 test 5, Review Focus 1–2, e-mail edge cases |
 | `tests/Smoke/ConfigSerializableTest.php` | 4 | §5.5 test 8 |
 | `src/Listeners/SendFeedbackNotifications.php` | 5 | After-commit, best-effort sends |
-| `tests/Feature/NotificationReliabilityTest.php` | 5 | §6.3 tests 1–4 and 6, Review Focus 3–5 |
+| `src/Listeners/DispatchToDestinations.php` | 5 | After-commit, best-effort destination dispatch (delta 8) |
+| `tests/Feature/DeliveryReliabilityTest.php` | 5 | §6.3 tests 1–4 and 6, Review Focus 3–5, destination durability |
 | `tests/Feature/InstallCommandTest.php` | 6 | §7.3 |
 | `README.md` | 7 | §8 |
 
-Expected suite size after each task: 200 → **206** (T1) → **209** (T2) → **211** (T3) → **225** (T4) → **233** (T5) → **235** (T6).
+Expected suite size after each task: 200 → **206** (T1) → **209** (T2) → **212** (T3) → **230** (T4) → **239** (T5) → **241** (T6).
 
 ---
 
@@ -252,7 +259,9 @@ jobs:
       matrix:
         php: ['8.2', '8.3', '8.4', '8.5']
         laravel: ['12.*', '13.*']
-        livewire: ['3.*', '4.*']
+        # The package's own floors: `composer require` replaces the root constraint, so `3.*`
+        # would let prefer-lowest resolve Livewire versions with known advisories.
+        livewire: ['^3.8.3', '^4.3.4']
         stability: ['prefer-stable']
         exclude:
           - php: '8.2'
@@ -260,11 +269,11 @@ jobs:
         include:
           - php: '8.2'
             laravel: '12.*'
-            livewire: '3.*'
+            livewire: '^3.8.3'
             stability: 'prefer-lowest'
           - php: '8.2'
             laravel: '12.*'
-            livewire: '4.*'
+            livewire: '^4.3.4'
             stability: 'prefer-lowest'
     name: PHP ${{ matrix.php }} · L${{ matrix.laravel }} · LW${{ matrix.livewire }} · ${{ matrix.stability }}
     steps:
@@ -526,7 +535,9 @@ FeedbackBoardPlugin; smoke tests cover 200 for developers, 403 otherwise."
 
 **Interfaces:**
 - Consumes: Task 2's `FilamentTestCase` and `PanelSmokeTest.php`.
-- Produces: view `feedback-board::filament.board-page`, which resolves only when `Filament\FilamentServiceProvider` is registered. `runner-result` and `triage-suggestion` stay in `resources/views/filament/` (spec delta 1).
+- Produces:
+  - View `feedback-board::filament.board-page`, which resolves only when `Filament\FilamentServiceProvider` is registered. With Filament registered, it is also published by `--tag=feedback-board-views` (delta 10).
+  - `runner-result` and `triage-suggestion` stay in `resources/views/filament/` (delta 1).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -560,6 +571,7 @@ Replace `tests/Filament/PanelSmokeTest.php` with:
 <?php
 
 use Illuminate\Support\Facades\Artisan;
+use YousefAman\FeedbackBoard\FeedbackBoardServiceProvider;
 use YousefAman\FeedbackBoard\Filament\Pages\FeedbackBoardPage;
 use YousefAman\FeedbackBoard\Filament\Resources\FeedbackItemResource;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
@@ -597,6 +609,14 @@ it('compiles every view, Filament-only ones included, with view:cache', function
     expect(Artisan::call('view:cache'))->toBe(0)
         ->and(view()->exists('feedback-board::filament.board-page'))->toBeTrue();
 });
+
+it('publishes the Filament-only view with the package views', function () {
+    $sources = array_map('realpath', array_keys(
+        \Illuminate\Support\ServiceProvider::pathsToPublish(FeedbackBoardServiceProvider::class, 'feedback-board-views')
+    ));
+
+    expect($sources)->toContain(realpath(__DIR__.'/../../resources/views-filament'));
+});
 ```
 
 - [ ] **Step 4: Move the view and confirm the Filament path breaks**
@@ -612,6 +632,7 @@ Expected:
 - `ViewCacheTest` PASSES.
 - `serves the board page to a developer` FAILS: a 500 instead of 200, caused by `View [filament.board-page] not found`.
 - `compiles every view…` FAILS on the `exists` assertion.
+- `publishes the Filament-only view…` FAILS because `resources/views-filament` is not in the publish map yet.
 - The 403 and resource tests still pass.
 
 This proves the next step is needed.
@@ -626,16 +647,22 @@ Append to the end of `packageBooted()` in `src/FeedbackBoardServiceProvider.php`
         // `php artisan view:cache` does not compile them in apps without Filament.
         if ($this->app->providerIsLoaded(\Filament\FilamentServiceProvider::class)) {
             $this->loadViewsFrom(__DIR__.'/../resources/views-filament', 'feedback-board');
+            $this->publishes(
+                [__DIR__.'/../resources/views-filament' => resource_path('views/vendor/feedback-board')],
+                'feedback-board-views',
+            );
         }
 ```
 
 `providerIsLoaded` reflects registration, and every provider registers before any boots, so the check does not depend on boot order. The `::class` constant does not autoload, so the check is safe without Filament installed.
 
+`publishes()` merges with Spatie's `resources/views` entry under the same tag, so `vendor:publish --tag=feedback-board-views` writes `filament/board-page.blade.php` into the same `views/vendor/feedback-board` directory.
+
 - [ ] **Step 6: Run the tests to verify they pass**
 
 Run: `vendor/bin/pest tests/Feature/ViewCacheTest.php tests/Filament`, then `vendor/bin/pest`.
 
-Expected: 5 passed, then **211 passed**.
+Expected: 6 passed, then **212 passed**.
 
 - [ ] **Step 7: Commit**
 
@@ -646,8 +673,9 @@ git commit -m "fix(views): keep the Filament board page out of view:cache withou
 
 board-page wraps <x-filament-panels::page>, which view:cache resolves at
 compile time, so php artisan optimize failed in every app without Filament.
-Move it to resources/views-filament and load that root under the same
-feedback-board namespace only when Filament's panel provider is registered."
+Move it to resources/views-filament and, only when Filament's panel provider
+is registered, load that root under the same feedback-board namespace and
+publish it with the feedback-board-views tag."
 ```
 
 ---
@@ -709,6 +737,7 @@ Create `tests/Feature/DeveloperAccessTest.php`:
 ```php
 <?php
 
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
@@ -755,12 +784,14 @@ it('denies everyone when nothing is configured', function () {
     expect(Gate::forUser($this->dev)->allows('feedback-board.manage'))->toBeFalse();
 });
 
-it('fails loudly on a non-callable developer_resolver instead of silently denying', function () {
-    // An invokable class name is not callable as a string, so it used to deny every user.
+it('denies and reports a non-callable developer_resolver instead of failing silently', function () {
+    // An invokable class name is not callable as a string; it used to deny every user without a trace.
+    Exceptions::fake();
     config()->set('feedback-board.authorization.developer_resolver', DeveloperCheck::class);
 
-    Gate::forUser($this->dev)->allows('feedback-board.manage');
-})->throws(InvalidArgumentException::class, 'feedback-board.authorization.developer_resolver');
+    expect(Gate::forUser($this->dev)->allows('feedback-board.manage'))->toBeFalse();
+    Exceptions::assertReported(fn (InvalidArgumentException $e) => str_contains($e->getMessage(), 'feedback-board.authorization.developer_resolver'));
+});
 
 it('answers isDeveloper() through the gate, honouring Gate::before', function () {
     FeedbackBoard::resolveDevelopersUsing(fn () => false);
@@ -808,7 +839,7 @@ it('targets notifyDevelopersUsing recipients with the delivery-failure database 
 it('notifies only valid developer e-mails and warns once about the rest', function () {
     Notification::fake();
     Log::spy();
-    config()->set('feedback-board.notifications.developers', ['dev@example.com', 1, 'not-an-email']);
+    config()->set('feedback-board.notifications.developers', ['dev@example.com', 1, 'not-an-email', 'a@x.com,b@x.com']);
 
     app(CreateFeedbackItem::class)->handle(['title' => 'X', 'type' => FeedbackType::Bug], null);
 
@@ -820,6 +851,36 @@ it('notifies only valid developer e-mails and warns once about the rest', functi
     Log::shouldHaveReceived('warning')
         ->once()
         ->withArgs(fn (string $message) => str_contains($message, 'feedback-board.notifications.developers'));
+});
+
+it('accepts every address the mailer accepts', function (string $email, string $routed) {
+    Notification::fake();
+    Log::spy();
+    config()->set('feedback-board.notifications.developers', [$email]);
+
+    app(CreateFeedbackItem::class)->handle(['title' => 'X', 'type' => FeedbackType::Bug], null);
+
+    Notification::assertSentOnDemand(
+        NewFeedbackNotification::class,
+        fn ($notification, array $channels, object $notifiable) => $notifiable->routes['mail'] === $routed,
+    );
+    Log::shouldNotHaveReceived('warning');
+})->with([
+    'local mail catcher' => ['dev@localhost', 'dev@localhost'],
+    'surrounding whitespace' => [' dev@example.com ', 'dev@example.com'],
+    'internationalised domain' => ['dev@exämple.com', 'dev@exämple.com'],
+]);
+
+it('reads a comma-separated FEEDBACK_BOARD_DEVELOPER_EMAIL', function () {
+    $_SERVER['FEEDBACK_BOARD_DEVELOPER_EMAIL'] = 'dev@example.com, lead@example.com';
+
+    try {
+        $config = require __DIR__.'/../../config/feedback-board.php';
+    } finally {
+        unset($_SERVER['FEEDBACK_BOARD_DEVELOPER_EMAIL']);
+    }
+
+    expect(array_values($config['notifications']['developers']))->toBe(['dev@example.com', 'lead@example.com']);
 });
 
 it('stays silent on a default install with no developer e-mails', function () {
@@ -839,10 +900,20 @@ it('stays silent on a default install with no developer e-mails', function () {
 Run: `vendor/bin/pest tests/Feature/DeveloperAccessTest.php`
 
 Expected:
-- Every test that uses the facade FAILS with `Class "YousefAman\FeedbackBoard\Facades\FeedbackBoard" not found`.
-- The `throws` test FAILS because the current gate silently denies.
-- The invalid-e-mail test FAILS because all three entries become mail routes: 3 on-demand sends, not 1.
-- Three tests already PASS: the static-callable datasets, `denies everyone…` and `stays silent…`. They pin existing behaviour that must survive the change.
+**10 failed, 6 passed.**
+
+The ten failures:
+- The six tests that use the facade FAIL with `Class "YousefAman\FeedbackBoard\Facades\FeedbackBoard" not found`.
+- `denies and reports a non-callable…` FAILS on `assertReported`: the current gate denies silently.
+- The invalid-e-mail test FAILS because every entry becomes a mail route.
+- The `surrounding whitespace` dataset row FAILS because nothing is trimmed.
+- `reads a comma-separated…` FAILS because the whole string is one entry.
+
+The six that already pass pin existing behaviour that must survive the change:
+- the two static-callable rows;
+- `denies everyone…`;
+- the `local mail catcher` and `internationalised domain` rows;
+- `stays silent…`.
 
 - [ ] **Step 4: Create the `FeedbackBoard` class**
 
@@ -861,6 +932,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Validator;
 use InvalidArgumentException;
 
 /**
@@ -911,11 +983,15 @@ class FeedbackBoard
         }
 
         if (! is_callable($resolver)) {
-            throw new InvalidArgumentException(
+            // Deny, but loudly: throwing here would turn every page that checks access
+            // (Filament navigation included) into a 500 for every user.
+            report(new InvalidArgumentException(
                 'feedback-board.authorization.developer_resolver must be null or a public static method callable '
                 .'such as [DeveloperCheck::class, \'handle\']. Register anything else with '
                 .'FeedbackBoard::resolveDevelopersUsing() in AppServiceProvider::boot().'
-            );
+            ));
+
+            return false;
         }
 
         return (bool) $resolver($user);
@@ -936,9 +1012,12 @@ class FeedbackBoard
             return collect($config());
         }
 
-        [$emails, $invalid] = collect($config ?? [])->partition(
-            fn ($entry) => is_string($entry) && filter_var($entry, FILTER_VALIDATE_EMAIL) !== false
-        );
+        // Laravel's `email` rule (RFC validation): accepts what the mailer accepts,
+        // including dev@localhost-style addresses used with local mail catchers.
+        [$emails, $invalid] = collect($config ?? [])
+            ->map(fn ($entry) => is_string($entry) ? trim($entry) : $entry)
+            ->partition(fn ($entry) => is_string($entry)
+                && Validator::make(['email' => $entry], ['email' => ['required', 'email']])->passes());
 
         if ($invalid->isNotEmpty()) {
             Log::warning('Feedback Board skipped entries in feedback-board.notifications.developers that are not e-mail addresses.', [
@@ -1028,13 +1107,7 @@ class DeveloperRecipients
 
 Its callers are `SendFeedbackNotifications`, through constructor injection, and `DeliverToDestination::notifyDevelopers()`. Neither changes.
 
-- [ ] **Step 8: Run the tests to verify they pass**
-
-Run: `vendor/bin/pest tests/Feature/DeveloperAccessTest.php`, then `vendor/bin/pest`.
-
-Expected: 12 passed, then **223 passed**. Existing tests that `config()->set(...)` a closure resolver still pass, because runtime config is never cached.
-
-- [ ] **Step 9: Replace the closure examples in the config comments**
+- [ ] **Step 8: Replace the closure examples in the config comments and read the env list**
 
 In `config/feedback-board.php`, replace the `authorization` block with:
 
@@ -1051,12 +1124,20 @@ In `config/feedback-board.php`, replace the `authorization` block with:
 Then replace the comment and the `developers` line in the `notifications` block, keeping `'channels'` unchanged until Task 5:
 
 ```php
-        // E-mail addresses to notify. For notifiable models, register
-        // FeedbackBoard::notifyDevelopersUsing(...) in AppServiceProvider::boot() instead;
-        // it takes precedence over this key. A closure here breaks `php artisan config:cache`;
-        // a public static method callable returning notifiables is safe.
-        'developers' => array_filter([env('FEEDBACK_BOARD_DEVELOPER_EMAIL')]),
+        // E-mail addresses to notify (FEEDBACK_BOARD_DEVELOPER_EMAIL may be comma-separated).
+        // For notifiable models, register FeedbackBoard::notifyDevelopersUsing(...) in
+        // AppServiceProvider::boot() instead; it takes precedence over this key. A closure
+        // here breaks `php artisan config:cache`; a public static method callable is safe.
+        'developers' => array_filter(array_map('trim', explode(',', (string) env('FEEDBACK_BOARD_DEVELOPER_EMAIL', '')))),
 ```
+
+With the variable unset this is `[]`, exactly as before.
+
+- [ ] **Step 9: Run the tests to verify they pass**
+
+Run: `vendor/bin/pest tests/Feature/DeveloperAccessTest.php`, then `vendor/bin/pest`.
+
+Expected: 16 passed, then **228 passed**. Existing tests that `config()->set(...)` a closure resolver still pass, because runtime config is never cached.
 
 - [ ] **Step 10: Add the permanent `config:cache` guard**
 
@@ -1093,13 +1174,13 @@ Temporarily change `'developer_resolver' => null,` in `config/feedback-board.php
 
 Expected: 2 FAIL with `Error: Call to undefined method Closure::__set_state()`.
 
-Revert the line to `'developer_resolver' => null,` and confirm with `git diff config/feedback-board.php` that only the comment edits from Step 9 remain.
+Revert the line to `'developer_resolver' => null,` and confirm with `git diff config/feedback-board.php` that only the Step 8 edits remain.
 
 - [ ] **Step 12: Run the full suite**
 
 Run: `vendor/bin/pest`
 
-Expected: **225 passed**, with `Tests\ArchTest` PASS: both new `src/` classes declare `strict_types`.
+Expected: **230 passed**, with `Tests\ArchTest` PASS: both new `src/` classes declare `strict_types`.
 
 - [ ] **Step 13: Commit**
 
@@ -1111,20 +1192,23 @@ Closures in config/feedback-board.php break php artisan config:cache. Add
 FeedbackBoard::resolveDevelopersUsing()/notifyDevelopersUsing() (container
 singleton, registered from AppServiceProvider::boot) and isDeveloper(),
 which answers through the gate so Gate::before hooks apply. Registered
-callbacks take precedence; config keeps null or public static callables and
-now throws on any other non-null resolver instead of silently denying.
-Developer e-mails are validated: invalid entries are skipped with one
-warning. A var_export round-trip test guards the shipped config."
+callbacks take precedence; config keeps null or public static callables; any
+other non-null resolver is now reported (and still denies) instead of failing
+silently. Developer e-mails are trimmed and validated with Laravel's email
+rule (invalid entries skipped with one warning), and
+FEEDBACK_BOARD_DEVELOPER_EMAIL accepts a comma-separated list. A var_export
+round-trip test guards the shipped config."
 ```
 
 ---
 
-### Task 5: Notification reliability — after commit, best-effort, `mail` by default
+### Task 5: Delivery reliability — notifications and destination jobs after commit, best-effort; `mail` by default
 
 **Files:**
 - Modify: `src/Listeners/SendFeedbackNotifications.php` (full replacement)
+- Modify: `src/Listeners/DispatchToDestinations.php` (imports, the two dispatch calls, a new `dispatchAfterCommit()` method)
 - Modify: `config/feedback-board.php` (`notifications.channels`)
-- Create: `tests/Feature/NotificationReliabilityTest.php`
+- Create: `tests/Feature/DeliveryReliabilityTest.php`
 
 **Interfaces:**
 - Consumes:
@@ -1133,16 +1217,19 @@ warning. A var_export round-trip test guards the shipped config."
 - Produces:
   - `SendFeedbackNotifications` keeps the same `subscribe()` map.
   - New `protected function sendAfterCommit(Closure $send): void`.
+  - `DispatchToDestinations` keeps the same `subscribe()` map.
+  - New `protected function dispatchAfterCommit(DeliverToDestination $job): void`.
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `tests/Feature/NotificationReliabilityTest.php`:
+Create `tests/Feature/DeliveryReliabilityTest.php`:
 
 ```php
 <?php
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Exceptions;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Symfony\Component\Mailer\Exception\TransportException;
@@ -1204,6 +1291,22 @@ it('keeps the report when the notifyDevelopersUsing callback throws', function (
 
     expect(FeedbackItem::where('title', 'Kept')->exists())->toBeTrue();
     Exceptions::assertReported(fn (RuntimeException $e) => $e->getMessage() === 'users table unavailable');
+});
+
+it('keeps the report when a destination delivery fails on the sync queue', function () {
+    Exceptions::fake();
+    config()->set('queue.default', 'sync');
+    config()->set('feedback-board.destinations.enabled', ['slack']);
+    config()->set('feedback-board.destinations.slack.webhook_url', 'https://hooks.slack.test/x');
+    config()->set('feedback-board.destinations.lock_store', 'array');
+    Http::fake(fn () => throw new \Illuminate\Http\Client\ConnectionException('refused'));
+
+    app(CreateFeedbackItem::class)->handle(['title' => 'Kept', 'type' => FeedbackType::Bug], null);
+
+    $item = FeedbackItem::where('title', 'Kept')->first();
+    expect($item)->not->toBeNull()
+        ->and($item->external_refs['slack_last_error']['code'] ?? null)->toBe('connection_error');
+    Exceptions::assertReported(\Illuminate\Http\Client\ConnectionException::class);
 });
 
 it('keeps a developer reply and a resolve when the reporter notification fails', function () {
@@ -1269,10 +1372,10 @@ it('defaults to the mail channel only', function () {
 
 - [ ] **Step 2: Run them to verify they fail**
 
-Run: `vendor/bin/pest tests/Feature/NotificationReliabilityTest.php`
+Run: `vendor/bin/pest tests/Feature/DeliveryReliabilityTest.php`
 
-Expected: 8 FAIL.
-- The first five error with the propagated exception: `QueryException`, `TransportException`, `RuntimeException`, `TransportException` and `RuntimeException`, because the action rolled back.
+Expected: **9 FAIL.**
+- The first six error with the propagated exception, because the action rolled back: `QueryException`, `TransportException`, `RuntimeException`, `ConnectionException` (the Slack job runs inside the transaction on the sync queue), `TransportException` and `RuntimeException`.
 - The rollback test fails on `assertNothingSent`.
 - The outer-transaction test fails on the inner `assertNothingSent`.
 - `defaults to the mail channel only` fails with `['mail', 'database']`.
@@ -1365,13 +1468,56 @@ class SendFeedbackNotifications
 
 Recipients and the reporter relation resolve inside the callback, so the lookup happens lazily after commit. Any failure in it is rescued too.
 
-- [ ] **Step 4: Run the tests**
+- [ ] **Step 4: Dispatch destination jobs after commit, best-effort**
 
-Run: `vendor/bin/pest tests/Feature/NotificationReliabilityTest.php`
+In `src/Listeners/DispatchToDestinations.php`, make four edits.
 
-Expected: 7 passed. `defaults to the mail channel only` still FAILS with `['mail', 'database']`.
+First, replace the two imports `use Illuminate\Events\Dispatcher;` and `use Illuminate\Support\Str;` with:
 
-- [ ] **Step 5: Make `mail` the only default channel**
+```php
+use Illuminate\Events\Dispatcher;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+```
+
+Second, in `fanOut()`, replace `DeliverToDestination::dispatch($event, (string) $driver, (string) Str::uuid());` with:
+
+```php
+                $this->dispatchAfterCommit(new DeliverToDestination($event, (string) $driver, (string) Str::uuid()));
+```
+
+Third, in `maybeDispatchGithub()`, replace `DeliverToDestination::dispatch($event, 'github', (string) Str::uuid());` with:
+
+```php
+            $this->dispatchAfterCommit(new DeliverToDestination($event, 'github', (string) Str::uuid()));
+```
+
+Fourth, insert this method directly above `public function subscribe(Dispatcher $events): array`:
+
+```php
+    /**
+     * Queue only once the action's transaction has committed, and best-effort: a failing
+     * push, or a failing job on the sync queue, is reported and never thrown into the
+     * user's report, reply or status change. (Bus::dispatch, not ::dispatch(): a
+     * PendingDispatch would dispatch from its destructor, outside rescue().)
+     */
+    protected function dispatchAfterCommit(DeliverToDestination $job): void
+    {
+        DB::afterCommit(fn () => rescue(fn () => Bus::dispatch($job), report: true));
+    }
+
+```
+
+On the sync queue a failing job still runs its own `failed()` (sanitized `*_last_error`, developer database notification) before the exception reaches `rescue()`. The existing `FanOutTest` uses `Bus::fake()`, which records `Bus::dispatch` exactly as before.
+
+- [ ] **Step 5: Run the tests**
+
+Run: `vendor/bin/pest tests/Feature/DeliveryReliabilityTest.php tests/Feature/Destinations tests/Feature/DestinationsTest.php`
+
+Expected: everything passes except `defaults to the mail channel only`, which still FAILS with `['mail', 'database']`.
+
+- [ ] **Step 6: Make `mail` the only default channel**
 
 In `config/feedback-board.php`, replace `'channels' => ['mail', 'database'],` with:
 
@@ -1384,22 +1530,23 @@ In `config/feedback-board.php`, replace `'channels' => ['mail', 'database'],` wi
 
 The blank line separates it from the `developers` entry above.
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [ ] **Step 7: Run the tests to verify they pass**
 
-Run: `vendor/bin/pest tests/Feature/NotificationReliabilityTest.php`, then `vendor/bin/pest`.
+Run: `vendor/bin/pest tests/Feature/DeliveryReliabilityTest.php`, then `vendor/bin/pest`.
 
-Expected: 8 passed, then **233 passed**. The existing `NotificationTest` sets channels explicitly and is unaffected.
+Expected: 9 passed, then **239 passed**. The existing `NotificationTest` sets channels explicitly and is unaffected.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add src/Listeners/SendFeedbackNotifications.php config/feedback-board.php tests/Feature/NotificationReliabilityTest.php
-git commit -m "fix(notifications): send after commit and never lose the user's action
+git add src/Listeners/SendFeedbackNotifications.php src/Listeners/DispatchToDestinations.php config/feedback-board.php tests/Feature/DeliveryReliabilityTest.php
+git commit -m "fix(notifications): deliver after commit and never lose the user's action
 
-Notifications were sent synchronously inside the transaction that saves a
-report, reply or status change, so a mail outage, a missing notifications
-table or a failing recipient callback rolled the action back. Every send now
-runs in DB::afterCommit + rescue(report: true): nothing is sent if the
+Notifications were sent, and destination jobs dispatched, inside the
+transaction that saves a report, reply or status change, so a mail outage, a
+missing notifications table, a failing recipient callback or (on the sync
+queue) a Slack outage rolled the action back. Every send and dispatch now
+runs in DB::afterCommit + rescue(report: true): nothing goes out if the
 transaction rolls back, and a failure is reported instead of thrown.
 notifications.channels defaults to ['mail']; 'database' is an explicit
 opt-in after make:notifications-table."
@@ -1451,9 +1598,10 @@ it('publishes the config and the four migrations, then prints the next steps', f
     $this->artisan('feedback-board:install')
         ->expectsConfirmation('Would you like to run the migrations now?', 'no')
         ->expectsOutputToContain('<x-feedback-board::launcher />')
+        ->expectsOutputToContain('use YousefAman\\FeedbackBoard\\Facades\\FeedbackBoard;')
         ->expectsOutputToContain('FeedbackBoard::resolveDevelopersUsing')
         ->expectsOutputToContain('make:notifications-table')
-        ->expectsOutputToContain('FeedbackBoardPlugin::make()')
+        ->expectsOutputToContain('\\YousefAman\\FeedbackBoard\\Filament\\FeedbackBoardPlugin::make()')
         ->assertSuccessful();
 
     expect(File::exists(config_path('feedback-board.php')))->toBeTrue()
@@ -1520,13 +1668,15 @@ Third, add this method after `packageBooted()`:
         $command->info('Next steps:');
         $command->line('  1. Add the launcher to your authenticated layout: <x-feedback-board::launcher />');
         $command->line('  2. In AppServiceProvider::boot(), tell the package who your developers are:');
+        $command->line('       use YousefAman\\FeedbackBoard\\Facades\\FeedbackBoard;');
         $command->line('       FeedbackBoard::resolveDevelopersUsing(fn ($user) => $user->is_admin);');
-        $command->line('       FeedbackBoard::notifyDevelopersUsing(fn () => User::where(\'is_admin\', true)->get());');
+        $command->line('       FeedbackBoard::notifyDevelopersUsing(fn () => \\App\\Models\\User::where(\'is_admin\', true)->get());');
         $command->line('  3. Optional in-app notifications: run `php artisan make:notifications-table`, migrate,');
         $command->line('     and add \'database\' to feedback-board.notifications.channels.');
 
         if (class_exists(\Filament\Panel::class)) {
-            $command->line('  4. Register the Filament plugin in your panel provider: ->plugin(FeedbackBoardPlugin::make())');
+            $command->line('  4. Register the Filament plugin in your panel provider:');
+            $command->line('       ->plugin(\\YousefAman\\FeedbackBoard\\Filament\\FeedbackBoardPlugin::make())');
         }
 
         $command->line('  See the README for destinations, AI triage and the runner.');
@@ -1553,7 +1703,7 @@ rm -f vendor/orchestra/testbench-core/laravel/config/feedback-board.php vendor/o
 Expected:
 - `Publishing config...` and `Publishing migrations...` appear.
 - No migrations run.
-- The five next-step lines print, including step 4, since Filament is installed in dev, with `<x-feedback-board::launcher />` printed literally.
+- The next steps print, including step 4 since Filament is installed in dev. `<x-feedback-board::launcher />` prints literally, and the `use YousefAman\FeedbackBoard\Facades\FeedbackBoard;` line and the fully qualified plugin class print so the snippets can be pasted as-is.
 - The output ends with `feedback-board has been installed!`. On package-tools 1.19 this line comes before the next steps; nothing depends on the order.
 - The `rm` removes what the manual run published.
 
@@ -1561,7 +1711,7 @@ Expected:
 
 Run: `vendor/bin/pest`
 
-Expected: **235 passed**.
+Expected: **241 passed**.
 
 - [ ] **Step 7: Commit**
 
@@ -1599,7 +1749,7 @@ Leave the launcher's "floating button … modal overlay" sentence alone; the sty
 
 - [ ] **Step 1: Requirements**
 
-Replace the `## Requirements` list with:
+Replace the `## Requirements` heading and its list (README lines 9–13) with:
 
 ```markdown
 ## Requirements
@@ -1680,10 +1830,10 @@ To check access in your own code, use `FeedbackBoard::isDeveloper($user)`. It an
 
 ### 3. Configure developer notifications
 
-New reports, and replies from reporters, notify your developers. List their e-mail addresses in `.env`:
+New reports, and replies from reporters, notify your developers. List their e-mail addresses in `.env`, separated by commas:
 
 ```dotenv
-FEEDBACK_BOARD_DEVELOPER_EMAIL=dev@example.com
+FEEDBACK_BOARD_DEVELOPER_EMAIL=dev@example.com,lead@example.com
 ```
 
 or in the config file:
@@ -1695,7 +1845,7 @@ or in the config file:
 ],
 ```
 
-Entries that are not valid e-mail addresses are skipped, with a warning in your log.
+Entries that Laravel's `email` validation rule rejects are skipped, with a warning in your log. Addresses such as `dev@localhost`, for a local mail catcher like Mailpit, are accepted.
 
 To notify user models instead (for example, to also use Filament's in-app bell), register them in `AppServiceProvider::boot()`. This takes precedence over the config e-mails:
 
@@ -1714,13 +1864,19 @@ php artisan migrate
 
 Then add `'database'` to `notifications.channels` in `config/feedback-board.php`. To show the bell in a Filament panel, also call `->databaseNotifications()` on that panel. Recipients that are only e-mail addresses always receive mail only.
 
-Notifications are sent after the report, reply or status change is saved. If sending fails (for example, the mail server is down), the failure is reported to your exception handler and the user's action is still kept.
+Notifications are sent, and destination deliveries (webhook, Slack, GitHub) queued, only after the report, reply or status change is saved. If sending or queueing fails (for example, the mail server is down, or a Slack outage on the `sync` queue), the failure is reported to your exception handler and the user's action is still kept.
 
 ````
 
 - [ ] **Step 4: Filament Integration — URL fix and render hook**
 
-Replace the sentence `This adds a Kanban-style Feedback Board page (\`/admin/feedback-board\`) to your panel where developers can triage, reply, assign, and resolve reports.` with:
+Replace this sentence (README line 119):
+
+```markdown
+This adds a Kanban-style Feedback Board page (`/admin/feedback-board`) to your panel where developers can triage, reply, assign, and resolve reports.
+```
+
+with:
 
 ````markdown
 This adds a Kanban-style Feedback Board page (`/admin/feedback-board-page`) and a feedback items resource to your panel, where developers can triage, reply, assign, and resolve reports.
@@ -1754,7 +1910,7 @@ with:
 
 ```markdown
 | `authorization.developer_resolver` | callable\|null | Public static method returning `bool`; prefer `FeedbackBoard::resolveDevelopersUsing()` (a closure here breaks `config:cache`) |
-| `notifications.developers` | array\|callable | Developer e-mail addresses (invalid entries are skipped); for models prefer `FeedbackBoard::notifyDevelopersUsing()` |
+| `notifications.developers` | array\|callable | Developer e-mail addresses (`FEEDBACK_BOARD_DEVELOPER_EMAIL`, comma-separated; invalid entries are skipped); for models prefer `FeedbackBoard::notifyDevelopersUsing()` |
 | `notifications.channels` | array | Notification channels (default: `['mail']`; add `'database'` after `make:notifications-table`) |
 ```
 
@@ -1781,8 +1937,8 @@ git commit -m "docs(readme): install command, FeedbackBoard API and notification
 Requirements for Laravel 12/13 and Livewire 3/4; feedback-board:install as
 the primary path; developer access and recipients via the facade with the
 config:cache warning and the static-callable alternative; replace the broken
-[1, 2] recipients example; document mail-only default channels and post-
-commit delivery; correct the board URL and add a render-hook snippet for
+[1, 2] recipients example with comma-separated e-mails; document mail-only
+default channels and post-commit delivery; correct the board URL and add a render-hook snippet for
 reporters inside Filament panels; update the config reference rows."
 ```
 
@@ -1796,61 +1952,76 @@ reporters inside Filament panels; update the config reference rows."
 - Consumes: the finished branch.
 - Produces: the evidence for the merge decision.
 
-Set `SP` to the session scratchpad directory, for example the path the harness lists as "Scratchpad directory", and `WT` to the worktree root.
+Shell variables do not survive between tool calls, so every command below passes the two paths explicitly. `<SP>` is the session scratchpad directory, the path the harness lists as "Scratchpad directory". `<WT>` is the worktree root. Substitute both literally in each command.
 
 - [ ] **Step 1: Repository stack (L13 / LW4 / F5)**
 
-Run:
+Run, from the worktree root:
 ```bash
-cd "$WT" && vendor/bin/pest 2>&1 | tail -3
+vendor/bin/pest 2>&1 | tail -3
 composer validate --strict
 composer show | grep -E "^(laravel/framework|livewire/livewire|filament/filament|pestphp/pest|orchestra/testbench|spatie/laravel-package-tools) "
 ```
 
-Expected: `235 passed`, `./composer.json is valid`. Record the versions.
+Expected: `241 passed`, `./composer.json is valid`. Record the versions.
 
-- [ ] **Step 2: Prefer-stable scratch lanes**
+- [ ] **Step 2: Create the lane script**
 
-Run each lane with these arguments: `l12lw3 12.* 3.*`, `l12lw4 12.* 4.*` and `l13lw3 13.* 3.*`. For each lane:
+Create `<SP>/v1-lane.sh`. It is scratch tooling, not a repository file. It refuses to run without valid paths, so it can never run `composer require` inside the worktree.
 
 ```bash
-L=l12lw3; LV='12.*'; LWV='3.*'
-rm -rf "$SP/v1-$L" && mkdir -p "$SP/v1-$L"
-(cd "$WT" && tar --exclude=vendor --exclude=.git --exclude=.claude --exclude=composer.lock -cf - .) | (cd "$SP/v1-$L" && tar xf -)
-cd "$SP/v1-$L"
-composer require "laravel/framework:$LV" "livewire/livewire:$LWV" --no-update --no-interaction
-composer update --prefer-stable --prefer-dist --no-interaction --no-progress 2>&1 | tail -3
-composer show | grep -E "^(laravel/framework|livewire/livewire|filament/filament|pestphp/pest) "
+#!/usr/bin/env bash
+# usage: v1-lane.sh <scratchpad> <worktree> <lane> <laravel> <livewire> <stable|lowest> [composer.phar]
+set -euo pipefail
+SP="$1"; WT="$2"; L="$3"; LV="$4"; LWV="$5"; MODE="$6"
+if [ -n "${7:-}" ]; then C=(php "$7"); else C=(composer); fi
+[ -d "$SP" ] && [ -f "$WT/composer.json" ] || { echo "usage error: bad scratchpad or worktree path" >&2; exit 2; }
+D="$SP/v1-$L"
+rm -rf "$D" && mkdir -p "$D"
+(cd "$WT" && tar --exclude=vendor --exclude=.git --exclude=.claude --exclude=composer.lock -cf - .) | (cd "$D" && tar xf -)
+cd "$D"
+"${C[@]}" --version
+"${C[@]}" require "laravel/framework:$LV" "livewire/livewire:$LWV" --no-update --no-interaction
+if [ "$MODE" = lowest ]; then
+    COMPOSER_NO_SECURITY_BLOCKING=1 "${C[@]}" update --prefer-lowest --prefer-dist --no-interaction --no-progress 2>&1 | tail -3
+else
+    "${C[@]}" update --prefer-stable --prefer-dist --no-interaction --no-progress 2>&1 | tail -3
+fi
+"${C[@]}" show | grep -E "^(laravel/framework|livewire/livewire|filament/filament|pestphp/pest|orchestra/testbench|spatie/laravel-package-tools) "
 vendor/bin/pest 2>&1 | tail -3
 ```
 
-Expected for each lane: `235 passed`. `l12lw3` and `l13lw3` resolve Filament 4, and those are the lanes where the `FilamentTestCase` provider order matters. `l12lw4` resolves Filament 5.
+The Livewire argument is the package's own floor (`^3.8.3` / `^4.3.4`), never `3.*` / `4.*`. `composer require` replaces the root constraint, so `3.*` would let prefer-lowest resolve versions below the security floor.
 
-- [ ] **Step 3: Prefer-lowest lanes with Composer ≥ 2.9**
+- [ ] **Step 3: Prefer-stable scratch lanes**
+
+Run each of these three; each takes a few minutes:
+```bash
+bash <SP>/v1-lane.sh <SP> <WT> l12lw3 '12.*' '^3.8.3' stable
+bash <SP>/v1-lane.sh <SP> <WT> l12lw4 '12.*' '^4.3.4' stable
+bash <SP>/v1-lane.sh <SP> <WT> l13lw3 '13.*' '^3.8.3' stable
+```
+
+Expected for each lane: `241 passed`. `l12lw3` and `l13lw3` resolve Filament 4, and those are the lanes where the `FilamentTestCase` provider order matters. `l12lw4` resolves Filament 5.
+
+- [ ] **Step 4: Prefer-lowest lanes with Composer ≥ 2.9**
 
 Run:
 ```bash
-[ -f "$SP/composer-latest.phar" ] || curl -sSL https://getcomposer.org/download/latest-stable/composer.phar -o "$SP/composer-latest.phar"
-php "$SP/composer-latest.phar" --version
+[ -f <SP>/composer-latest.phar ] || curl -sSL https://getcomposer.org/download/latest-stable/composer.phar -o <SP>/composer-latest.phar
+bash <SP>/v1-lane.sh <SP> <WT> low3 '12.*' '^3.8.3' lowest <SP>/composer-latest.phar
+bash <SP>/v1-lane.sh <SP> <WT> low4 '12.*' '^4.3.4' lowest <SP>/composer-latest.phar
 ```
 
-Expected: `Composer version 2.9` or later.
+Expected:
+- The script prints `Composer version 2.9` or later.
+- Both lanes report `241 passed`.
+- Livewire resolves to exactly `v3.8.3` and `v4.3.4`, with Laravel 12.0.x, Filament `v4.0.0` / `v5.0.0` and package-tools `1.19.0`; this was verified during the plan review.
+- If anything resolves differently, record it with `php <SP>/composer-latest.phar why <package>` run inside `<SP>/v1-low3` or `<SP>/v1-low4`.
 
-Then, for `L=low3 LWV='3.*'` and `L=low4 LWV='4.*'`:
+Record the Composer version and every floor version shown.
 
-```bash
-rm -rf "$SP/v1-$L" && mkdir -p "$SP/v1-$L"
-(cd "$WT" && tar --exclude=vendor --exclude=.git --exclude=.claude --exclude=composer.lock -cf - .) | (cd "$SP/v1-$L" && tar xf -)
-cd "$SP/v1-$L"
-php "$SP/composer-latest.phar" require "laravel/framework:12.*" "livewire/livewire:$LWV" --no-update --no-interaction
-COMPOSER_NO_SECURITY_BLOCKING=1 php "$SP/composer-latest.phar" update --prefer-lowest --prefer-dist --no-interaction --no-progress 2>&1 | tail -3
-php "$SP/composer-latest.phar" show | grep -E "^(laravel/framework|livewire/livewire|filament/filament|pestphp/pest|orchestra/testbench|spatie/laravel-package-tools) "
-vendor/bin/pest 2>&1 | tail -3
-```
-
-Expected: `235 passed` on both lanes. Livewire should resolve to the declared floors, `v3.8.3` and `v4.3.4` respectively. If it resolves higher, record which package forced it (`php "$SP/composer-latest.phar" why livewire/livewire`). Record the Composer version and every floor version shown.
-
-- [ ] **Step 4: Report**
+- [ ] **Step 5: Report**
 
 Summarize for the user:
 - every lane: stack versions and pass count;
