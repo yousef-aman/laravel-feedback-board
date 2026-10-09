@@ -27,7 +27,10 @@ return [
         // AppServiceProvider::boot() instead; it takes precedence over this key. A closure
         // here breaks `php artisan config:cache`; a public static method callable is safe.
         'developers' => array_filter(array_map('trim', explode(',', (string) env('FEEDBACK_BOARD_DEVELOPER_EMAIL', '')))),
-        'channels' => ['mail', 'database'],
+
+        // Add 'database' for in-app notifications after `php artisan make:notifications-table`
+        // and `php artisan migrate` (and ->databaseNotifications() on a Filament panel).
+        'channels' => ['mail'],
     ],
 
     'destinations' => [
