@@ -115,7 +115,7 @@ Entries that Laravel's `email` validation rule rejects are skipped, with a warni
 To notify user models instead (for example, to also use Filament's in-app bell), register them in `AppServiceProvider::boot()`. This takes precedence over the config e-mails:
 
 ```php
-FeedbackBoard::notifyDevelopersUsing(fn () => User::where('is_admin', true)->get());
+FeedbackBoard::notifyDevelopersUsing(fn () => \App\Models\User::where('is_admin', true)->get());
 ```
 
 ### 4. Notification channels
