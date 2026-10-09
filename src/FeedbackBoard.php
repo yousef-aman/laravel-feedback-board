@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace YousefAman\FeedbackBoard;
 
 use Closure;
+use Illuminate\Auth\Access\Response;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
@@ -12,6 +13,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Validator;
 use InvalidArgumentException;
+use Throwable;
+use UnexpectedValueException;
 
 /**
  * Developer access and developer recipients, registered from the host app's
@@ -23,6 +26,9 @@ class FeedbackBoard
     protected ?Closure $developerResolver = null;
 
     protected ?Closure $developerRecipients = null;
+
+    /** @var array<string, true> problems already reported by this instance */
+    private array $reported = [];
 
     /** @param  callable(Authenticatable): bool  $callback */
     public function resolveDevelopersUsing(callable $callback): void
@@ -51,7 +57,7 @@ class FeedbackBoard
     public function resolveDeveloper(Authenticatable $user): bool
     {
         if ($this->developerResolver !== null) {
-            return (bool) ($this->developerResolver)($user);
+            return $this->normalise(($this->developerResolver)($user));
         }
 
         $resolver = config('feedback-board.authorization.developer_resolver');
@@ -63,7 +69,7 @@ class FeedbackBoard
         if (! is_callable($resolver)) {
             // Deny, but loudly: throwing here would turn every page that checks access
             // (Filament navigation included) into a 500 for every user.
-            report(new InvalidArgumentException(
+            $this->reportOnce('invalid-resolver', new InvalidArgumentException(
                 'feedback-board.authorization.developer_resolver must be null or a public static method callable '
                 .'such as [DeveloperCheck::class, \'handle\']. Register anything else with '
                 .'FeedbackBoard::resolveDevelopersUsing() in AppServiceProvider::boot().'
@@ -72,7 +78,7 @@ class FeedbackBoard
             return false;
         }
 
-        return (bool) $resolver($user);
+        return $this->normalise($resolver($user));
     }
 
     /**
@@ -81,13 +87,13 @@ class FeedbackBoard
     public function developerRecipients(): Collection
     {
         if ($this->developerRecipients !== null) {
-            return collect(($this->developerRecipients)());
+            return Collection::wrap(($this->developerRecipients)());
         }
 
         $config = config('feedback-board.notifications.developers');
 
         if (is_callable($config)) {
-            return collect($config());
+            return Collection::wrap($config());
         }
 
         // Laravel's `email` rule (RFC validation): accepts what the mailer accepts,
@@ -104,5 +110,38 @@ class FeedbackBoard
         }
 
         return $emails->values()->map(fn (string $email) => Notification::route('mail', $email));
+    }
+
+    /**
+     * Strict boolean from whatever a resolver returned. A Response is honoured; any other
+     * object or array (a Collection, an unexecuted query) is truthy in PHP but is not an
+     * answer, so it denies. Scalars and null keep their usual meaning (1, '1', 0).
+     */
+    protected function normalise(mixed $result): bool
+    {
+        if ($result instanceof Response) {
+            return $result->allowed();
+        }
+
+        if (is_object($result) || is_array($result)) {
+            $this->reportOnce('unexpected-result', new UnexpectedValueException(
+                'A developer resolver returned '.get_debug_type($result).'; it must return a bool. Access was denied.'
+            ));
+
+            return false;
+        }
+
+        return (bool) $result;
+    }
+
+    /** Report each distinct problem once per instance, so a bad config cannot flood the error tracker. */
+    protected function reportOnce(string $key, Throwable $e): void
+    {
+        if (isset($this->reported[$key])) {
+            return;
+        }
+
+        $this->reported[$key] = true;
+        report($e);
     }
 }

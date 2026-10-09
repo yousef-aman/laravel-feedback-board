@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Auth\Access\Response;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
@@ -54,6 +55,51 @@ it('denies and reports a non-callable developer_resolver instead of failing sile
 
     expect(Gate::forUser($this->dev)->allows('feedback-board.manage'))->toBeFalse();
     Exceptions::assertReported(fn (InvalidArgumentException $e) => str_contains($e->getMessage(), 'feedback-board.authorization.developer_resolver'));
+});
+
+it('normalises every resolver result to a strict boolean', function (Closure $returns, bool $expected) {
+    FeedbackBoard::resolveDevelopersUsing($returns);
+
+    expect(FeedbackBoard::isDeveloper($this->dev))->toBe($expected);
+})->with([
+    'Response::deny' => [fn () => Response::deny(), false],
+    'Response::allow' => [fn () => Response::allow(), true],
+    'empty collection' => [fn () => collect(), false],
+    'filled collection' => [fn () => collect([1]), false],
+    'query builder' => [fn () => TestUser::query(), false],
+    'int 1' => [fn () => 1, true],
+    'string 1' => [fn () => '1', true],
+    'int 0' => [fn () => 0, false],
+    'null' => [fn () => null, false],
+]);
+
+it('reports a resolver that returns a non-bool object', function () {
+    Exceptions::fake();
+    FeedbackBoard::resolveDevelopersUsing(fn () => collect([1]));
+
+    FeedbackBoard::isDeveloper($this->dev);
+
+    Exceptions::assertReported(fn (UnexpectedValueException $e) => str_contains($e->getMessage(), Illuminate\Support\Collection::class)
+        && str_contains($e->getMessage(), 'bool'));
+});
+
+it('reports an invalid config resolver only once per instance', function () {
+    Exceptions::fake();
+    config()->set('feedback-board.authorization.developer_resolver', DeveloperCheck::class);
+
+    FeedbackBoard::isDeveloper($this->dev);
+    FeedbackBoard::isDeveloper($this->dev);
+
+    Exceptions::assertReportedCount(1);
+});
+
+it('sends to a single model returned by notifyDevelopersUsing', function () {
+    Notification::fake();
+    FeedbackBoard::notifyDevelopersUsing(fn () => $this->dev);
+
+    app(CreateFeedbackItem::class)->handle(['title' => 'X', 'type' => FeedbackType::Bug], $this->client);
+
+    Notification::assertSentTo($this->dev, NewFeedbackNotification::class);
 });
 
 it('answers isDeveloper() through the gate, honouring Gate::before', function () {
@@ -116,7 +162,7 @@ it('notifies only valid developer e-mails and warns once about the rest', functi
         ->withArgs(fn (string $message) => str_contains($message, 'feedback-board.notifications.developers'));
 });
 
-it('accepts every address the mailer accepts', function (string $email, string $routed) {
+it('accepts local, internationalised and padded developer addresses', function (string $email, string $routed) {
     Notification::fake();
     Log::spy();
     config()->set('feedback-board.notifications.developers', [$email]);
