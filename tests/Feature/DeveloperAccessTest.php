@@ -145,6 +145,16 @@ it('targets notifyDevelopersUsing recipients with the delivery-failure database 
         ->and($this->client->notifications()->count())->toBe(0);
 });
 
+it('does not throw from failed() when the recipient callback throws', function () {
+    FeedbackBoard::notifyDevelopersUsing(fn () => throw new RuntimeException('recipients unavailable'));
+    $item = FeedbackItem::factory()->create();
+
+    (new DeliverToDestination(new FeedbackItemCreated($item), 'slack', 'dlv-api'))
+        ->failed(new \Illuminate\Http\Client\ConnectionException('connection refused'));
+
+    expect($item->fresh()->external_refs['slack_last_error']['code'])->toBe('connection_error');
+});
+
 it('notifies only valid developer e-mails and warns once about the rest', function () {
     Notification::fake();
     Log::spy();
