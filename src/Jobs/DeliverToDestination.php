@@ -92,14 +92,14 @@ class DeliverToDestination implements ShouldQueue
         // destinations.*; do not "correct" it). Keep only DB-routable model
         // notifiables: the array-of-emails config yields AnonymousNotifiable
         // (mail route), which sendToDatabase() cannot persist.
-        $notifiables = app(\YousefAman\FeedbackBoard\Support\DeveloperRecipients::class)
-            ->resolve()
-            ->filter(fn ($n) => $n instanceof \Illuminate\Database\Eloquent\Model);
-        if ($notifiables->isEmpty()) {
-            return; // email-only recipients have no database notification target
-        }
-
         try {
+            $notifiables = app(\YousefAman\FeedbackBoard\Support\DeveloperRecipients::class)
+                ->resolve()
+                ->filter(fn ($n) => $n instanceof \Illuminate\Database\Eloquent\Model);
+            if ($notifiables->isEmpty()) {
+                return; // email-only recipients have no database notification target
+            }
+
             \Filament\Notifications\Notification::make()
                 ->title(__('feedback-board::feedback-board.destinations.delivery_failed'))
                 ->body($this->driver.': '.$code)
