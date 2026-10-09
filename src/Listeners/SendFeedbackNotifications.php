@@ -7,7 +7,8 @@ namespace YousefAman\FeedbackBoard\Listeners;
 use Closure;
 use Illuminate\Events\Dispatcher;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Notification;
+use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\Notification as NotificationFacade;
 use YousefAman\FeedbackBoard\Enums\{AuthorRole, FeedbackStatus};
 use YousefAman\FeedbackBoard\Events\{FeedbackItemCreated, FeedbackReplied, FeedbackStatusChanged};
 use YousefAman\FeedbackBoard\Notifications\{FeedbackRepliedNotification, FeedbackResolvedNotification, NewFeedbackNotification};
@@ -20,10 +21,7 @@ class SendFeedbackNotifications
     public function onCreated(FeedbackItemCreated $event): void
     {
         $this->sendAfterCommit(function () use ($event) {
-            $devs = $this->recipients->resolve();
-            if ($devs->isNotEmpty()) {
-                Notification::send($devs, new NewFeedbackNotification($event->item));
-            }
+            $this->notifyEach($this->recipients->resolve(), new NewFeedbackNotification($event->item));
         });
     }
 
@@ -37,10 +35,7 @@ class SendFeedbackNotifications
         // developer reply -> notify reporter; reporter reply -> notify developers
         if ($comment->author_role === AuthorRole::Reporter) {
             $this->sendAfterCommit(function () use ($comment) {
-                $devs = $this->recipients->resolve();
-                if ($devs->isNotEmpty()) {
-                    Notification::send($devs, new FeedbackRepliedNotification($comment));
-                }
+                $this->notifyEach($this->recipients->resolve(), new FeedbackRepliedNotification($comment));
             });
 
             return;
@@ -75,5 +70,18 @@ class SendFeedbackNotifications
     protected function sendAfterCommit(Closure $send): void
     {
         DB::afterCommit(fn () => rescue($send, report: true));
+    }
+
+    /**
+     * Send to each recipient on its own, so one failing recipient (a malformed address,
+     * a missing notifications table) cannot stop the notification for the others.
+     *
+     * @param  iterable<object>  $notifiables
+     */
+    protected function notifyEach(iterable $notifiables, Notification $notification): void
+    {
+        foreach ($notifiables as $notifiable) {
+            rescue(fn () => NotificationFacade::send($notifiable, $notification), report: true);
+        }
     }
 }
