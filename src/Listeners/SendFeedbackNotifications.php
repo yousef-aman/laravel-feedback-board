@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace YousefAman\FeedbackBoard\Listeners;
 
+use Closure;
 use Illuminate\Events\Dispatcher;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use YousefAman\FeedbackBoard\Enums\{AuthorRole, FeedbackStatus};
 use YousefAman\FeedbackBoard\Events\{FeedbackItemCreated, FeedbackReplied, FeedbackStatusChanged};
@@ -17,10 +19,12 @@ class SendFeedbackNotifications
 
     public function onCreated(FeedbackItemCreated $event): void
     {
-        $devs = $this->recipients->resolve();
-        if ($devs->isNotEmpty()) {
-            Notification::send($devs, new NewFeedbackNotification($event->item));
-        }
+        $this->sendAfterCommit(function () use ($event) {
+            $devs = $this->recipients->resolve();
+            if ($devs->isNotEmpty()) {
+                Notification::send($devs, new NewFeedbackNotification($event->item));
+            }
+        });
     }
 
     public function onReplied(FeedbackReplied $event): void
@@ -29,24 +33,29 @@ class SendFeedbackNotifications
         if ($comment->is_internal) {
             return;
         }
-        $item = $comment->item;
 
         // developer reply -> notify reporter; reporter reply -> notify developers
         if ($comment->author_role === AuthorRole::Reporter) {
-            $devs = $this->recipients->resolve();
-            if ($devs->isNotEmpty()) {
-                Notification::send($devs, new FeedbackRepliedNotification($comment));
-            }
-        } elseif ($item->reporter) {
-            $item->reporter->notify(new FeedbackRepliedNotification($comment));
+            $this->sendAfterCommit(function () use ($comment) {
+                $devs = $this->recipients->resolve();
+                if ($devs->isNotEmpty()) {
+                    Notification::send($devs, new FeedbackRepliedNotification($comment));
+                }
+            });
+
+            return;
         }
+
+        $this->sendAfterCommit(fn () => $comment->item->reporter?->notify(new FeedbackRepliedNotification($comment)));
     }
 
     public function onStatusChanged(FeedbackStatusChanged $event): void
     {
-        if ($event->to === FeedbackStatus::Resolved && $event->item->reporter) {
-            $event->item->reporter->notify(new FeedbackResolvedNotification($event->item));
+        if ($event->to !== FeedbackStatus::Resolved) {
+            return;
         }
+
+        $this->sendAfterCommit(fn () => $event->item->reporter?->notify(new FeedbackResolvedNotification($event->item)));
     }
 
     public function subscribe(Dispatcher $events): array
@@ -56,5 +65,15 @@ class SendFeedbackNotifications
             FeedbackReplied::class => 'onReplied',
             FeedbackStatusChanged::class => 'onStatusChanged',
         ];
+    }
+
+    /**
+     * Send only once the action's transaction has committed (immediately when there is none),
+     * and best-effort: a failure is reported to the host's exception handler, never thrown,
+     * so it can neither roll back nor fail the user's report, reply or status change.
+     */
+    protected function sendAfterCommit(Closure $send): void
+    {
+        DB::afterCommit(fn () => rescue($send, report: true));
     }
 }
