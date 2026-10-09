@@ -66,5 +66,15 @@ class FeedbackBoardServiceProvider extends PackageServiceProvider
         \Livewire\Livewire::component('feedback-board::feedback-kanban', \YousefAman\FeedbackBoard\Livewire\FeedbackKanban::class);
         \Livewire\Livewire::component('feedback-board::feedback-detail', \YousefAman\FeedbackBoard\Livewire\FeedbackDetail::class);
         // anonymous components in resources/views/components are auto-registered via ->hasViews('feedback-board')
+
+        // Filament-only views (they use <x-filament-panels::*>) live outside resources/views so
+        // `php artisan view:cache` does not compile them in apps without Filament.
+        if ($this->app->providerIsLoaded(\Filament\FilamentServiceProvider::class)) {
+            $this->loadViewsFrom(__DIR__.'/../resources/views-filament', 'feedback-board');
+            $this->publishes(
+                [__DIR__.'/../resources/views-filament' => resource_path('views/vendor/feedback-board')],
+                'feedback-board-views',
+            );
+        }
     }
 }
