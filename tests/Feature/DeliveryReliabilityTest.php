@@ -112,6 +112,21 @@ it('keeps a developer reply and a resolve when the reporter notification fails',
     Exceptions::assertReported(TransportException::class);
 });
 
+it('notifies the remaining developers when one recipient fails', function () {
+    Exceptions::fake();
+    config()->set('mail.default', 'array');
+    $bad = TestUser::create(['name' => 'Bad', 'email' => 'not an email']);
+    $good = TestUser::create(['name' => 'Good', 'email' => 'good@example.com']);
+    FeedbackBoard::notifyDevelopersUsing(fn () => [$bad, $good]);
+
+    app(CreateFeedbackItem::class)->handle(['title' => 'Kept', 'type' => FeedbackType::Bug], null);
+
+    $recipients = collect(app('mail.manager')->mailer('array')->getSymfonyTransport()->messages())
+        ->flatMap(fn ($sent) => collect($sent->getEnvelope()->getRecipients())->map->getAddress());
+    expect($recipients->all())->toContain('good@example.com');
+    Exceptions::assertReported(\Symfony\Component\Mime\Exception\RfcComplianceException::class);
+});
+
 it('keeps a reporter reply when the developer notification fails', function () {
     Exceptions::fake();
     FeedbackBoard::notifyDevelopersUsing(fn () => throw new RuntimeException('boom'));
