@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace YousefAman\FeedbackBoard;
 
+use Spatie\LaravelPackageTools\Commands\InstallCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -22,7 +23,14 @@ class FeedbackBoardServiceProvider extends PackageServiceProvider
             ])
             ->hasTranslations()
             ->hasViews()
-            ->hasRoute('web');
+            ->hasRoute('web')
+            ->hasInstallCommand(function (InstallCommand $command) {
+                $command
+                    ->publishConfigFile()
+                    ->publishMigrations()
+                    ->askToRunMigrations()
+                    ->endWith(fn (InstallCommand $command) => $this->printNextSteps($command));
+            });
     }
 
     public function packageRegistered(): void
@@ -79,5 +87,26 @@ class FeedbackBoardServiceProvider extends PackageServiceProvider
                 'feedback-board-views',
             );
         }
+    }
+
+    protected function printNextSteps(InstallCommand $command): void
+    {
+        $command->newLine();
+        $command->info('Next steps:');
+        $command->line('  1. Add the launcher to your authenticated layout: <x-feedback-board::launcher />');
+        $command->line('  2. In AppServiceProvider::boot(), tell the package who your developers are:');
+        $command->line('       use YousefAman\\FeedbackBoard\\Facades\\FeedbackBoard;');
+        $command->line('       FeedbackBoard::resolveDevelopersUsing(fn ($user) => $user->is_admin);');
+        $command->line('       FeedbackBoard::notifyDevelopersUsing(fn () => \\App\\Models\\User::where(\'is_admin\', true)->get());');
+        $command->line('  3. Optional in-app notifications: run `php artisan make:notifications-table`, migrate,');
+        $command->line('     and add \'database\' to feedback-board.notifications.channels.');
+
+        if (class_exists(\Filament\Panel::class)) {
+            $command->line('  4. Register the Filament plugin in your panel provider:');
+            $command->line('       ->plugin(\\YousefAman\\FeedbackBoard\\Filament\\FeedbackBoardPlugin::make())');
+        }
+
+        $command->line('  See the README for destinations, AI triage and the runner.');
+        $command->newLine();
     }
 }
