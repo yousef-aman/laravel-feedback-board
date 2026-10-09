@@ -1,6 +1,9 @@
 <?php
 
-uses(YousefAman\FeedbackBoard\Tests\TestCase::class)->in(__DIR__);
+uses(YousefAman\FeedbackBoard\Tests\TestCase::class)->in('Feature', 'Unit', 'Smoke');
+
+// Filament smoke tests boot a real panel; see tests/Filament/FilamentTestCase.php.
+uses(YousefAman\FeedbackBoard\Tests\Filament\FilamentTestCase::class)->in('Filament');
 
 // FeedbackDetailTest asserts that Livewire::test() throws an HttpException when a
 // non-developer opens the detail panel (mount calls abort_unless). Livewire v3's test
@@ -8,7 +11,7 @@ uses(YousefAman\FeedbackBoard\Tests\TestCase::class)->in(__DIR__);
 // withoutExceptionHandling() only for this file to make exceptions propagate as expected.
 // KanbanTest must NOT have this active because it relies on ->assertForbidden().
 // We use an empty uses() to add a beforeEach hook without conflicting with the TestCase
-// already set by the global uses()->in(__DIR__) above.
+// already set for Feature/ above.
 uses()
     ->beforeEach(fn () => $this->withoutExceptionHandling())
     ->in('Feature/FeedbackDetailTest.php');
