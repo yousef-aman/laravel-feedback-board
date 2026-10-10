@@ -15,4 +15,14 @@ enum FeedbackPriority: string
     {
         return __('feedback-board::feedback-board.priority.'.$this->value);
     }
+
+    public function color(): string
+    {
+        return match ($this) {
+            self::Low => 'gray',
+            self::Medium => 'info',
+            self::High => 'warning',
+            self::Urgent => 'danger',
+        };
+    }
 }

@@ -66,7 +66,7 @@ Add the `<x-feedback-board::launcher/>` Blade component to your authenticated la
 </html>
 ```
 
-The launcher renders a floating button that opens the feedback form in a modal overlay. It is RTL-aware — set `dir` via the translation key as shown above.
+The launcher renders a floating button in the bottom corner of the page (bottom-right in left-to-right locales, bottom-left in right-to-left ones) that opens the feedback form in a modal dialog. Its styles load automatically — there is nothing to build, publish or link (see [Styling & theming](#styling--theming)).
 
 ### 2. Tell the package who your developers are
 
@@ -163,6 +163,50 @@ The package ships with English (`en`) and Arabic (`ar`) translations. The Arabic
 
 Supported locales: `en`, `ar`. Add more by publishing translations and creating your own locale directory under `resources/lang/vendor/feedback-board/`.
 
+## Styling & theming
+
+Every package screen — the launcher, the form, "My reports", the Kanban board and the item drawers — ships with its own stylesheet. You do not build, publish or link anything: the first package component on a page adds a single cached `<link rel="stylesheet">` to the page `<head>` (through Livewire's `@assets`), served by the package at `/feedback-board/assets/stylesheet` (under your `route_prefix`; the path has no `.css` extension so web-server rules for static files never intercept it). The styles only target the package's own `fb-*` classes and never touch your markup.
+
+**Dark mode.** Set `FEEDBACK_BOARD_THEME` (config `feedback-board.ui.theme`):
+
+| Value | Dark when |
+|---|---|
+| `class` (default) | an ancestor element has the class `dark` — Filament panels, Laravel's Livewire starter kits and Tailwind's class strategy. The package's own standalone pages follow the operating system instead. |
+| `system` | the operating system prefers dark (`prefers-color-scheme`) |
+| `light` / `dark` | never / always |
+
+**Brand colors and shape.** Override these custom properties in your own CSS:
+
+| Property | Default | Used for |
+|---|---|---|
+| `--fb-accent` | `#4f46e5` | primary buttons, the launcher, links (light theme), focus rings, the reporter-comment accent |
+| `--fb-accent-hover` | `#4338ca` | primary button hover |
+| `--fb-accent-contrast` | `#fff` | text on the accent color |
+| `--fb-radius` | `0.75rem` | panels, dialogs and drawers |
+| `--fb-font` | your page font | font family |
+| `--fb-z` | `1000` (`35` inside a Filament panel) | stacking order of the launcher; the dialog and drawers sit 10 above it |
+
+```css
+:root {
+    --fb-accent: #0d9488;
+    --fb-accent-hover: #0f766e;
+}
+```
+
+The package never sets these properties itself (it only reads them with fallbacks), so your values win wherever you declare them — on `:root`, on `.fb-scope`, inside a dark-mode selector or a CSS `@layer`.
+
+Inside a Filament panel the board follows the panel's dark mode and uses a neutral zinc palette that matches Filament's default grays. To use the panel's primary color for the accent, set `--fb-accent: var(--primary-600); --fb-accent-hover: var(--primary-700);` in the panel's theme — and check the contrast of white text on it: Filament's default amber needs `--fb-accent-contrast: #000`.
+
+**Right-to-left.** Layout direction follows the locale's `dir` (`ar` is right-to-left); the launcher, drawers and spacing mirror automatically.
+
+**Content Security Policy.** The stylesheet is a same-origin file, so `style-src 'self'` is enough; when you use Laravel's Vite CSP nonce (`Vite::useCspNonce()`), the `<link>` carries it too.
+
+**Responses Livewire does not post-process.** The `<link>` is added to full HTML documents (a `200` `text/html` response containing `</html>`) and to Livewire updates. If you return a package component inside anything else — for example an HTML fragment fetched by your own JavaScript — link the stylesheet yourself:
+
+```blade
+<link rel="stylesheet" href="{{ \YousefAman\FeedbackBoard\Support\Ui::stylesheetUrl() }}">
+```
+
 ## Configuration Reference
 
 Key configuration options in `config/feedback-board.php`:
@@ -174,6 +218,7 @@ Key configuration options in `config/feedback-board.php`:
 | `attachments.max_kb` | int | Maximum upload size in kilobytes (default: `10240`) |
 | `route_prefix` | string | URL prefix for package routes (default: `'feedback-board'`) |
 | `route_middleware` | array | Middleware applied to package routes (default: `['web', 'auth']`) |
+| `ui.theme` | string | Dark-mode strategy: `class` (default), `system`, `light` or `dark` — see [Styling & theming](#styling--theming) |
 | `notifications.developers` | array\|callable | Developer e-mail addresses (`FEEDBACK_BOARD_DEVELOPER_EMAIL`, comma-separated; invalid entries are skipped); for models prefer `FeedbackBoard::notifyDevelopersUsing()` |
 | `notifications.channels` | array | Notification channels (default: `['mail']`; add `'database'` after `make:notifications-table`) |
 | `destinations.default` | string | Default destination driver name (default: `'mail'`) |

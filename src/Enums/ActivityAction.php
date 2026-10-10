@@ -10,4 +10,9 @@ enum ActivityAction: string
     case StatusChanged = 'status_changed';
     case Replied = 'replied';
     case Assigned = 'assigned';
+
+    public function label(): string
+    {
+        return __('feedback-board::feedback-board.activity.'.$this->value);
+    }
 }

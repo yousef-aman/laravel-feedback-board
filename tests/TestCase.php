@@ -7,6 +7,14 @@ use YousefAman\FeedbackBoard\FeedbackBoardServiceProvider;
 
 class TestCase extends Orchestra
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Livewire keeps @assets bookkeeping in statics that only flushState() resets.
+        app('livewire')->flushState();
+    }
+
     protected function getPackageProviders($app): array
     {
         return [FeedbackBoardServiceProvider::class, \Livewire\LivewireServiceProvider::class];
