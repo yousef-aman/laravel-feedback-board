@@ -59,4 +59,4 @@ it('maps the theme to the page color-scheme', function (string $theme, string $s
     config()->set('feedback-board.ui.theme', $theme);
 
     expect(Ui::colorScheme())->toBe($scheme);
-})->with([['class', 'light dark'], ['system', 'light dark'], ['light', 'light'], ['dark', 'dark']]);
+})->with([['class', 'light'], ['system', 'light dark'], ['light', 'light'], ['dark', 'dark']]);

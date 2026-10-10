@@ -52,13 +52,14 @@ final class Ui
         return in_array($theme, self::THEMES, true) ? $theme : 'class';
     }
 
-    // For the standalone pages' <meta name="color-scheme"> (viewport scrollbars and canvas).
+    // For the standalone pages' <meta name="color-scheme">. With `class` there is no host page to
+    // set the dark class, so the standalone pages are light; `system` follows the OS.
     public static function colorScheme(): string
     {
         return match (self::theme()) {
-            'light' => 'light',
             'dark' => 'dark',
-            default => 'light dark',
+            'system' => 'light dark',
+            default => 'light',
         };
     }
 
