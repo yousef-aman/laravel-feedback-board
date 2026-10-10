@@ -60,3 +60,9 @@ it('maps the theme to the page color-scheme', function (string $theme, string $s
 
     expect(Ui::colorScheme())->toBe($scheme);
 })->with([['class', 'light'], ['system', 'light dark'], ['light', 'light'], ['dark', 'dark']]);
+
+it('links "My reports" on the standalone page, optionally opening one report', function () {
+    expect(Ui::reportsUrl())->toBe(route('feedback-board.page'))
+        ->and(Ui::reportsUrl(5))->toBe(route('feedback-board.page').'?report=5')
+        ->and(Ui::reportLink('https://app.test/admin/my-feedback?tab=x', 7))->toBe('https://app.test/admin/my-feedback?tab=x&report=7');
+});

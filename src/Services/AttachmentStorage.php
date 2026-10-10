@@ -104,6 +104,16 @@ class AttachmentStorage
         return str_ends_with($mb, '.0') ? substr($mb, 0, -2) : $mb;
     }
 
+    /** 245760 → "240 KB", 1572864 → "1.5 MB" (at least 1 KB). */
+    public static function humanSize(int $bytes): string
+    {
+        $kb = max(1, (int) round($bytes / 1024));
+
+        return $kb < 1024
+            ? __('feedback-board::feedback-board.files.kb', ['size' => $kb])
+            : __('feedback-board::feedback-board.files.mb', ['size' => self::megabytes($kb)]);
+    }
+
     public function store(UploadedFile $file, FeedbackItem $item, ?FeedbackComment $comment = null): FeedbackAttachment
     {
         Validator::make(['file' => $file], ['file' => $this->allowedRules()])->validate();
