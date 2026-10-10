@@ -9,16 +9,30 @@ final class Ui
     /** @var list<string> */
     public const THEMES = ['class', 'system', 'light', 'dark'];
 
+    private static ?string $stylesheetPath = null;
+
+    /** @internal Test seam: simulates an install whose built stylesheet is missing. */
+    public static function useStylesheetPath(?string $path): void
+    {
+        self::$stylesheetPath = $path;
+    }
+
     public static function stylesheetPath(): string
     {
-        return dirname(__DIR__, 2).'/resources/dist/feedback-board.css';
+        return self::$stylesheetPath ?? dirname(__DIR__, 2).'/resources/dist/feedback-board.css';
+    }
+
+    public static function stylesheetExists(): bool
+    {
+        return is_file(self::stylesheetPath());
     }
 
     // Not memoized: long-lived workers (Octane) can outlive a package upgrade, and hashing
-    // the ~20 KB file costs microseconds.
+    // the ~20 KB file costs microseconds. A missing file (an install that stripped
+    // resources/dist) must leave host pages unstyled, not fail every page with a 500.
     public static function stylesheetVersion(): string
     {
-        return substr((string) md5_file(self::stylesheetPath()), 0, 12);
+        return self::stylesheetExists() ? substr((string) md5_file(self::stylesheetPath()), 0, 12) : 'missing';
     }
 
     // Absolute, like Livewire's own script URL: a root-relative route() drops a sub-directory base path.
