@@ -23,6 +23,22 @@ class FeedbackActivity extends Model
     public function item(): BelongsTo { return $this->belongsTo(FeedbackItem::class, 'feedback_item_id'); }
     public function actor(): MorphTo { return $this->morphTo(); }
 
+    /** One-line text for the item timeline. */
+    public function summary(): string
+    {
+        $properties = (array) $this->properties;
+
+        return match (true) {
+            $this->action === ActivityAction::StatusChanged && $this->to_status !== null
+                => $this->action->label().': '.$this->to_status->label(),
+            // AssignFeedback records an unassignment as Assigned with assignee_id = null.
+            $this->action === ActivityAction::Assigned
+                && array_key_exists('assignee_id', $properties) && $properties['assignee_id'] === null
+                => __('feedback-board::feedback-board.activity.unassigned'),
+            default => $this->action->label(),
+        };
+    }
+
     protected static function booted(): void
     {
         static::creating(fn ($a) => $a->created_at ??= now());

@@ -1,7 +1,7 @@
 <?php
 
-use YousefAman\FeedbackBoard\Models\{FeedbackItem, FeedbackComment};
-use YousefAman\FeedbackBoard\Enums\{FeedbackStatus, FeedbackType, AuthorRole};
+use YousefAman\FeedbackBoard\Models\{FeedbackActivity, FeedbackItem, FeedbackComment};
+use YousefAman\FeedbackBoard\Enums\{ActivityAction, FeedbackStatus, FeedbackType, AuthorRole};
 use YousefAman\FeedbackBoard\Tests\TestUser;
 
 it('persists an item with enum casts and morphed reporter', function () {
@@ -25,4 +25,16 @@ it('threads comments under an item', function () {
     expect($item->comments)->toHaveCount(1)
         ->and($item->comments->first()->is_internal)->toBeTrue()
         ->and($c->author_role)->toBe(AuthorRole::Developer);
+});
+
+it('summarises activity entries for the item timeline', function () {
+    $item = FeedbackItem::factory()->create();
+    $make = fn (array $attributes) => FeedbackActivity::create(['feedback_item_id' => $item->id, ...$attributes]);
+
+    expect($make(['action' => ActivityAction::StatusChanged, 'from_status' => FeedbackStatus::New, 'to_status' => FeedbackStatus::InProgress])->summary())
+        ->toBe('Status changed: In progress')
+        ->and($make(['action' => ActivityAction::Assigned, 'properties' => ['assignee_id' => 7]])->summary())->toBe('Assigned')
+        ->and($make(['action' => ActivityAction::Assigned, 'properties' => ['assignee_id' => null]])->summary())->toBe('Unassigned')
+        ->and($make(['action' => ActivityAction::Assigned])->summary())->toBe('Assigned')
+        ->and($make(['action' => ActivityAction::Replied])->summary())->toBe('Replied');
 });

@@ -2,8 +2,17 @@
 
 return [
     'dir' => 'rtl',
+    'close' => 'إغلاق',
     'launcher' => 'الإبلاغ عن مشكلة',
-    'form' => ['title' => 'العنوان', 'description' => 'صف المشكلة', 'submit' => 'إرسال'],
+    'form' => [
+        'title' => 'العنوان', 'description' => 'صف المشكلة', 'submit' => 'إرسال',
+        'type' => 'النوع', 'attachments' => 'المرفقات',
+        'attachments_hint' => 'المسموح: :types · حتى :size ميغابايت للملف',
+        'uploading' => 'جارٍ الرفع…',
+        'sent_title' => 'شكرًا لك — تم إرسال بلاغك',
+        'sent_body' => 'سنوافيك بتطورات بلاغك.',
+        'view_reports' => 'عرض بلاغاتي', 'send_another' => 'إرسال بلاغ آخر',
+    ],
     'type' => ['bug' => 'خلل', 'feature' => 'طلب ميزة', 'question' => 'سؤال', 'other' => 'أخرى'],
     'status' => ['new' => 'جديد', 'in_review' => 'قيد المراجعة', 'in_progress' => 'قيد العمل', 'resolved' => 'تم الحل', 'closed' => 'مغلق', 'declined' => 'مرفوض'],
     'priority' => ['low' => 'منخفضة', 'medium' => 'متوسطة', 'high' => 'عالية', 'urgent' => 'عاجلة'],
@@ -16,7 +25,14 @@ return [
         'my_reports' => 'بلاغاتي', 'reply' => 'رد', 'internal_note' => 'ملاحظة داخلية',
         'title' => 'لوحة الملاحظات', 'thread' => 'النقاش', 'activity' => 'النشاط', 'attachments' => 'المرفقات',
         'assign_me' => 'إسناد لي', 'unassign' => 'إلغاء الإسناد',
+        'new_report' => 'بلاغ جديد', 'empty_reports' => 'لم ترسل أي بلاغات بعد.',
+        'empty_column' => 'لا توجد عناصر', 'status' => 'الحالة', 'priority' => 'الأولوية',
+        'no_priority' => 'بلا أولوية', 'assignee' => 'المسؤول', 'unassigned' => 'غير مُسنَد',
+        'context' => 'السياق', 'page_url' => 'الصفحة', 'browser' => 'المتصفح', 'locale' => 'اللغة',
+        'internal' => 'داخلي',
     ],
+    'role' => ['reporter' => 'المُبلِّغ', 'developer' => 'فريق الدعم', 'ai' => 'المساعد الذكي'],
+    'activity' => ['created' => 'أُنشئ', 'status_changed' => 'تغيّرت الحالة', 'replied' => 'رُدّ عليه', 'assigned' => 'أُسند', 'unassigned' => 'أُلغي الإسناد'],
     'destinations' => [
         'delivery_failed' => 'فشل إرسال الملاحظة',
     ],
