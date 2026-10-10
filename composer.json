@@ -1,7 +1,12 @@
 {
-    "name": "yousefaman/feedback-board",
+    "name": "yousef-aman/laravel-feedback-board",
     "description": "Self-hosted in-app feedback board for Laravel — clients report, developers resolve.",
     "keywords": ["laravel", "filament", "livewire", "feedback", "bug-report", "support"],
+    "homepage": "https://github.com/yousef-aman/laravel-feedback-board",
+    "support": {
+        "issues": "https://github.com/yousef-aman/laravel-feedback-board/issues",
+        "source": "https://github.com/yousef-aman/laravel-feedback-board"
+    },
     "license": "MIT",
     "authors": [{ "name": "Yousef Aman", "role": "Developer" }],
     "require": {
