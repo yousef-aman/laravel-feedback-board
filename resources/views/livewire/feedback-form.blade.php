@@ -2,7 +2,7 @@
      x-data x-on:fb-launcher-opened.window="$wire.sent && $wire.set('sent', false)">
     @include('feedback-board::partials.assets')
     @if ($sent)
-        <div class="fb-form__success" role="status">
+        <div class="fb-form__success" role="status" tabindex="-1" x-init="$nextTick(() => $el.focus())">
             <svg class="fb-form__success-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6"/></svg>
             <p class="fb-form__success-title">{{ __('feedback-board::feedback-board.form.sent_title') }}</p>
             <p class="fb-form__success-body">{{ __('feedback-board::feedback-board.form.sent_body') }}</p>
@@ -15,7 +15,7 @@
         <form wire:submit="submit" class="fb-form__fields">
             <label class="fb-field">
                 <span class="fb-label">{{ __('feedback-board::feedback-board.form.title') }}</span>
-                <input type="text" class="fb-input" wire:model="title" maxlength="255" dir="auto" />
+                <input type="text" class="fb-input" wire:model="title" maxlength="255" dir="auto" placeholder=" " />
                 @error('title') <span class="fb-error">{{ $message }}</span> @enderror
             </label>
 
@@ -32,7 +32,7 @@
 
             <label class="fb-field">
                 <span class="fb-label">{{ __('feedback-board::feedback-board.form.description') }}</span>
-                <textarea class="fb-textarea" wire:model="description" rows="5" dir="auto"></textarea>
+                <textarea class="fb-textarea" wire:model="description" rows="5" dir="auto" placeholder=" "></textarea>
                 @error('description') <span class="fb-error">{{ $message }}</span> @enderror
             </label>
 

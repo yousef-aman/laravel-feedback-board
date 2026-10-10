@@ -59,6 +59,6 @@ it('renders the launcher as a themed, direction-aware dialog trigger', function 
         ->and($html)->not->toContain('x-transition')
         ->and($html)->toContain("\$dispatch('fb-launcher-opened')")
         ->and($html)->toContain("x-on:fb-launcher-opened.window=\"\$wire.sent && \$wire.set('sent', false)\"")
-        ->and($html)->toContain('wire:model="title" maxlength="255" dir="auto"')
+        ->and($html)->toContain('wire:model="title" maxlength="255" dir="auto" placeholder=" "')
         ->and($html)->toContain('aria-label="إغلاق"');
 });

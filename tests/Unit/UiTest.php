@@ -12,7 +12,8 @@ it('normalises the configured theme', function (mixed $value, string $expected) 
     ['light', 'light'],
     ['dark', 'dark'],
     ['blue', 'class'],
-    ['DARK', 'class'],
+    ['DARK', 'dark'],
+    [' System ', 'system'],
     [null, 'class'],
     [1, 'class'],
 ]);

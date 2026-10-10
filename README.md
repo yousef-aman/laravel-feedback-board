@@ -179,7 +179,7 @@ Every package screen — the launcher, the form, "My reports", the Kanban board 
 
 | Property | Default | Used for |
 |---|---|---|
-| `--fb-accent` | `#4f46e5` | primary buttons, the launcher, the reporter-comment accent |
+| `--fb-accent` | `#4f46e5` | primary buttons, the launcher, links (light theme), focus rings, the reporter-comment accent |
 | `--fb-accent-hover` | `#4338ca` | primary button hover |
 | `--fb-accent-contrast` | `#fff` | text on the accent color |
 | `--fb-radius` | `0.75rem` | panels, dialogs and drawers |

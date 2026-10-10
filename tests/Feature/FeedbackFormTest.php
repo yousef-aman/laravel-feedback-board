@@ -103,5 +103,28 @@ it('never promises more than PHP accepts', function () {
     $storage = app(\YousefAman\FeedbackBoard\Services\AttachmentStorage::class);
     $php = \YousefAman\FeedbackBoard\Services\AttachmentStorage::iniSizeToKb((string) ini_get('upload_max_filesize'));
 
-    expect($storage->limits()['size'])->toBe(\YousefAman\FeedbackBoard\Services\AttachmentStorage::megabytes($php ?? 10_000_000));
+    $livewire = 12288; // Livewire's default temporary-upload `max:` rule
+    $expected = min(array_filter([10_000_000, $php, $livewire]));
+
+    expect($storage->limits()['size'])->toBe(\YousefAman\FeedbackBoard\Services\AttachmentStorage::megabytes($expected));
+});
+
+it('moves focus to the sent panel after a successful submit', function () {
+    Storage::fake('local');
+    $user = TestUser::create(['name' => 'Lena', 'email' => 'l@x.com']);
+
+    Livewire::actingAs($user)->test(FeedbackForm::class)
+        ->set('title', 'Cannot export')
+        ->set('type', FeedbackType::Bug->value)
+        ->set('description', 'broken')
+        ->call('submit')
+        ->assertHasNoErrors()
+        ->assertSeeHtml('role="status" tabindex="-1" x-init="$nextTick(() => $el.focus())"');
+});
+
+it('never promises more than Livewire accepts for temporary uploads', function () {
+    config()->set('feedback-board.attachments.max_kb', 5120);
+    config()->set('livewire.temporary_file_upload.rules', 'required|file|max:256');
+
+    expect(app(\YousefAman\FeedbackBoard\Services\AttachmentStorage::class)->limits()['size'])->toBe('0.3');
 });

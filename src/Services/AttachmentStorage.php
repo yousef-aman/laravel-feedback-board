@@ -21,7 +21,8 @@ class AttachmentStorage
 
     /**
      * Human-readable upload limits for the form hint. The size never exceeds PHP's own
-     * upload_max_filesize, which rejects larger files before validation runs.
+     * upload_max_filesize (which rejects larger files before validation runs) nor the
+     * `max:` rule of Livewire's temporary-upload validation.
      *
      * @return array{types: string, size: string}
      */
@@ -30,11 +31,24 @@ class AttachmentStorage
         $mimes = (array) config('feedback-board.attachments.allowed_mimes', []);
         $kb = (int) config('feedback-board.attachments.max_kb', 10240);
         $php = self::iniSizeToKb((string) ini_get('upload_max_filesize'));
+        $livewire = self::livewireUploadLimitKb();
 
         return [
             'types' => implode(', ', array_map(fn ($mime) => strtoupper((string) $mime), $mimes)),
-            'size' => self::megabytes($php === null ? $kb : min($kb, $php)),
+            'size' => self::megabytes(min(array_filter([$kb, $php, $livewire]))),
         ];
+    }
+
+    /** The `max:` kilobytes of Livewire's temporary-upload rules, if any. */
+    private static function livewireUploadLimitKb(): ?int
+    {
+        foreach (\Livewire\Features\SupportFileUploads\FileUploadConfiguration::rules() as $rule) {
+            if (is_string($rule) && preg_match('/^max:(\d+)$/', $rule, $m) && (int) $m[1] > 0) {
+                return (int) $m[1];
+            }
+        }
+
+        return null;
     }
 
     /** "2M" → 2048, "512K" → 512, "1G" → 1048576, bytes → KB; null when unparsable or not positive. */

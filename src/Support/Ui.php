@@ -31,6 +31,10 @@ final class Ui
     {
         $theme = config('feedback-board.ui.theme', 'class');
 
+        if (is_string($theme)) {
+            $theme = strtolower(trim($theme));
+        }
+
         return in_array($theme, self::THEMES, true) ? $theme : 'class';
     }
 
