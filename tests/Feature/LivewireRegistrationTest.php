@@ -1,8 +1,10 @@
 <?php
 
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Route;
 use Livewire\Livewire;
 use YousefAman\FeedbackBoard\Livewire\{FeedbackDetail, FeedbackForm, FeedbackItemModal, FeedbackKanban, MyReportsBoard};
+use YousefAman\FeedbackBoard\Support\Ui;
 use YousefAman\FeedbackBoard\Tests\TestUser;
 
 it('resolves every feedback-board:: component name on the installed Livewire major', function (string $name, string $class) {
@@ -23,4 +25,40 @@ it('renders the launcher with the nested feedback form for an authenticated user
 
     expect($html)->toContain('fb-launcher')
         ->and($html)->toContain('wire:submit="submit"');
+});
+
+it('adds the stylesheet to the head of a host page that only renders the launcher', function () {
+    $this->actingAs(TestUser::create(['name' => 'Client', 'email' => 'c@x.com']));
+    Route::get('/fb-host-page', fn () => Blade::render(
+        '<!doctype html><html><head><title>Host</title></head><body><main>App</main><x-feedback-board::launcher /></body></html>'
+    ));
+
+    $html = $this->get('/fb-host-page')->assertOk()->getContent();
+    $link = '<link rel="stylesheet" href="'.Ui::stylesheetUrl().'"';
+
+    expect(substr_count($html, $link))->toBe(1)
+        ->and(strpos($html, $link))->toBeLessThan(strpos($html, '</head>'));
+});
+
+it('renders the launcher as a themed, direction-aware dialog trigger', function () {
+    $this->actingAs(TestUser::create(['name' => 'Client', 'email' => 'c@x.com']));
+    config()->set('feedback-board.ui.theme', 'dark');
+    app()->setLocale('ar');
+
+    $html = Blade::render('<x-feedback-board::launcher />');
+
+    expect($html)->toContain('class="fb-scope"')
+        ->and($html)->toContain('data-fb-theme="dark"')
+        ->and($html)->toContain('dir="rtl"')
+        ->and($html)->toContain('aria-haspopup="dialog"')
+        ->and($html)->toContain('role="dialog"')
+        ->and($html)->toContain('aria-labelledby="fb-launcher-title"')
+        ->and($html)->toContain('id="fb-launcher-title"')
+        ->and($html)->toContain('x-on:keydown.escape.window="open = false"')
+        ->and($html)->toContain('x-trap.noscroll="open"')
+        ->and($html)->not->toContain('x-transition')
+        ->and($html)->toContain("\$dispatch('fb-launcher-opened')")
+        ->and($html)->toContain("x-on:fb-launcher-opened.window=\"\$wire.sent && \$wire.set('sent', false)\"")
+        ->and($html)->toContain('wire:model="title" maxlength="255" dir="auto"')
+        ->and($html)->toContain('aria-label="إغلاق"');
 });
