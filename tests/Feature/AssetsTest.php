@@ -25,7 +25,7 @@ it('does not pin a stale, missing or malformed version', function (string $query
 
     expect($response->headers->get('Cache-Control'))->toContain('no-cache')
         ->and($response->headers->get('Cache-Control'))->not->toContain('immutable');
-})->with(['', '?id=000000000000', '?id[]=x']);
+})->with(['', '?id=000000000000', '?id[]=x', '?id=missing']);
 
 it('registers the stylesheet route without session or auth middleware', function () {
     $route = app('router')->getRoutes()->getByName('feedback-board.assets.css');
