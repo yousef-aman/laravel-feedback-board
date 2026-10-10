@@ -301,3 +301,18 @@ it('keeps a hostile file name out of every script position', function () {
         }
     }
 });
+
+it('renders balanced div tags with every branch of the view present', function () {
+    $dev = detailDev();
+    $item = FeedbackItem::factory()->create(['meta' => ['url' => 'https://app.test/x']]);
+    $storage = app(AttachmentStorage::class);
+    $storage->store(UploadedFile::fake()->image('cover.png'), $item);
+    $storage->store(UploadedFile::fake()->create('spec.pdf', 5, 'application/pdf'), $item);
+    FeedbackComment::factory()->for($item, 'item')->create(['body' => 'Hello', 'author_role' => AuthorRole::Reporter]);
+
+    $component = Livewire::actingAs($dev)->test(FeedbackDetail::class, ['item' => $item->fresh()])->call('assignToMe');
+    $html = $component->html();
+
+    // A DOM parse would repair an unclosed tag, so the tags are counted.
+    expect(substr_count($html, '<div'))->toBe(substr_count($html, '</div>'));
+});
