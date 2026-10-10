@@ -4,24 +4,54 @@ declare(strict_types=1);
 
 namespace YousefAman\FeedbackBoard\Livewire;
 
+use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
+use Livewire\Attributes\{On, Url};
 use Livewire\Component;
 use YousefAman\FeedbackBoard\Actions\TransitionStatus;
-use YousefAman\FeedbackBoard\Enums\FeedbackStatus;
-use YousefAman\FeedbackBoard\Models\FeedbackItem;
+use YousefAman\FeedbackBoard\Enums\{FeedbackStatus, FeedbackType};
+use YousefAman\FeedbackBoard\Models\{FeedbackAttachment, FeedbackItem};
 use YousefAman\FeedbackBoard\Policies\FeedbackItemPolicy;
+use YousefAman\FeedbackBoard\Support\Person;
 
 class FeedbackKanban extends Component
 {
     public ?int $selectedId = null;
+
+    /**
+     * The type filter (?type=). Untyped on purpose: Livewire 3 assigns query values without a
+     * type guard, and #[Url] JSON-decodes "5" to an integer and "true" to a boolean; under
+     * strict_types FeedbackType::tryFrom() would throw for those, so typeFilter() guards it.
+     */
+    #[Url(as: 'type')]
+    public $type = null;
 
     // Page access is enforced by the route's `can:viewAny` middleware (Step 4); each
     // write re-authorizes below. No mount() guard — that keeps the component mountable
     // in tests (Livewire re-throws auth exceptions raw on initial render) while the
     // real gate lives on the route + the per-action authorize('transition').
 
+    public function mount(): void
+    {
+        // #[Url] has already assigned the query value.
+        $this->type = self::typeFilter($this->type)?->value;
+    }
+
     public function open(int $id): void { $this->selectedId = $id; }
 
     public function close(): void { $this->selectedId = null; }
+
+    /** "all", or anything that is not a type, clears the filter. */
+    public function filterType(string $type): void
+    {
+        $this->type = FeedbackType::tryFrom($type)?->value;
+    }
+
+    /** The card dialog changed a report: redraw its column, counts and cover. */
+    #[On('feedback-updated')]
+    public function refreshBoard(): void
+    {
+    }
 
     public function moveTo(int $itemId, string $status, TransitionStatus $transition): void
     {
@@ -31,20 +61,72 @@ class FeedbackKanban extends Component
         $transition->handle($item, $s, auth()->user());
     }
 
-    public function render()
+    public function render(): View
     {
         // Defense-in-depth: if a non-developer somehow mounts this component outside the
         // gated route, return empty columns so item data does not leak. The per-action
         // authorize('transition') in moveTo() remains the primary write guard.
         if (! FeedbackItemPolicy::isDeveloper(auth()->user())) {
-            return view('feedback-board::livewire.feedback-kanban', ['columns' => collect(), 'selected' => null]);
+            return view('feedback-board::livewire.feedback-kanban', [
+                'columns' => collect(), 'filters' => [], 'counts' => [], 'cards' => [], 'selected' => null,
+            ]);
         }
 
-        $columns = collect(FeedbackStatus::cases())->mapWithKeys(fn ($s) => [
-            $s->value => FeedbackItem::where('status', $s->value)->latest()->get(),
-        ]);
-        $selected = $this->selectedId ? FeedbackItem::find($this->selectedId) : null;
+        $type = self::typeFilter($this->type);
 
-        return view('feedback-board::livewire.feedback-kanban', ['columns' => $columns, 'selected' => $selected]);
+        // One query for every card, with its counts; the cover and the assignee are eager-loaded.
+        // Nothing runs per card.
+        $items = FeedbackItem::query()
+            ->with(['coverAttachment', 'assignee'])
+            ->withCount([
+                'comments as replies_count' => fn (Builder $comments) => $comments->where('is_internal', false),
+                'comments as internal_count' => fn (Builder $comments) => $comments->where('is_internal', true),
+                'attachments',
+            ])
+            ->latest()
+            ->orderByDesc('id')
+            ->get();
+
+        $counts = ['all' => $items->count()];
+
+        foreach (FeedbackType::cases() as $case) {
+            $counts[$case->value] = $items->filter(fn (FeedbackItem $item) => $item->type === $case)->count();
+        }
+
+        $shown = $type === null ? $items : $items->filter(fn (FeedbackItem $item) => $item->type === $type)->values();
+
+        return view('feedback-board::livewire.feedback-kanban', [
+            'columns' => collect(FeedbackStatus::cases())->mapWithKeys(fn (FeedbackStatus $status) => [
+                $status->value => $shown->filter(fn (FeedbackItem $item) => $item->status === $status)->values(),
+            ]),
+            'filters' => array_map(fn (?FeedbackType $case) => [
+                'value' => $case?->value ?? 'all',
+                'type' => $case,
+                'label' => $case?->label() ?? __('feedback-board::feedback-board.kanban.all'),
+                'count' => $counts[$case?->value ?? 'all'],
+                'active' => $case === $type,
+            ], [null, ...FeedbackType::cases()]),
+            'counts' => $counts,
+            'cards' => $shown->mapWithKeys(fn (FeedbackItem $item) => [$item->id => $this->card($item)])->all(),
+            'selected' => $this->selectedId ? FeedbackItem::find($this->selectedId) : null,
+        ]);
+    }
+
+    /** @return array{cover: ?FeedbackAttachment, reporter: ?string, assignee: ?string} */
+    private function card(FeedbackItem $item): array
+    {
+        $cover = $item->coverAttachment;
+
+        return [
+            // The relation filters by MIME type; isImage() also checks the extension.
+            'cover' => $cover?->isImage() ? $cover : null,
+            'reporter' => $item->reporterLabel(),
+            'assignee' => $item->assignee_id !== null ? Person::name($item->assignee, $item->assignee_id) : null,
+        ];
+    }
+
+    private static function typeFilter(mixed $value): ?FeedbackType
+    {
+        return is_string($value) ? FeedbackType::tryFrom($value) : null;
     }
 }
