@@ -22,6 +22,7 @@ class TransitionStatus
         return DB::transaction(function () use ($item, $from, $to, $actor) {
             $item->status = $to;
             $item->resolved_at = $to === FeedbackStatus::Resolved ? now() : ($to->isTerminal() ? $item->resolved_at : null);
+            $item->reporter_activity_at = $item->freshTimestamp();
             $item->save();
 
             $item->activities()->create([

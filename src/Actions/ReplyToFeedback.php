@@ -23,6 +23,11 @@ class ReplyToFeedback
                 'is_internal' => $isInternal,
             ]);
 
+            // The reporter sees public replies (including ingest and AI comments) as activity.
+            if (! $isInternal) {
+                $item->forceFill(['reporter_activity_at' => $item->freshTimestamp()])->save();
+            }
+
             $item->activities()->create([
                 'actor_type' => $author?->getMorphClass(),
                 'actor_id' => $author?->getKey(),
