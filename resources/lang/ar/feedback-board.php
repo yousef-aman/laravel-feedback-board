@@ -13,8 +13,20 @@ return [
         'sent_body' => 'سنوافيك بتطورات بلاغك.',
         'view_reports' => 'عرض بلاغاتي', 'send_another' => 'إرسال بلاغ آخر',
     ],
-    'type' => ['bug' => 'خلل', 'feature' => 'طلب ميزة', 'question' => 'سؤال', 'other' => 'أخرى'],
-    'status' => ['new' => 'جديد', 'in_review' => 'قيد المراجعة', 'in_progress' => 'قيد العمل', 'resolved' => 'تم الحل', 'closed' => 'مغلق', 'declined' => 'مرفوض'],
+    'type' => ['bug' => 'خلل', 'feature' => 'اقتراح', 'question' => 'سؤال', 'other' => 'أخرى'],
+    'type_hint' => [
+        'bug' => 'شيء لا يعمل كما يجب',
+        'feature' => 'فكرة لتحسين النظام',
+        'question' => 'استفسار عن طريقة الاستخدام',
+        'other' => 'أي ملاحظة غير ذلك',
+    ],
+    'images' => [
+        'enlarge' => 'تكبير :name',
+        'preview' => 'معاينة الصورة',
+        'close' => 'إغلاق المعاينة',
+        'download' => 'تنزيل',
+    ],
+    'status' => ['new' => 'جديد', 'in_review' => 'قيد المراجعة', 'in_progress' => 'قيد التنفيذ', 'resolved' => 'تم الحل', 'closed' => 'مغلق', 'declined' => 'مرفوض'],
     'priority' => ['low' => 'منخفضة', 'medium' => 'متوسطة', 'high' => 'عالية', 'urgent' => 'عاجلة'],
     'mail' => [
         'new_subject' => 'ملاحظة جديدة: :title', 'new_line' => 'تم رفع ملاحظة جديدة.',
@@ -32,7 +44,7 @@ return [
         'context' => 'السياق', 'page_url' => 'الصفحة', 'browser' => 'المتصفح', 'locale' => 'اللغة',
         'internal' => 'داخلي',
     ],
-    'role' => ['reporter' => 'المُبلِّغ', 'developer' => 'فريق الدعم', 'ai' => 'المساعد الذكي'],
+    'role' => ['reporter' => 'المُبلِّغ', 'developer' => 'فريق الدعم الفني', 'ai' => 'المساعد الذكي'],
     'activity' => [
         'created' => 'أُنشئ', 'status_changed' => 'تغيّرت الحالة', 'replied' => 'رُدّ عليه', 'assigned' => 'أُسند', 'unassigned' => 'أُلغي الإسناد',
         'priority_changed' => 'تغيّرت الأولوية', 'type_changed' => 'تغيّر النوع',

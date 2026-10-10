@@ -89,7 +89,7 @@ it('scopes every selector to a package class', function () {
         foreach (fbSplitSelectors($rule['selector']) as $selector) {
             $selector = (string) preg_replace('/\s+/', ' ', $selector);
 
-            if (! preg_match('/^(\.dark |\.fi )?\.fb-/', $selector)) {
+            if (! preg_match('/^(\.dark |\.fi |\.fi\.dark )?\.fb-/', $selector)) {
                 $unscoped[] = $selector;
             }
         }
@@ -123,8 +123,49 @@ it('never declares a public --fb- token and reads each one only with a fallback'
     preg_match_all('/var\(\s*(--fb-[a-z0-9-]+)\s*([,)])/', $css, $reads);
 
     expect($declared[1])->toBe([])
-        ->and(array_values(array_unique($reads[1])))->toEqualCanonicalizing(['--fb-accent', '--fb-accent-hover', '--fb-accent-contrast', '--fb-radius', '--fb-font', '--fb-z'])
+        ->and(array_values(array_unique($reads[1])))->toEqualCanonicalizing([
+            '--fb-accent', '--fb-accent-hover', '--fb-accent-contrast', '--fb-radius', '--fb-font', '--fb-z',
+            // Internal bridge tokens printed by the Filament plugin's render hook; not public API.
+            '--fb-panel-accent', '--fb-panel-accent-hover', '--fb-panel-accent-contrast',
+        ])
         ->and(array_unique($reads[2]))->toBe([',']);
+});
+
+it('reads the panel bridge tokens only inside a Filament panel and beneath the public tokens', function () {
+    foreach (fbCssRules(fbStylesheet()) as $rule) {
+        if (! str_contains($rule['body'], '--fb-panel-')) {
+            continue;
+        }
+
+        foreach (fbSplitSelectors($rule['selector']) as $selector) {
+            expect($selector)->toMatch('/^\.fi[ .]/');
+        }
+
+        preg_match_all('/var\(\s*--fb-panel-/', $rule['body'], $bridge);
+        preg_match_all('/var\(\s*--fb-accent[a-z-]*\s*,\s*var\(\s*--fb-panel-/', $rule['body'], $nested);
+        expect(count($nested[0]))->toBe(count($bridge[0]));
+    }
+});
+
+it('follows the panel accent in both themes and out-ranks the generic dark tokens', function () {
+    $rules = collect(fbCssRules(fbStylesheet()));
+    $tokens = ['--_fb-accent', '--_fb-accent-hover', '--_fb-accent-contrast', '--_fb-link', '--_fb-ring'];
+
+    $light = $rules->first(fn ($r) => $r['at'] === null && $r['selector'] === '.fi .fb-scope');
+    $dark = $rules->first(fn ($r) => $r['at'] === null && str_contains($r['selector'], '.fi.dark .fb-scope[data-fb-theme="class"]'));
+    $system = $rules->first(fn ($r) => str_contains((string) $r['at'], 'prefers-color-scheme: dark')
+        && $r['selector'] === '.fi .fb-scope[data-fb-theme="system"]');
+
+    foreach ([$light, $dark, $system] as $rule) {
+        expect($rule)->not->toBeNull();
+
+        foreach ($tokens as $token) {
+            expect(fbDeclarations($rule['body'])[$token] ?? '')->toContain('var(--fb-panel-');
+        }
+    }
+
+    expect(fbSplitSelectors($dark['selector']))->toBe(['.fi.dark .fb-scope[data-fb-theme="class"]', '.fi .fb-scope[data-fb-theme="dark"]'])
+        ->and(fbDeclarations($dark['body']))->toBe(fbDeclarations($system['body']));
 });
 
 it('uses no class name that collides with the Facebook SDK', function () {
@@ -133,7 +174,7 @@ it('uses no class name that collides with the Facebook SDK', function () {
     expect(array_intersect(array_unique($m[1]), ['fb-page', 'fb-post', 'fb-comments', 'fb-like', 'fb-video', 'fb-group', 'fb-quote', 'fb-save', 'fb-send', 'fb-follow']))->toBe([]);
 });
 
-it('declares the same dark tokens for the class/forced and the system/standalone selectors', function () {
+it('declares the same dark tokens for the class/forced and the system selectors', function () {
     $rules = collect(fbCssRules(fbStylesheet()));
 
     $outside = $rules->first(fn ($r) => $r['at'] === null && str_contains($r['selector'], '.fb-scope[data-fb-theme="dark"]'));
@@ -142,12 +183,29 @@ it('declares the same dark tokens for the class/forced and the system/standalone
 
     expect($outside)->not->toBeNull()
         ->and($inside)->not->toBeNull()
-        ->and(fbSplitSelectors($outside['selector']))->toContain('.dark .fb-scope[data-fb-theme="class"]')
-        ->and(fbSplitSelectors($inside['selector']))->toContain('.fb-standalone[data-fb-theme="class"]')
-        ->and(fbSplitSelectors($inside['selector']))->toContain('.fb-standalone [data-fb-theme="class"]')
+        ->and(fbSplitSelectors($outside['selector']))->toBe(['.dark .fb-scope[data-fb-theme="class"]', '.fb-scope[data-fb-theme="dark"]'])
+        ->and(fbSplitSelectors($inside['selector']))->toBe(['.fb-scope[data-fb-theme="system"]'])
         ->and(fbDeclarations($inside['body']))->toBe(fbDeclarations($outside['body']))
         ->and($outside['body'])->toContain('color-scheme: dark')
         ->and($inside['body'])->toContain('color-scheme: dark');
+});
+
+it('keeps the standalone pages light under the class theme', function () {
+    expect(fbStylesheet())->not->toContain('.fb-standalone[data-fb-theme="class"]')
+        ->and(fbStylesheet())->not->toContain('.fb-standalone [data-fb-theme="class"]');
+});
+
+it('reserves ::before for accent tints', function () {
+    foreach (fbCssRules(fbStylesheet()) as $rule) {
+        $before = array_filter(
+            fbSplitSelectors($rule['selector']),
+            fn (string $selector) => str_contains($selector, '::before') && $selector !== '.fb-scope *::before',
+        );
+
+        if ($before !== []) {
+            expect($rule['body'])->toContain('opacity: var(--_fb-tint-opacity)');
+        }
+    }
 });
 
 it('only overrides tokens in dark mode that the light theme declares', function () {

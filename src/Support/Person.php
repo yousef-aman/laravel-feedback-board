@@ -24,4 +24,18 @@ final class Person
 
         return $id === null || $id === '' ? null : '#'.$id;
     }
+
+    /** One letter for an avatar: a single code point, never two joined Arabic letters. */
+    public static function initial(string $name): string
+    {
+        $letter = mb_strtoupper(mb_substr(trim($name), 0, 1));
+
+        return $letter !== '' ? $letter : '?';
+    }
+
+    /** A stable 1–4 avatar hue from the name. */
+    public static function hue(string $name): int
+    {
+        return crc32($name) % 4 + 1;
+    }
 }

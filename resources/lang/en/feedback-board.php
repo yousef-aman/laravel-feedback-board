@@ -14,6 +14,18 @@ return [
         'view_reports' => 'View my reports', 'send_another' => 'Send another report',
     ],
     'type' => ['bug' => 'Bug', 'feature' => 'Feature request', 'question' => 'Question', 'other' => 'Other'],
+    'type_hint' => [
+        'bug' => "Something doesn't work as it should",
+        'feature' => 'An idea to improve the app',
+        'question' => 'How to use something',
+        'other' => 'Any other note',
+    ],
+    'images' => [
+        'enlarge' => 'Enlarge :name',
+        'preview' => 'Image preview',
+        'close' => 'Close the preview',
+        'download' => 'Download',
+    ],
     'status' => ['new' => 'New', 'in_review' => 'In review', 'in_progress' => 'In progress', 'resolved' => 'Resolved', 'closed' => 'Closed', 'declined' => 'Declined'],
     'priority' => ['low' => 'Low', 'medium' => 'Medium', 'high' => 'High', 'urgent' => 'Urgent'],
     'mail' => [
