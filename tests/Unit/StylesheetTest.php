@@ -157,3 +157,14 @@ it('only overrides tokens in dark mode that the light theme declares', function 
 
     expect(array_diff(array_keys(fbDeclarations($dark['body'])), array_keys(fbDeclarations($light['body']))))->toBe([]);
 });
+
+it('paints its own background on host-facing surfaces under a forced or system theme', function () {
+    $selectors = collect(fbCssRules(fbStylesheet()))
+        ->filter(fn ($r) => str_contains($r['body'], 'background: var(--_fb-bg)'))
+        ->flatMap(fn ($r) => fbSplitSelectors($r['selector']))
+        ->all();
+
+    foreach (['fb-reports', 'fb-kanban', 'fb-runner-result', 'fb-triage-suggestion'] as $root) {
+        expect($selectors)->toContain('.'.$root.':not([data-fb-theme="class"])');
+    }
+});

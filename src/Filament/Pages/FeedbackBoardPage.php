@@ -17,12 +17,12 @@ class FeedbackBoardPage extends Page
 
     public static function getNavigationLabel(): string
     {
-        return __('feedback-board::feedback-board.board.title');
+        return static::$navigationLabel ?? __('feedback-board::feedback-board.board.title');
     }
 
     public function getTitle(): string
     {
-        return __('feedback-board::feedback-board.board.title');
+        return static::$title ?? __('feedback-board::feedback-board.board.title');
     }
 
     public static function canAccess(): bool

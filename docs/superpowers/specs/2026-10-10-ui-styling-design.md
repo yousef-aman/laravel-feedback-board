@@ -25,8 +25,9 @@ package in real apps.
 2. Correct in LTR and RTL (Arabic is a first-class locale).
 3. Light and dark themes that follow the host's dark-mode convention, with a
    config override.
-4. Looks native inside a Filament 4/5 panel (picks up the panel's primary and gray
-   colors) and decent stand-alone.
+4. Looks native inside a Filament 4/5 panel (follows the panel's dark mode and uses a
+   zinc palette matching Filament's default grays; the panel's primary colour is
+   opt-in, §3.3) and decent stand-alone.
 5. Does not leak styles onto host markup; host can re-brand through CSS custom
    properties without publishing anything.
 6. Baseline accessibility: labelled fields, keyboard-operable board, dialogs with
@@ -210,7 +211,9 @@ color in PHP, which CSS cannot replicate. A non-Filament host may also define
 `--primary-600`/`--gray-*` in the Tailwind 3 channel format, which would yield an
 invalid, transparent color. The fallback palette is zinc — Filament's default gray —
 so the board matches default panels; the README shows how to opt into the panel's
-primary color, with the contrast caveat.
+primary color, with the contrast caveat. In the light theme, links and focus rings
+also follow `--fb-accent`; the dark theme keeps its fixed link colour (a host accent
+is usually too dark for text on dark surfaces) but focus rings follow the accent.
 
 **Stacking.** Filament: top bar 30, modals 40/50, notifications 50. With `--fb-z`
 35 inside panels (`.fi .fb-scope`), the launcher sits above the top bar and below
@@ -313,7 +316,7 @@ drag-and-drop data contract (`dataTransfer` key `id`, `$wire.moveTo(id, status)`
   (`fb-sr-only` behavior via media query) and the button becomes a 3.25 rem
   circle. `aria-haspopup="dialog"`, `:aria-expanded="open"`.
 - Modal `fb-modal`: fixed full-viewport backdrop (semi-transparent), `x-show`,
-  `x-cloak` (Livewire's own styles hide `[x-cloak]`), `x-transition.opacity`,
+  `x-cloak` (Livewire's own styles hide `[x-cloak]`), the CSS fade (§3.6),
   click on the backdrop closes (`@click.self`).
 - Panel `fb-modal__panel`: `role="dialog"`, `aria-modal="true"`,
   `aria-labelledby="fb-launcher-title"`, `x-trap.noscroll="open"` (focus trap and
@@ -335,6 +338,9 @@ drag-and-drop data contract (`dataTransfer` key `id`, `$wire.moveTo(id, status)`
   one decimal place without a trailing `.0`.
 - The size in the hint is the smaller of `attachments.max_kb` and PHP's
   `upload_max_filesize` (which rejects larger files before validation).
+- After a successful submit the sent panel (`role="status"`, `tabindex="-1"`) takes
+  focus via `x-init="$nextTick(() => $el.focus())"`, so focus never falls to `<body>`
+  inside the modal and the confirmation is announced.
 - Upload progress: `<span wire:loading wire:target="files" class="fb-hint">`
   `form.uploading`.
 - Errors: `fb-error` under Title, Type and Description and, new, under Attachments
@@ -473,14 +479,15 @@ Order:
 `<meta name="color-scheme" content="{{ Ui::colorScheme() }}">`, title,
 `@livewireStyles`; `<body class="fb-scope fb-standalone" data-fb-theme="…">`
 including the assets partial; content inside `<main class="fb-standalone__main">`
-(max-width 80 rem for the reports page, full width for the board, page padding).
+(max-width 72 rem for the reports page, full width for the board, page padding).
 The board page adds `<h1 class="fb-standalone__title">` (`board.title`); the
 reports page relies on the component's own heading.
 
 ### 4.9 Filament
 
 - Board page: no markup change beyond what the Kanban brings; dark mode follows
-  Filament's `.dark` class; accent and grays follow the panel theme via §3.3.
+  Filament's `.dark` class; the palette is the zinc fallback and the accent stays indigo unless the host
+  opts in (§3.3) — no Filament variables are read.
   `FeedbackBoardPage` returns the translated `board.title` from `getTitle()` and
   `getNavigationLabel()` (replacing the hard-coded English label), and sets
   `$maxContentWidth = Width::Full` (six 16 rem columns never fit the default 7xl
