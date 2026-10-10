@@ -17,6 +17,8 @@ class MyReportsBoard extends Component
 
     public function open(int $id): void { $this->selectedId = $id; }
 
+    public function close(): void { $this->selectedId = null; }
+
     public function render()
     {
         $user = auth()->user();
