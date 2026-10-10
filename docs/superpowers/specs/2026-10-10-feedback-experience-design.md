@@ -1,6 +1,6 @@
 # Feedback experience redesign — design
 
-> **Status:** approved direction (interactive mockup, 2026-10-10), spec under review.
+> **Status:** approved direction (interactive mockup, 2026-10-10); spec revised after an adversarial review (1 Critical, 17 Important, 15 Minor — all resolved below).
 > **Mockup:** [`assets/2026-10-10-feedback-experience-mockup.html`](assets/2026-10-10-feedback-experience-mockup.html) — open it in a browser; it is the visual reference for every surface below.
 > **Package:** `yousef-aman/laravel-feedback-board` · **Builds on:** [`2026-10-10-ui-styling-design.md`](2026-10-10-ui-styling-design.md) (stylesheet architecture, token contract, delivery).
 
@@ -11,24 +11,25 @@ Dogfooding in a real Filament 4 app (Arabic, RTL, pink primary) showed that the 
 - the "My reports" page is a bare standalone page outside the panel, always dark (it followed the OS);
 - the report form is a small centred modal with a native select and an English native file input;
 - the package's navigation items have no icons, and the resource is labelled "Feedback Items" in English;
-- the developer board shows text-only cards; screenshots — the most useful part of a bug report — are only download links;
-- conversation is text only.
+- the developer board shows text-only cards; screenshots, the most useful part of a bug report, are only download links;
+- the conversation is text only.
 
 The owner reviewed an interactive mockup and approved it, then asked for Trello-style cards (cover image), comments with images on both sides, and image uploads inside comments.
 
 ## 2. Goals
 
-1. **Reporter** (any authenticated user): reports a problem from a slide-over, attaches screenshots by drag, paste or picker, and follows the report and its conversation (with images) from "My reports" — inside the Filament panel when there is one.
+1. **Reporter** (any authenticated user): reports a problem from a slide-over, attaches screenshots by drag, paste or picker, and follows the report and its conversation (with images) from "My reports", inside the Filament panel when there is one.
 2. **Developer**: triages from a Kanban whose cards show the screenshot as a cover, and works a report in a Trello-style dialog: content on one side, comments and activity on the other, replies and internal notes with images.
 3. **Filament-native**: the package's pages sit in the panel's navigation with icons and translated labels, use the panel's primary colour and dark mode, and never look like a foreign page.
-4. **Non-Filament apps** get the same components on standalone pages with a simple app header, light by default.
+4. **Apps without Filament** get the same components on standalone pages with a simple app header, light by default.
 
 ## 3. Non-goals
 
-- Trello features that were not asked for: checklists, due dates, labels, members beyond the assignee, card covers chosen manually.
-- Server-side thumbnail generation (no GD/Imagick dependency). Images are served as-is with lazy loading.
-- Multi-guard reporters (a panel with its own `authGuard`, e.g. new-esaad's beneficiary panel). The package keeps using the default guard; documented as a limitation.
-- Links from notification e-mails to a specific report; real-time updates of the conversation.
+- Trello features nobody asked for: checklists, due dates, labels, members beyond the assignee, manually chosen covers.
+- Server-side thumbnails (no GD/Imagick dependency). Images are served as-is with lazy loading.
+- Multi-guard reporters (a panel with its own `authGuard`, e.g. new-esaad's beneficiary panel). The package keeps the default guard; documented as a limitation.
+- Links from notification e-mails to a specific report; real-time conversation updates.
+- A configurable navigation group (YAGNI; the group is fixed and translated).
 
 ## 4. Surfaces
 
@@ -36,73 +37,79 @@ The mockup is normative for layout, hierarchy, copy and states. This section fix
 
 ### 4.1 Launcher and the new-report slide-over
 
-- The floating launcher stays at the bottom inline-end corner (bottom-left in RTL). It becomes a pill: icon + label (`launcher`); below 560 px only the icon shows (label kept as the accessible name).
+- The floating launcher stays at the bottom inline-end corner (bottom-left in RTL). It becomes a pill: icon + label (`launcher`); below 560 px only the icon shows and the label stays as its accessible name.
 - It opens a **slide-over** anchored to the inline-end edge (left in RTL, right in LTR), full height, `min(460px, 100%)` wide, with a backdrop. It replaces the centred `fb-modal`.
-- Slide-over contract (shared Blade component `x-feedback-board::slide-over`, also used by My reports): `role="dialog"`, `aria-modal="true"`, `aria-labelledby` on its title, Alpine focus trap with `.noscroll`, Escape and backdrop click close it, focus returns to the opener. Enter animation is a CSS keyframe so `prefers-reduced-motion` can disable it (same reason as the existing modal).
-- Form (`FeedbackForm`), top to bottom:
-  1. **Type** as four radio cards (bug, feature, question, other) with an icon and a one-line hint each; `wire:model="type"`; a real `<fieldset>`/`<legend>`; the selected card shows the accent ring.
+- **Slide-over contract** (Blade component `x-feedback-board::slide-over`, props: `id` (required, unique per page), `labelledby`, `wide`): `role="dialog"`, `aria-modal="true"`, `aria-labelledby`, Alpine focus trap with `.noscroll`, Escape and backdrop click close it, focus returns to the opener (or to the page heading when opened from a deep link). Enter animation is a CSS keyframe so `prefers-reduced-motion` can disable it. The launcher's instance keeps the id `fb-launcher-title` for its title.
+- **Form** (`FeedbackForm`), top to bottom:
+  1. **Type** as four radio cards (bug, feature, question, other), each with an icon and a one-line hint; `wire:model="type"`; a real `<fieldset>` and `<legend>`; the selected card shows the accent ring and tint (§6.2).
   2. **Title** (required) with an example placeholder.
   3. **Details** textarea with a guiding placeholder.
-  4. **Attachments** dropzone: a `<label>` for a visually hidden `<input type="file" multiple>`. Drag-and-drop on the zone and paste (Ctrl/Cmd+V) anywhere in the form add files. Selected files list below with an image preview (Livewire `temporaryUrl()` when `isPreviewable()`, otherwise a file icon), name, size and a remove button. The allowed types and size hint stays (it reads `AttachmentStorage::limits()`).
-  5. **Context notice**: one line telling the reporter that the page URL and browser are attached automatically, with the URL shown LTR.
-  6. **Sticky footer**: primary "Send report", secondary "Cancel", and a "My reports" link.
-- Sent state: success icon, "We received your report", the reference `#ID`, and two actions: **Follow the report** (opens My reports on that report, §4.2 deep link) and **New report** (resets the form). It keeps the current focus behaviour (`role="status"`, focused on render) and the reset-on-reopen behaviour (`fb-launcher-opened`).
-- "My reports" links resolve with `Ui::reportsUrl()` (§4.6): the panel page inside Filament, the standalone page otherwise. The URL is computed in `mount()` and stored in a `#[Locked]` property, because Livewire update requests carry no panel context.
+  4. **Attachments dropzone**: a `<label>` wrapping a visually hidden but focusable `<input type="file" multiple>` (focus shown with `:focus-within`). Picking, dropping on the zone, and pasting anywhere in the form all go through the same upload path (§5.5). The selected files list shows a preview for allow-listed images (§5.2) and a file icon otherwise, the name, the size, and a remove button. The allowed-types and size hint stays (`AttachmentStorage::limits()`), plus the file-count limit.
+  5. **Context notice**: one line saying the page URL and browser are attached automatically, with the URL shown LTR.
+  6. **Sticky footer**: primary "Send report", secondary "Cancel", and a "My reports" link. The submit button is disabled while uploads are in flight (`wire:loading.attr` targeting `upload` and `submit`).
+- **Ids**: every id inside the form derives from the component id (`$this->getId()`), so two forms on a page never collide.
+- **Sent state**: success icon, "We received your report", the reference `#ID` (`public ?int $sentId`), and two actions: **Follow the report** (the reports URL with `?report=ID`, §4.2) and **New report** (resets the form). The current focus contract (`role="status" tabindex="-1"` focused on render) and the reset on `fb-launcher-opened` stay.
+- Report links use `Ui::reportsUrl(?int $reportId)` (§4.6), computed in `mount()` into a `#[Locked]` property.
 
 ### 4.2 Reporter: My reports
 
-Component `MyReportsBoard` (redesigned), rendered by the Filament page (§4.6) and by the standalone page (§4.7).
+Component `MyReportsBoard` (redesigned), rendered by the Filament page (§4.6) and the standalone page (§4.7). In a Filament panel the page heading, subheading and the **New report** header action belong to the Filament page; the component hides its own header (`$inPanel`, set by the page).
 
-- **Header**: title, subtitle, and a **New report** button that opens the same new-report slide-over (an instance of `FeedbackForm` inside the page; the floating launcher may also be on the page — both work independently, and `feedback-submitted` refreshes the list).
-- **Tabs**: All / Open (`new`, `in_review`, `in_progress`) / Done (`resolved`, `closed`, `declined`), each with a count. The selected tab is a `#[Url(as: 'tab')]` property.
-- **List** (one row per report, newest activity first): type icon tile, title (single line, ellipsis, `dir="auto"`), `#ID · type`, status badge, last update (`updated_at`, relative), and the count of non-internal comments with an **unread dot** when the report has unread developer replies (§5.3). Rows are buttons. Empty state per tab.
+- **New report** opens a slide-over with a `FeedbackForm` instance owned by this component (the floating launcher may also be on the page; both work independently, and `feedback-submitted` refreshes the list). The Filament header action dispatches the browser event `fb-open-report-form`, which only this component listens to.
+- **Filter buttons** (plain buttons with `aria-pressed`, not ARIA tabs): All / Open (`new`, `in_review`, `in_progress`) / Done (`resolved`, `closed`, `declined`), each with a count.
+- **List**: a column header row (Report, Status, Last update, Replies), then one row per report ordered by `reporter_activity_at` desc (§5.3): type icon tile, title (one line, ellipsis, `dir="auto"`), `#ID · type`, status badge, last update (`reporter_activity_at`, relative), and the count of non-internal comments with an **unread dot** plus visually hidden text "new reply" when unread (§5.3). Rows are buttons. Empty state per filter.
 - **Report slide-over** (wide variant, `min(560px, 100%)`), component `FeedbackItemModal` (redesigned):
   - header: type tile, title, `#ID · type · status badge`, close;
-  - **status steps**: New → In review → In progress → Resolved; for `closed`/`declined` all steps are complete and the last step shows that status;
-  - meta: sent time; page URL (LTR, never a link here — the reporter already knows it);
-  - description, then the report's own image attachments as a thumbnail grid, then non-image attachments as file links;
-  - **conversation**: non-internal comments only, chat-style — the reporter's on the inline-start side, the support team's on the inline-end side with the accent tint, author label from `AuthorRole::label()`, relative time, a "new" tag on replies created after the previous read, and each comment's images as thumbnails;
-  - empty conversation: "No reply yet. We'll notify you when someone replies."
-  - **composer** (sticky footer): attach button, auto-height textarea, Send. Images can also be pasted. Pending images show as removable thumbnails above the field. A reply needs text or at least one image.
-  - Opening the slide-over **marks the report read** (§5.3).
-- **Deep link**: `#[Url(as: 'report')] public ?int $selectedId`. Opening a row updates the URL; loading `?report=ID` opens it. Selection stays scoped to the reporter's own items (as today), so another user's ID opens nothing.
+  - **status steps** for `new`, `in_review`, `in_progress`, `resolved`: New → In review → In progress → Resolved, the current one with `aria-current="step"`. For `closed` and `declined` the steps are replaced by a terminal banner ("This report was closed" / "This report was declined") with the time of that change;
+  - meta: sent time; page URL as LTR text (never a link here);
+  - description, the report's own image attachments as a thumbnail grid, and its non-image attachments as file links;
+  - **conversation**: non-internal comments only, **unconditionally** (also when the viewer is a developer), chat-style: the viewer's own comments on the inline-start side labelled "You", everyone else's on the inline-end side with the accent tint and the author's role label (`AuthorRole::label()`). Each shows the relative time, a "new" tag when it arrived after the previous read (`readBefore`, below), and its image thumbnails;
+  - empty conversation: "No reply yet. We'll notify you when someone replies.";
+  - **composer** (sticky footer): an attach-image button, an auto-height textarea, and Send. Images can also be pasted. Pending images show as removable thumbnails above the field. A reply needs text or at least one image. Composer attachments are **images only** (§5.1).
+- **Reading** is owned by `MyReportsBoard`, not by the child (§5.3):
+  - `open(id)` captures the report's current `reporter_read_at` as `readBefore`, then marks it read.
+  - `mount()` does the same when `?report` is present.
+  - The child receives `readBefore` as a locked prop.
+  - The list renders after the mark, so the opened row loses its dot.
+  - The Filament sidebar badge refreshes on the next full page load.
+- **Deep link**: `#[Url(as: 'report')]` on an **untyped** property, normalised in `render()` with `ctype_digit`. Selection stays scoped to the reporter's own items, so another user's id, a missing id, `abc` or an array opens nothing and never errors. This matters on Livewire 3, which assigns query values without a type guard.
 - The reporter never sees internal notes, internal-note images, or the activity log.
 
 ### 4.3 Developer: Kanban
 
-Component `FeedbackKanban` (redesigned). Developers only (unchanged guards).
+Component `FeedbackKanban` (redesigned). Developers only (unchanged guards). In a panel, the Filament page heading and subheading carry the title and the line "Drag a card between columns to change its status; click it to open."
 
-- **Filters**: chips for All / bug / feature / question / other, each with a count; `#[Url(as: 'type')]`.
+- **Filter chips**: All / bug / feature / question / other, each with a count; `#[Url(as: 'type')]` on an untyped property normalised with `FeedbackType::tryFrom`.
 - **Columns**: one per `FeedbackStatus`, in enum order, header with status dot, label and count; horizontal scroll; empty state.
-- **Card** (a `role="button"` element, keyboard-activatable as today):
-  - **cover**: the report's first image attachment (§5.2), `16:9`, `object-fit: cover`, top-aligned, `loading="lazy"`, `decoding="async"`, empty `alt` (decorative — the title follows);
+- **Card** (`role="button"`, keyboard-activatable as today):
+  - **cover**: the report's cover attachment (§5.2), `16:9`, `object-fit: cover`, top-aligned, `loading="lazy"`, `decoding="async"`, empty `alt` (decorative; the title follows), and an `x-on:error` fallback that hides a broken cover;
   - chips: priority (coloured by `FeedbackPriority::color()`) and type (icon + label);
   - title, clamped to three lines;
-  - footer: `#ID`, comment count, attachment count, internal-note count (lock icon, warning colour), and avatars (initials) for the reporter and the assignee.
-- **Drag and drop**: the existing contract is kept verbatim — `dataTransfer` key `id`, `$wire.moveTo(id, status)`, the `getData('id') &&` drop guard, `types.includes('id')` enter/leave counters, `fb-col--over`, `fb-card--dragging`.
+  - footer: `#ID`, comment count, attachment count, internal-note count (lock icon, warning colour), and avatars for the reporter and the assignee.
+- **Drag and drop** keeps the existing contract verbatim: `dataTransfer` key `id`, `$wire.moveTo(id, status)`, the `getData('id') &&` drop guard, the `types.includes('id')` enter/leave counters, `fb-col--over`, `fb-card--dragging`.
 - Clicking a card opens the **card dialog** (§4.4) instead of the side drawer.
 
 ### 4.4 Developer: card dialog
 
-The existing `fb-drawer` around `FeedbackDetail` becomes a centred **dialog**: `min(1060px, 100% - 2×18px)` wide, full height minus margins, rounded, with a backdrop; below 920 px it is full-screen with a single scrolling column. Same a11y contract as the slide-over (role, aria-modal, labelled by the title, focus trap, Escape, backdrop click, focus return).
+The `fb-drawer` around `FeedbackDetail` becomes a centred **dialog**: `min(1060px, 100% - 36px)` wide, full height minus 18 px margins, rounded, with a backdrop. Below 920 px it is full-screen with one scrolling column. Same a11y contract as the slide-over.
 
-- **Cover band** (150 px; 64 px when there is no image): the cover image centred on a neutral band, click to enlarge; on top, the **status select** (inline-start) and the **close** button (inline-end).
+- **Cover band** (150 px; 64 px without a cover image): the cover centred on a neutral band, click to enlarge. On top of it, the **status select** sits at the inline-start and the **close** button at the inline-end.
 - **Main column** (wider):
-  - type tile, title (`h2#fb-drawer-title`, kept for the existing tests), sub-line `#ID · type · sent by NAME, TIME`;
-  - properties: **priority** select (now with a "No priority" option that is selectable, §5.4), **assignee** (avatar + name, Assign to me / Unassign), **reporter** (avatar + name);
+  - type tile, title (`h2#fb-drawer-title`, kept), sub-line `#ID · type · sent by NAME, TIME`;
+  - properties: **priority** select with a selectable "No priority" option (§5.4); **assignee** (avatar + name, Assign to me / Unassign); **reporter** (avatar + name);
   - description;
-  - **attachments gallery**: every attachment of the report and of its comments; images as thumbnails (click → lightbox), others as file tiles with a download link; each tile shows name and relative time;
-  - **technical context** in a closed `<details>`: page URL (http(s) only becomes a link, as today), browser, locale;
-  - the existing **AI triage** and **runner** panels, restyled only. Their markup contract is kept: `wire:key`, the conditional literal `wire:poll.5s` attributes, `dir="auto"` on the summary, the button labels and `wire:click` names.
-  - **Send to GitHub** keeps its current conditions and action.
-- **Side column — Comments and activity**:
+  - **attachments gallery**: every attachment of the report and of its comments, including internal notes (developers only). Images show as thumbnails that open the lightbox; other files show as tiles with a download link. Each tile shows the name and relative time;
+  - **technical context** in a closed `<details>`: page URL (an http(s) URL becomes a link, as today), browser, locale;
+  - the existing **AI triage** and **runner** panels, restyled only. Their markup contract stays: `wire:key`, the conditional literal `wire:poll.5s` attributes, `dir="auto"` on the summary, the button labels and the `wire:click` names. The suggested type and priority already appear in the "Apply …" buttons; no extra chips;
+  - a **Send to GitHub** button (new in this view; today only the resource has it). It appears under the same conditions as the resource action and calls the existing `sendToGithub()`, which gains the missing `guard()`.
+- **Side column, "Comments and activity"**:
   - header with a **Hide activity / Show activity** toggle (Alpine; remembered per browser in `localStorage`, wrapped in try/catch);
-  - **composer**: a segmented toggle *Reply to reporter* / *Internal note* (`aria-pressed`), one textarea, attach button, paste support, pending thumbnails, a hint line that states who will see it ("The reporter sees this and gets notified" / "Only developers see this; no notification"). Internal mode tints the composer with the warning colour;
-  - **feed**, newest first: comments (avatar, name, role tag, time, body, image thumbnails; internal notes tinted with a lock tag "Internal · hidden from the reporter") interleaved with activity lines (§5.4).
+  - **composer**: a segmented control *Reply to reporter* / *Internal note* (buttons with `aria-pressed`, default reply). One textarea is bound to `body`, with an attach-image button, paste support and pending thumbnails. A hint line states who will see it: "The reporter sees this and gets notified" or "Only developers see this; no notification". Internal mode tints the composer with the warning colour. The form's submit calls `internalNote()` when the Alpine mode is internal and `reply()` otherwise (`x-on:submit.prevent="mode === 'internal' ? $wire.internalNote() : $wire.reply()"`). Both methods share `body`, `files` and the same validation. The `note` property is removed;
+  - **feed**, newest first: comments (avatar, name, role tag, time, body, image thumbnails; internal notes tinted, with a lock tag "Internal · hidden from the reporter") interleaved with activity lines (§5.4).
 
 ### 4.5 Lightbox
 
-Each component that renders images (`FeedbackItemModal`, `FeedbackDetail`) owns one lightbox in its root Alpine scope (no window events, so two components on a page never open two lightboxes). Thumbnails are `<button>`s carrying the inline image URL and name; the lightbox is a dialog with the image, its name, a close button, Escape and backdrop close, and a "download" link to the original.
+Each component that renders images (`FeedbackItemModal`, `FeedbackDetail`) owns one lightbox in its root Alpine scope (no window events). Thumbnails are `<button>`s whose image URL and file name live in `data-*` attributes read through `$el.dataset` (§8). The lightbox is a dialog with the image, its name, a close button, a download link (`<a download>` on the same URL), backdrop close, and Escape bound on the lightbox root with `.stop`, so closing the lightbox does not also close the dialog under it. Focus moves to its close button and returns to the thumbnail.
 
 ### 4.6 Filament integration
 
@@ -110,108 +117,216 @@ Each component that renders images (`FeedbackItemModal`, `FeedbackDetail`) owns 
 
 | Page / resource | Who sees it | Navigation |
 |---|---|---|
-| `MyFeedbackPage` (new) — renders `MyReportsBoard` | any authenticated panel user | label `nav.my_reports`, icon `heroicon-o-chat-bubble-left-right`, badge = number of reports with unread replies (primary colour), sort 1 |
-| `FeedbackBoardPage` — renders `FeedbackKanban` | developers | label `board.title`, icon `heroicon-o-view-columns`, badge = open reports (gray), sort 2 |
+| `MyFeedbackPage` (new, slug `my-feedback`, view in `resources/views-filament/`) renders `MyReportsBoard` | any authenticated panel user | label `nav.my_reports`, icon `heroicon-o-chat-bubble-left-right`, badge = reports with unread replies (primary), sort 1 |
+| `FeedbackBoardPage` renders `FeedbackKanban` | developers | label `board.title`, icon `heroicon-o-view-columns`, badge = open reports (gray), sort 2 |
 | `FeedbackItemResource` | developers | label `nav.all_reports`, icon `heroicon-o-inbox-stack`, sort 3 |
 
-- All three share the navigation group `nav.group` ("Feedback" / "الملاحظات"). Plugin fluent options, each optional: `navigationGroup(?string)` (null = no group), `myReports(bool)` (default true) to not register the reporter page.
-- `getTitle()`/`getNavigationLabel()` keep the existing override pattern (`static::$title ?? __()`).
-- **Resource**: translated model labels; columns with translated headers; `type`/`status`/`priority` badges show `label()` and `color()` through `formatStateUsing`/`color` closures (the enums must not implement Filament interfaces — Filament is optional); `created_at` relative with the full date as tooltip; "Send to GitHub" label translated.
-- **`Ui::reportsUrl()`**: when Filament is installed and the current panel has the plugin with the reporter page enabled, `MyFeedbackPage::getUrl()`; otherwise `route('feedback-board.page')`. Accepts an optional report ID for the deep link.
-- **Panel colours and dark mode**: inside `.fi`, the package accent follows the panel's primary colour. The plugin registers a panel render hook (`PanelsRenderHook::STYLES_AFTER`) that prints one small `<style>` (with the Vite CSP nonce when set) defining `--fb-fi-accent` (the panel primary 600), `--fb-fi-accent-hover` (500) and `--fb-fi-accent-contrast` — white or the primary 950 shade, whichever passes WCAG AA against the 600 shade, computed with Filament's own `Color::isTextContrastRatioAccessible()`. The stylesheet reads them **under** the public tokens: `--_fb-accent: var(--fb-accent, var(--fb-fi-accent, #4f46e5))`, so a host override still wins and a panel without the hook keeps indigo. Dark mode is unchanged (`ui.theme = class`, which follows Filament's `.dark`).
+- All three are in the navigation group `nav.group` ("Feedback" / "الملاحظات"). Labels and the group are translated **inside** the `getNavigation*()` methods at call time, not at panel registration (panels are built in `PanelProvider::register()`, before the locale middleware runs).
+- Plugin option `myReports(bool $condition = true)`. Pages read it from `Filament::getCurrentPanel()?->getPlugin('feedback-board')` at call time, never from static state, so two panels can differ.
+- `getTitle()` and `getNavigationLabel()` keep the existing override pattern (`static::$title ?? __()`). `MyFeedbackPage` maps the mockup header to `getHeading()`, `getSubheading()` and `getHeaderActions()`.
+- **Resource**: translated model labels; translated column headers; `type`, `status` and `priority` badges show `label()` and `color()` through `formatStateUsing` and `color` closures (the enums do not implement Filament interfaces, because Filament is optional); `created_at` relative with the full date as a tooltip; the "Send to GitHub" label translated.
+- **`Ui::reportsUrl(?int $reportId = null)`**:
+  - Inside a panel whose plugin has the reporter page enabled, it returns `MyFeedbackPage::getUrl()`. It decides with `Filament::getCurrentPanel()` only; the `hasPlugin()`/`getPlugin()` helpers would fall back to the default panel, and that could link a host-page user to a panel they cannot open.
+  - Otherwise it returns `route('feedback-board.page')`.
+  - In both cases it appends `?report=ID` when an id is given.
+- **Panel colours.**
+  - The plugin registers a panel-scoped render hook (`PanelsRenderHook::STYLES_AFTER`). It prints one `<style>` (with the Vite CSP nonce when set) that defines three bridge tokens on `:root`:
+    - `--fb-panel-accent`: the primary 600 shade;
+    - `--fb-panel-accent-hover`: the 500 shade;
+    - `--fb-panel-accent-contrast`: white or the 950 shade, whichever passes WCAG AA against 600. If neither passes, whichever has the higher ratio. It is computed with Filament's `Color::calculateContrastRatio()`.
+  - Values are printed only if they match the package's own allow-list: `oklch(...)` with numbers only, or hex. `Str::sanitizeCssColor` is absent from Filament 4.0–4.12, so the package does not use it. If a shade is missing, nothing is printed.
+  - The stylesheet reads the bridge tokens **under** the public ones, only inside `.fi .fb-scope`, for example `--_fb-accent: var(--fb-accent, var(--fb-panel-accent, #4f46e5))`. A host override still wins, and a panel without the hook keeps indigo.
+  - The bridge tokens are internal, not public API. The token-contract test lists them as a separate, allowed set.
+  - This replaces the UI styling spec's fixed-indigo ruling. The package still reads no Filament variables directly.
+- **Dark mode**: unchanged (`ui.theme = class` follows Filament's `.dark`).
 
 ### 4.7 Standalone pages (apps without Filament)
 
-- Both pages get a thin header: the app name (`config('app.name')`) and a "Back to the app" link to `url('/')`; content width up to 1200 px; the same components as the panel.
-- **Theme**: with `ui.theme = class` the standalone pages are **light** (there is no host `.dark` class to follow). `system` follows the OS; `light`/`dark` force. `Ui::colorScheme()` and the stylesheet's standalone rules change accordingly. This reverses the earlier "standalone follows the OS" ruling, which produced the always-dark page.
-- The standalone reports page keeps the new-report form reachable through the header button (slide-over), not inline.
+- Both pages get a thin header: the app name (`config('app.name')`) and a "Back to the app" link to `url('/')`, with content up to 1200 px wide, and the same components as the panel.
+- **Theme**: with `ui.theme = class` the standalone pages are **light**, because there is no host `.dark` class to follow. `system` follows the OS; `light` and `dark` force a theme. `Ui::colorScheme()` returns `light` for `class`, and the stylesheet's standalone rules change to match. This reverses the earlier ruling that standalone pages follow the OS, which produced the always-dark page. Set `FEEDBACK_BOARD_THEME=system` to get the old behaviour.
+- The standalone reports page opens the new-report form from its header button (slide-over); it is no longer inline.
 
 ## 5. Data and backend
 
 ### 5.1 Comment attachments
 
-- The schema already supports them (`feedback_attachments.feedback_comment_id`). No migration.
-- `FeedbackItemModal::reply()` and `FeedbackDetail::reply()/internalNote()` accept pending files (`public array $files`, same rules as the form). Validation: `body` is `required_without:files`; `files` is `array|max:{attachments.max_files}`; `files.*` uses `AttachmentStorage::allowedRules()`.
-- After `ReplyToFeedback::handle()` returns the comment, each file is stored with `AttachmentStorage::store($file, $item, $comment)`. Storage happens after the comment's transaction (same pattern as report creation: disk writes cannot roll back). A storage failure is reported and does not delete the comment.
+- The schema already links attachments to comments (`feedback_attachments.feedback_comment_id`).
+- `FeedbackItemModal::reply()`, `FeedbackDetail::reply()` and `FeedbackDetail::internalNote()` take the component's pending `files`.
+- **Validation:**
+  - `body` is `nullable|string|required_without:files`;
+  - `files` is `array|max:{attachments.max_files}`;
+  - `files.*` uses the image subset of `AttachmentStorage::allowedRules()`: the configured mimes ∩ `jpg,jpeg,png,gif,webp`. The composers' inputs use `accept="image/*"`.
+- **Storing and failures:**
+  - After `ReplyToFeedback::handle()` returns the comment, each file is stored with `AttachmentStorage::store($file, $item, $comment)`, after the comment's transaction (the same pattern as report creation: disk writes cannot roll back).
+  - If storing fails, the comment is kept, the exception is reported, and the composer shows "Some images could not be saved."
+- **Image-only replies:**
+  - The body is stored as `''` (the column is `NOT NULL`).
+  - Outbound channels handle an empty body: the reply e-mail uses a translated line ("A reply with images was added"); the GitHub driver skips the auto-comment for an empty body (GitHub rejects empty comments with 422); the webhook payload carries `body: ''` (documented).
 - New config key `attachments.max_files` (default `10`), used by the report form and both composers.
+- `FeedbackComment::deleting` deletes its attachments (rows and files), so a deleted internal note never leaves its images behind as report-level attachments (`nullOnDelete` would otherwise promote them).
 
-### 5.2 Serving images inline
+### 5.2 Serving images inline; the cover
 
-- `AttachmentController::show` keeps its authorization and adds one rule: an attachment that belongs to an **internal** comment requires a developer (today any viewer of the item could fetch it by ID — a leak this feature would otherwise make visible).
-- Images in an allow-list (`image/jpeg`, `image/png`, `image/gif`, `image/webp`, judged by the stored `mime` **and** the file extension) are served `inline` with `Content-Type` from the allow-list, `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox`, and `Cache-Control: private, max-age=3600`. Everything else (including SVG) keeps being a download. `?download=1` forces a download for images too.
-- `FeedbackAttachment::isImage()` encodes the allow-list; `FeedbackItem::coverAttachment()` returns the oldest image attachment of the report itself (`feedback_comment_id` null).
+- `AttachmentController::show` keeps its authorization and adds a rule: an attachment of an **internal** comment requires a developer. The leak is latent today (nothing creates comment attachments yet), and this feature would make it real.
+- A missing file on disk returns 404 instead of a 500.
+- `FeedbackAttachment::isImage()` is true when the stored `mime` is in `image/jpeg, image/png, image/gif, image/webp` **and** the extension of `original_name` matches it.
+- Images are served `inline` with:
+  - `Content-Type` from the allow-list;
+  - `X-Content-Type-Options: nosniff`;
+  - `Content-Security-Policy: default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox`;
+  - `Cache-Control: private, max-age=3600`.
+- Everything else, SVG included, stays a download.
+- Livewire upload previews are shown only for files that pass the same allow-list. Livewire's own preview list includes svg, bmp and media types.
+- **Cover**: `FeedbackItem::coverAttachment()` is an eager-loadable `hasOne()->ofMany(['id' => 'min'], …)`. It takes the report's own attachments (`feedback_comment_id` null) whose mime is in the allow-list. If `isImage()` then rejects the extension, the card shows no cover.
 
-### 5.3 Unread replies
+### 5.3 Reporter-visible activity and unread replies
 
-- New migration `add_reporter_read_at_to_feedback_items_table`: nullable `reporter_read_at` timestamp on `feedback_items`. Registered in the service provider's `hasMigrations()` list so `feedback-board:install` and `vendor:publish --tag=feedback-board-migrations` publish it.
-- **Unread** = non-internal comments with `author_role = developer` created after `COALESCE(reporter_read_at, feedback_items.created_at)`.
-- The reporter opening a report, or replying to it, sets `reporter_read_at = now()` — only when the viewer owns the item (a developer opening it changes nothing).
-- Queries: a `scopeWithUnreadCount()` on `FeedbackItem` (one correlated `withCount`, portable `COALESCE`), used by the list; the navigation badge counts the reporter's items having any unread reply (one `whereExists` query; returns null when zero).
-- `FeedbackComment` gets `protected $touches = ['item']` so a new comment updates the report's `updated_at` (the list's "last update" and order).
+- New migration **`update_feedback_items_add_reporter_columns`**. The name sorts after the `create_*` files, which the package's tests load in filename order. It is registered in `hasMigrations()`, so `feedback-board:install` and `vendor:publish --tag=feedback-board-migrations` publish it. It:
+  - adds nullable `reporter_read_at` and `reporter_activity_at` timestamps to `feedback_items`;
+  - **backfills** existing rows: `reporter_read_at = now()` (no historical reply becomes unread after the upgrade) and `reporter_activity_at = updated_at`;
+  - adds an index on `feedback_comments (feedback_item_id, is_internal, created_at)`.
+- **`reporter_activity_at`** is the only time shown to and sorted for the reporter. It is set on creation (`CreateFeedbackItem`), on every **non-internal** comment (`ReplyToFeedback`, which also covers ingest and AI comments), and on status changes (`TransitionStatus`). Internal notes, triage, runner, GitHub refs, assignment and priority never touch it. No `$touches` on comments.
+- **Unread** means non-internal comments whose `author_role` is **not** `reporter` (developer and AI replies; both already e-mail the reporter), created after `COALESCE(reporter_read_at, feedback_items.created_at)`. Strict `>`, with second precision; the same-second tie is accepted.
+- **Marking read** happens in `MyReportsBoard` only when the viewer owns the item. It writes **without touching `updated_at`** (`toBase()->update()`).
+- **Queries**:
+  - `FeedbackItem::scopeWithUnreadCount()` is one correlated `withCount`, with identifiers wrapped by the query grammar so table prefixes work.
+  - The navigation badge is one `whereExists` count over the reporter's items. It returns null when zero, and it is wrapped in `rescue()` (reported, returns null), so a host that has not run the migration yet keeps a working panel.
+- Upgrade: publishing and running the new migration is a **required** step (CHANGELOG).
 
 ### 5.4 Activity feed
 
-- New `ActivityAction::PriorityChanged` (`priority_changed`); `FeedbackDetail::setPriority()` records it with `properties: {from, to}`, and accepts an empty value to clear the priority (the select's "No priority" option).
-- New `FeedbackActivity::sentence(?string $actor)` returns a full line with the actor's name: created, moved from A to B, assigned to X / unassigned, priority changed to P. Translations use `:actor`, `:from`, `:to`, `:assignee`; a missing actor name falls back to the role ("Someone"). `summary()` stays for existing callers.
-- The developer feed merges comments and activities by time, newest first, and **omits `Replied` activities** (the comment itself is the record). Actors and assignees are eager-loaded; names come from `name`, then `email`, then `#id`.
+- **`SetPriority` action** (new), used by `FeedbackDetail::setPriority()` and `ApplyTriageSuggestion`:
+  - it writes the priority, accepting null for "No priority";
+  - it records `ActivityAction::PriorityChanged` (`priority_changed`) with `properties: {from, to}`;
+  - it does nothing when the value is unchanged.
+- **Type changes**: `ApplyTriageSuggestion` records `ActivityAction::TypeChanged` (`type_changed`) the same way.
+- **`AssignFeedback`** now also stores `assignee_type`.
+- **`FeedbackActivity::sentence(?string $actor, ?string $assignee = null)`** returns a full line: created, moved from A to B, assigned to X, unassigned, priority changed to P (or cleared), type changed to T.
+  - Translations use `:actor`, `:from`, `:to` and `:assignee`.
+  - A missing actor name falls back to "Someone".
+  - For old assignment rows, which have no `assignee_type`, the assignee name is resolved only when `assignee_id` equals the actor (assign-to-me was the only UI path); otherwise it shows `#id`.
+  - `summary()` stays for existing callers.
+- **Merged feed** (developer view): comments and activities by time, newest first, **omitting `Replied` activities** (the comment itself is the record). Actors and assignees are eager-loaded; names come from `name`, then `email`, then `#id`.
 
-### 5.5 Uploads UX (form and composers)
+### 5.5 Uploads (form and composers)
 
-- Livewire's `wire:model` on a multiple file input replaces the selection, so new picks, drops and pastes go to a staging property (`uploads`) whose `updatedUploads()` hook **appends** to `files` (up to `max_files`) and clears the stage. `removeFile(int $index)` drops one pending file.
-- Paste and drop are Alpine handlers that call `$wire.uploadMultiple('uploads', files)`; only `File` items from `clipboardData.files`/`dataTransfer.files` are used. An upload progress line and errors (`files`, `files.*`, `uploads.*`) are shown.
+- All sources (picker, drop, paste) call `$wire.upload('upload', file)` **once per file, sequentially**. The target is a single staging property, and the same JS path is used on Livewire 3 and 4. This avoids `uploadMultiple`'s S3 restriction and its single large POST, and it does not depend on the different `wire:model` append semantics of the two majors.
+- `updatedUpload()`:
+  - accepts only a `TemporaryUploadedFile`;
+  - validates it with the component's rules (all allowed types in the form, images only in the composers);
+  - appends it to `files` (marked `#[Locked]`, so the client cannot set it);
+  - when `max_files` is already reached, rejects the file with an error and deletes the temporary file;
+  - clears the stage in every case.
+- `removeFile(int $index)` drops one pending file.
+- **Paste**: the handler reads `clipboardData.files`, falls back to `clipboardData.items[].getAsFile()`, and calls `preventDefault()` only when it found files. A pasted blob with no name becomes `screenshot-YYYYMMDD-HHMMSS.png` (client-side `File` rename, so the stored `original_name` is meaningful).
+- **Drop**: the zone handles `dragover.prevent`, `dragleave` and `drop.prevent`; only `dataTransfer.files` are used.
+- **Errors and progress**: errors for `upload`, `files` and `files.*` show under the zone, with an upload progress line.
 
 ## 6. Styling
 
-- The architecture of the UI styling spec stays: one self-contained stylesheet, `.fb-scope` roots, `--fb-*` public tokens only read, private `--_fb-*` aliases, logical properties, no `!important`/`@layer`/`url(`/`:has`/nesting/`color-mix`, reduced-motion rule last, forced-theme backgrounds, coverage test (every class used in a view is styled).
-- New component blocks: slide-over, dialog, lightbox, radio cards, dropzone, file list and pending thumbnails, tabs, report rows, steps, chat bubbles, Kanban card cover/chips/footer/avatars, filter chips, gallery, feed entries, internal tint.
-- Removed: `fb-modal*`, the drawer around the Kanban detail (the reporter's drawer becomes the wide slide-over), and the inline-form layout of the standalone reports page.
-- Icons: inline SVG (Heroicons outline paths), `aria-hidden`.
-- Avatars: initials in a circle; the tint is chosen from four accent tints by a stable hash of the name.
+### 6.1 Architecture (unchanged)
+
+One self-contained stylesheet; `.fb-scope` roots; `--fb-*` public tokens only read; private `--_fb-*` aliases; logical properties; no `!important`, `@layer`, `url(`, `:has`, nesting or `color-mix`; the reduced-motion rule last; forced-theme backgrounds; the coverage test (every class used in a view is styled). New views stay one directory level deep, which is all the coverage test scans.
+
+### 6.2 Accent tints without `color-mix`
+
+The selected type card, the support-side chat bubble, the active filter and the unread badge need a tint of the accent, and the accent can be any host or panel colour. A tint is painted by an absolutely positioned `::before` filled with `var(--_fb-accent)` at a fixed opacity (light `.10`, dark `.16`), behind the content (`z-index: -1` inside an `isolation: isolate` parent). No new public token; it works for any accent in both themes. Text on tints uses the normal foreground colour, never the accent.
+
+### 6.3 New and removed blocks
+
+- **New**: slide-over, dialog, lightbox, radio cards, dropzone, file list and pending thumbnails, filter buttons, report rows and header row, steps and terminal banner, chat bubbles, Kanban cover/chips/footer/avatars, filter chips, gallery, feed entries, internal tint, standalone header.
+- **Removed**: `fb-modal*`, the drawer around the Kanban detail, the inline-form layout of the standalone reports page.
+- **Icons**: inline SVG (Heroicons outline paths), `aria-hidden`.
+- **Avatars**: one grapheme (`mb_substr($name, 0, 1)`), never two joined Arabic letters, in a circle tinted from a fixed four-hue palette by a stable hash of the name.
 
 ## 7. Translations
 
-All new strings in `en` and `ar` (parity test stays): navigation (`nav.group`, `nav.my_reports`, `nav.all_reports`), type hints, dropzone and paste hints, context notice, sent state, tabs, steps, conversation labels and empty states, composer modes and hints, feed sentences, gallery and lightbox labels, resource labels and column headers, standalone header.
+All new strings exist in `en` and `ar` (the parity test stays):
+
+- navigation: `nav.group`, `nav.my_reports`, `nav.all_reports`;
+- the report form: type hints, dropzone and paste hints, the file-count limit, the context notice, the sent state;
+- My reports: filters, steps and terminal banners, conversation labels ("You") and empty states;
+- the developer dialog: composer modes and hints, feed sentences, gallery and lightbox labels, the image-save failure;
+- the image-only reply line in the e-mail;
+- the Filament resource: labels and column headers;
+- the standalone header.
 
 ## 8. Security
 
-- Authorization is unchanged except the internal-attachment rule (§5.2). All writes keep their guards (`authorize('reply')` for the reporter, `guard()` for developers).
-- Uploaded files keep server-side validation (`mimes`, `max`) on the final store; staging uploads go through Livewire's temporary-upload rules. SVG is never served inline.
-- No user text becomes HTML: everything is escaped Blade output; `dir="auto"` on user text.
-- The theme `<style>` hook prints only values derived from the panel's registered colours, sanitised like Filament does (`Str::sanitizeCssColor`).
+- **User-controlled strings** (attachment names, URLs, titles, bodies) are never interpolated into `x-*`, `wire:*` or `@…` expressions. HTML entity decoding happens before Alpine evaluates an attribute, so escaping does not protect them there. They go into `data-*` attributes read through `$el.dataset`, or through `@js()`. Expressions contain only integers, enum values and package-defined strings. A test uploads a file named `x');alert(1);('"</script>.png` and asserts it appears only escaped and only in text and `data-*` positions.
+- Authorization is unchanged except:
+  - the internal-attachment rule (§5.2);
+  - `sendToGithub()` gaining `guard()`;
+  - the reporter conversation filtering internal notes unconditionally.
+- Uploads are validated on staging (§5.5) and again on the final store. SVG is never served inline.
+- Other user text is plain escaped Blade output, with `dir="auto"`.
+- The colour hook prints only allow-listed values (§4.6).
 
 ## 9. Performance
 
-- Kanban: one query for items with `withCount` (comments, attachments, internal notes), eager-loaded cover attachment and assignee — no per-card queries. Covers are full images, lazy-loaded; documented as a trade-off (no thumbnails).
-- Navigation badges run on every panel page: one cheap query each, indexed by the existing reporter columns.
+- **Kanban**: one query for the items, with `withCount` (comments, attachments, internal notes) and the eager-loaded cover and assignee; no per-card queries. Covers are full images, lazy-loaded (the trade-off of having no thumbnails).
+- **Navigation badges** run on every panel page: one indexed query each (§5.3). `canAccess()` runs first, so the board badge never runs for non-developers.
 
 ## 10. Compatibility and upgrade
 
-- Laravel 12/13, Livewire 3.8.3+/4.3.4+, Filament 4/5 — all lanes keep passing.
-- **New migration** (§5.3): existing installs publish and run it. CHANGELOG upgrade note.
-- **Markup and class changes** again (modal → slide-over, drawer → dialog): views published earlier must be re-published. CHANGELOG note.
-- Notification e-mails are unchanged.
+- Laravel 12/13, Livewire 3.8.3+/4.3.4+, Filament 4.0+/5: all lanes keep passing. Behaviours that differ between majors are covered by tests on both: URL-property assignment, upload append, colour helpers.
+- **CHANGELOG** additions:
+  - **Required:** publish and run the new migration.
+  - **Markup and class changes:** the modal became a slide-over and the drawer a dialog. Re-publish any views published earlier.
+  - **My reports in the panel:** "My reports" now appears for every panel user (`->myReports(false)` to disable).
+  - **Panel colour:** the accent follows the panel's primary colour.
+  - **Standalone theme:** standalone pages are light with `class` (`FEEDBACK_BOARD_THEME=system` restores the old behaviour).
+  - **Image-only replies:** they send an e-mail line, skip the GitHub comment, and carry an empty webhook body.
+- **README and config**: the styling section (the standalone theme, the manual `--fb-accent: var(--primary-600)` tip, which is now automatic), the `ui.theme` config comment, a Filament section for the new page and `myReports()`, and the multi-guard limitation.
 
 ## 11. Testing
 
-TDD per task. Coverage that must exist when done:
+TDD per task. When done, coverage must include:
 
-- Form: radio-card type binding, appending uploads across picks, `max_files`, removing a pending file, preview only for previewable files, sent state with `#ID` and the follow link, reset on reopen, focus contract.
-- Comment attachments: reporter and developer replies with images and with images only; internal-note images hidden from the reporter in views **and** forbidden by the attachment route.
-- Inline serving: allow-listed images inline with the security headers; SVG, PDF and mismatched extension/mime are downloads; `?download=1`.
-- Unread: counts after developer replies, not after internal notes or the reporter's own replies; reading by opening and by replying; only the owner's read counts; badge query.
-- Activity: priority change recorded and clearable; sentences with and without actor names; `Replied` omitted from the merged feed; ordering.
-- Kanban: cover choice, counts, avatars, filters, the drag-and-drop contract strings unchanged.
-- Filament (real panel, both majors): navigation group, icons, labels, badges, `MyFeedbackPage` for a non-developer, board and resource still developer-only, `Ui::reportsUrl()` inside and outside a panel, the theme-vars hook with and without a CSP nonce.
-- Standalone: header, light default for `class`, `system` media query.
-- Stylesheet: coverage, scoping, token contract and dark parity tests extended to the new classes.
-- Browser pass (Playwright, as in the UI styling cycle): en/ar, light/dark, 1280/390, Filament panel and a plain host; screenshots compared against the mockup.
+- **Form**: radio-card type binding; appending uploads one by one; `max_files` (rejected file deleted); removing a pending file; preview only for allow-listed images; the sent state with `#ID` and the follow link; reset on reopen; the focus contract; unique ids with two forms on a page.
+- **Comment attachments**: reporter and developer replies with images, with images only, and with a non-image (rejected); internal-note images hidden from the reporter in the views **and** forbidden by the attachment route; the composer's submit expression for both modes; deleting a comment deletes its images.
+- **Inline serving**: allow-listed images served inline with the security headers; SVG, PDF and a mime/extension mismatch served as downloads; a missing file returns 404.
+- **Outbound**: an image-only reply produces the e-mail fallback line, no GitHub comment, and an empty webhook body.
+- **Reporter activity and unread**:
+  - `reporter_activity_at` moves on public comments and status changes, and stays put on internal notes, triage, runner, assignment and priority;
+  - counts after developer and AI replies, not after internal notes or the reporter's own replies;
+  - reading by opening, by deep link and by replying; only the owner's read counts; marking read leaves `updated_at` alone;
+  - the opened row loses its dot and its new replies are tagged;
+  - the badge query; the migration's backfill.
+- **Deep link and filters**: `?report=` with someone else's id, a missing id, `abc` and an array; `?type=` with junk. Both Livewire majors.
+- **Activity**: `SetPriority` (set, clear, unchanged = no row) from the detail and from triage; `TypeChanged`; `assignee_type` stored; sentences with and without names and for old assignment rows; `Replied` omitted from the merged feed; ordering.
+- **Kanban**: cover choice (comment images and non-allow-listed files excluded), counts, avatars, filters, and the drag-and-drop contract strings.
+- **Filament** (a real panel, both majors): the group, icons and labels translated per request locale; badges; `MyFeedbackPage` for a non-developer; board and resource still developer-only; `myReports(false)`; `Ui::reportsUrl()` inside and outside a panel; the colour hook with and without a CSP nonce, with a light primary (amber), and with a missing shade.
+- **XSS**: the hostile-filename test (§8).
+- **Standalone**: the header; light by default with `class`; the `system` media query.
+- **Stylesheet**: coverage, scoping, token contract (with the bridge set) and dark parity extended to the new classes; the tint technique uses no banned constructs.
+- **Browser pass** (Playwright, as in the UI styling cycle): en/ar, light/dark, 1280/390, a Filament panel with a pink and an amber primary, and a plain host; screenshots compared against the mockup.
+
+**Existing assertions this redesign replaces on purpose.** Each is rewritten to the new contract in the task that changes it:
+
+| Test | Today | Becomes |
+|---|---|---|
+| `MyReportsTest` 45–48, 60–63 | `fb-drawer`, `fb-list__item` | slide-over and row markup |
+| `KanbanTest` 38, 41, 52–53 | drawer, priority badge, column dot | dialog, priority chip; the column dot stays |
+| `FeedbackDetailTest` 16–17, 97 | separate `body` / `note` | shared `body`, mode-based submit |
+| `FeedbackDetailTest` 57, 60 | `<option value="" disabled selected>` | selectable "No priority" |
+| `FeedbackDetailTest` 104, 118 | `summary()` text in the timeline | `sentence()` text in the feed |
+| `FeedbackDetailTest` 107 | `tab === 'note'` | `mode === 'internal'` |
+| `FeedbackFormTest` 18, 47, 87–89 | `set('files')`, plain reports link | `upload` staging, `?report=` link |
+| `LivewireRegistrationTest` 55–56, 62 | `fb-launcher-title`, `placeholder=" "` | the id stays; the example placeholders keep the RTL placeholder rule |
+| `StandalonePagesTest` 23, 26, 38, 52–65 | standalone markup, unique ids | new header; ids stay unique |
+| `UiTest` 62 | `class` → `light dark` | `light` |
+| `StylesheetTest` 126, 146–147 | public token list, standalone dark selectors | the bridge set; standalone light |
+| `InstallCommandTest` 18, 35, 54 | glob `*_create_feedback_*`, count 4 | includes the update migration |
+
+Kept verbatim: the drag-and-drop strings, `wire:poll.5s` (triage and runner), `h2#fb-drawer-title`, `role="status" tabindex="-1"` and its focus, the `fb-launcher-opened` reset, `data-fb-theme`, `dir`, and the `fb-scope` roots.
 
 ## 12. Review focus
 
 The inputs most likely to break for a real user that no single test names:
 
-1. A pasted screenshot from the clipboard (unnamed `image.png` blob) on Livewire 3 and 4.
+1. A pasted screenshot (an unnamed clipboard blob) on Livewire 3 and 4, in Chrome and Firefox.
 2. A report whose only attachment is a large phone photo (8–10 MB) on a board with many cards.
 3. An RTL panel with a long English title and an English URL in the same card and dialog.
-4. A host whose primary colour is light (amber/yellow): button text must stay readable.
-5. Opening `?report=ID` for a report that belongs to someone else, or that does not exist.
+4. A panel whose primary colour is light (amber or yellow): button text must stay readable.
+5. A first panel visit after `composer update` but before `migrate`.
