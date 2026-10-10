@@ -6,20 +6,21 @@
     "authors": [{ "name": "Yousef Aman", "role": "Developer" }],
     "require": {
         "php": "^8.2",
-        "illuminate/contracts": "^11.0 || ^12.0",
-        "livewire/livewire": "^3.0",
-        "spatie/laravel-package-tools": "^1.15.0"
+        "illuminate/contracts": "^12.0 || ^13.0",
+        "livewire/livewire": "^3.8.3 || ^4.3.4",
+        "spatie/laravel-package-tools": "^1.19"
     },
     "require-dev": {
-        "orchestra/testbench": "^9.0 || ^10.0",
-        "pestphp/pest": "^3.0",
-        "pestphp/pest-plugin-laravel": "^3.0",
+        "orchestra/testbench": "^10.0 || ^11.0",
+        "pestphp/pest": "^3.0 || ^4.0",
+        "pestphp/pest-plugin-laravel": "^3.0 || ^4.0",
         "filament/filament": "^4.0 || ^5.0"
+    },
+    "suggest": {
+        "filament/filament": "^4.0 || ^5.0 — developer Kanban page, resource and database notifications"
     },
     "autoload": { "psr-4": { "YousefAman\\FeedbackBoard\\": "src/", "YousefAman\\FeedbackBoard\\Database\\Factories\\": "database/factories/" } },
     "autoload-dev": { "psr-4": { "YousefAman\\FeedbackBoard\\Tests\\": "tests/" } },
     "extra": { "laravel": { "providers": ["YousefAman\\FeedbackBoard\\FeedbackBoardServiceProvider"] } },
-    "config": { "allow-plugins": { "pestphp/pest-plugin": true } },
-    "minimum-stability": "dev",
-    "prefer-stable": true
+    "config": { "allow-plugins": { "pestphp/pest-plugin": true } }
 }

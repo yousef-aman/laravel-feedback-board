@@ -4,8 +4,11 @@ return [
     'project' => env('FEEDBACK_BOARD_PROJECT', 'default'),
 
     'authorization' => [
-        // Return true for users allowed to manage (triage/resolve) feedback.
-        'developer_resolver' => null, // e.g. fn ($user) => $user->is_admin === true
+        // Who may manage (triage/resolve) feedback. Prefer registering a callback in
+        // AppServiceProvider::boot(): FeedbackBoard::resolveDevelopersUsing(...); it takes
+        // precedence over this key. A closure here breaks `php artisan config:cache`; use
+        // null or a public static method callable, e.g. [DeveloperCheck::class, 'handle'].
+        'developer_resolver' => null,
     ],
 
     'attachments' => [
@@ -19,9 +22,15 @@ return [
     'route_middleware' => ['web', 'auth'],
 
     'notifications' => [
-        // array of emails OR a callable returning a Collection of notifiables
-        'developers' => array_filter([env('FEEDBACK_BOARD_DEVELOPER_EMAIL')]),
-        'channels' => ['mail', 'database'],
+        // E-mail addresses to notify (FEEDBACK_BOARD_DEVELOPER_EMAIL may be comma-separated).
+        // For notifiable models, register FeedbackBoard::notifyDevelopersUsing(...) in
+        // AppServiceProvider::boot() instead; it takes precedence over this key. A closure
+        // here breaks `php artisan config:cache`; a public static method callable is safe.
+        'developers' => array_filter(array_map('trim', explode(',', (string) env('FEEDBACK_BOARD_DEVELOPER_EMAIL', '')))),
+
+        // Add 'database' for in-app notifications after `php artisan make:notifications-table`
+        // and `php artisan migrate` (and ->databaseNotifications() on a Filament panel).
+        'channels' => ['mail'],
     ],
 
     'destinations' => [

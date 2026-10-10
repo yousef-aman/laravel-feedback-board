@@ -8,27 +8,26 @@ Feedback Board is self-hosted by design. Reports are captured inside the authent
 
 ## Requirements
 
-- PHP 8.2+
-- Laravel ^11 || ^12
-- Filament ^4 || ^5 (optional, for the developer Kanban board)
+- PHP 8.2+ (8.3+ for Laravel 13)
+- Laravel 12 or 13
+- Livewire 3.8.3+ or 4.3.4+
+- Filament 4 or 5 (optional, for the developer Kanban board)
 
 ## Installation
 
 ```bash
 composer require yousefaman/feedback-board
+php artisan feedback-board:install
 ```
 
-## Publish Assets and Migrate
+The install command publishes the config file and the migrations, offers to run the migrations, and prints the next steps. It is hidden from `php artisan list`, so type it as shown. Running it again is safe: an existing `config/feedback-board.php` is never overwritten and migrations are not published twice.
 
-Publish the configuration file:
+### Manual installation
+
+To publish by hand instead:
 
 ```bash
 php artisan vendor:publish --tag=feedback-board-config
-```
-
-Publish and run the migrations:
-
-```bash
 php artisan vendor:publish --tag=feedback-board-migrations
 php artisan migrate
 ```
@@ -69,42 +68,68 @@ Add the `<x-feedback-board::launcher/>` Blade component to your authenticated la
 
 The launcher renders a floating button that opens the feedback form in a modal overlay. It is RTL-aware — set `dir` via the translation key as shown above.
 
-### 2. Configure the developer resolver
+### 2. Tell the package who your developers are
 
-Open `config/feedback-board.php` and configure the `authorization.developer_resolver` callable to tell the package which authenticated users are developers:
+Developers can triage, reply internally, assign and resolve reports. Register a resolver in your `AppServiceProvider::boot()`:
 
 ```php
-// config/feedback-board.php
-'authorization' => [
-    'developer_resolver' => function (\Illuminate\Contracts\Auth\Authenticatable $user): bool {
-        // Return true if this user should have developer-level access.
-        return $user->hasRole('developer');
-    },
-],
+use YousefAman\FeedbackBoard\Facades\FeedbackBoard;
+
+public function boot(): void
+{
+    FeedbackBoard::resolveDevelopersUsing(fn ($user) => $user->hasRole('developer'));
+}
 ```
+
+Until you register a resolver, nobody is a developer.
+
+> **Do not put a closure in `config/feedback-board.php`.** Laravel cannot cache closures, so `php artisan config:cache` (and `php artisan optimize`) fails on deploy. To configure access in the config file instead, point `authorization.developer_resolver` at a public static method:
+>
+> ```php
+> 'developer_resolver' => [\App\Support\DeveloperCheck::class, 'handle'],
+> ```
+>
+> A callback registered with `FeedbackBoard::resolveDevelopersUsing()` takes precedence over the config value.
+
+To check access in your own code, use `FeedbackBoard::isDeveloper($user)`. It answers through the `feedback-board.manage` gate, so `Gate::before()` hooks (such as a super-admin rule) apply exactly as they do inside the package, and a guest (`null`) is never a developer.
 
 ### 3. Configure developer notifications
 
-In the same config file, list the developer users who should receive new-report email notifications:
+New reports, and replies from reporters, notify your developers. List their e-mail addresses in `.env`, separated by commas:
+
+```dotenv
+FEEDBACK_BOARD_DEVELOPER_EMAIL=dev@example.com,lead@example.com
+```
+
+or in the config file:
 
 ```php
+// config/feedback-board.php
 'notifications' => [
-    'developers' => [
-        // IDs of users to notify when a new report is submitted.
-        // Example: \App\Models\User::where('role', 'developer')->pluck('id')->all()
-        1,
-        2,
-    ],
+    'developers' => ['dev@example.com', 'lead@example.com'],
 ],
 ```
 
-Alternatively, set `notifications.developers` to a closure that returns an array of notifiable models:
+Entries that Laravel's `email` validation rule rejects are skipped, with a warning in your log. Addresses such as `dev@localhost`, for a local mail catcher like Mailpit, are accepted.
+
+To notify user models instead (for example, to also use Filament's in-app bell), register them in `AppServiceProvider::boot()`. This takes precedence over the config e-mails:
 
 ```php
-'notifications' => [
-    'developers' => fn () => \App\Models\User::developers()->get()->all(),
-],
+FeedbackBoard::notifyDevelopersUsing(fn () => \App\Models\User::where('is_admin', true)->get());
 ```
+
+### 4. Notification channels
+
+By default, notifications go out by `mail` only. To also store in-app (database) notifications:
+
+```bash
+php artisan make:notifications-table
+php artisan migrate
+```
+
+Then add `'database'` to `notifications.channels` in `config/feedback-board.php`. To show the bell in a Filament panel, also call `->databaseNotifications()` on that panel. Recipients that are only e-mail addresses always receive mail only.
+
+Notifications are sent, and destination deliveries (webhook, Slack, GitHub) queued, only after the report, reply or status change is saved. If sending or queueing fails (for example, the mail server is down, or a Slack outage on the `sync` queue), the failure is reported to your exception handler and the user's action is still kept.
 
 ## Filament Integration
 
@@ -116,7 +141,21 @@ use YousefAman\FeedbackBoard\Filament\FeedbackBoardPlugin;
 $panel->plugin(FeedbackBoardPlugin::make());
 ```
 
-This adds a Kanban-style Feedback Board page (`/admin/feedback-board`) to your panel where developers can triage, reply, assign, and resolve reports.
+This adds a Kanban-style Feedback Board page (`/admin/feedback-board-page`) and a feedback items resource to your panel, where developers can triage, reply, assign, and resolve reports.
+
+### Reporters who use a Filament panel
+
+If your reporters work inside a Filament panel rather than a custom layout, render the launcher through a render hook in that panel's provider:
+
+```php
+use Filament\View\PanelsRenderHook;
+use Illuminate\Support\Facades\Blade;
+
+$panel->renderHook(
+    PanelsRenderHook::BODY_END,
+    fn (): string => Blade::render('<x-feedback-board::launcher />'),
+);
+```
 
 ## i18n / RTL Support
 
@@ -130,13 +169,13 @@ Key configuration options in `config/feedback-board.php`:
 
 | Key | Type | Description |
 |-----|------|-------------|
-| `authorization.developer_resolver` | callable\|null | Returns `bool` — whether the current user is a developer |
+| `authorization.developer_resolver` | callable\|null | Public static method returning `bool`; prefer `FeedbackBoard::resolveDevelopersUsing()` (a closure here breaks `config:cache`) |
 | `attachments.disk` | string | Storage disk for uploaded attachments (default: `'local'`) |
 | `attachments.max_kb` | int | Maximum upload size in kilobytes (default: `10240`) |
 | `route_prefix` | string | URL prefix for package routes (default: `'feedback-board'`) |
 | `route_middleware` | array | Middleware applied to package routes (default: `['web', 'auth']`) |
-| `notifications.developers` | array\|callable | Developer users/notifiables to notify on new reports |
-| `notifications.channels` | array | Notification channels (default: `['mail', 'database']`) |
+| `notifications.developers` | array\|callable | Developer e-mail addresses (`FEEDBACK_BOARD_DEVELOPER_EMAIL`, comma-separated; invalid entries are skipped); for models prefer `FeedbackBoard::notifyDevelopersUsing()` |
+| `notifications.channels` | array | Notification channels (default: `['mail']`; add `'database'` after `make:notifications-table`) |
 | `destinations.default` | string | Default destination driver name (default: `'mail'`) |
 | `destinations.enabled` | array | Active destination drivers — empty by default (all opt-in; Phase 2 enables webhook/github/slack/etc.) |
 | `ingest.enabled` | bool | Enable the remote ingest endpoint (default: `false`) |

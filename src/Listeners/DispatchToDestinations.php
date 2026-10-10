@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace YousefAman\FeedbackBoard\Listeners;
 
 use Illuminate\Events\Dispatcher;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use YousefAman\FeedbackBoard\Destinations\Support\DestinationEvent;
 use YousefAman\FeedbackBoard\Events\FeedbackItemCreated;
@@ -50,7 +52,7 @@ class DispatchToDestinations
         foreach ((array) config('feedback-board.destinations.enabled', []) as $driver) {
             $events = (array) config("feedback-board.destinations.{$driver}.events", []);
             if (in_array($name, $events, true)) {
-                DeliverToDestination::dispatch($event, (string) $driver, (string) Str::uuid());
+                $this->dispatchAfterCommit(new DeliverToDestination($event, (string) $driver, (string) Str::uuid()));
             }
         }
 
@@ -67,8 +69,19 @@ class DispatchToDestinations
         $hasRef = isset(($item->external_refs ?? [])['github']);
 
         if ($configured && $hasRef && in_array($name, $events, true)) {
-            DeliverToDestination::dispatch($event, 'github', (string) Str::uuid());
+            $this->dispatchAfterCommit(new DeliverToDestination($event, 'github', (string) Str::uuid()));
         }
+    }
+
+    /**
+     * Queue only once the action's transaction has committed, and best-effort: a failing
+     * push, or a failing job on the sync queue, is reported and never thrown into the
+     * user's report, reply or status change. (Bus::dispatch, not ::dispatch(): a
+     * PendingDispatch would dispatch from its destructor, outside rescue().)
+     */
+    protected function dispatchAfterCommit(DeliverToDestination $job): void
+    {
+        DB::afterCommit(fn () => rescue(fn () => Bus::dispatch($job), report: true));
     }
 
     public function subscribe(Dispatcher $events): array
