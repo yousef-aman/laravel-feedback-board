@@ -311,3 +311,4 @@
     </div>
 
     @include('feedback-board::partials.lightbox')
+</div>
