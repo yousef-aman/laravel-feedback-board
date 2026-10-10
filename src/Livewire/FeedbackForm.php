@@ -4,22 +4,45 @@ declare(strict_types=1);
 
 namespace YousefAman\FeedbackBoard\Livewire;
 
+use Illuminate\Contracts\View\View;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
-use Livewire\WithFileUploads;
 use YousefAman\FeedbackBoard\Actions\CreateFeedbackItem;
 use YousefAman\FeedbackBoard\Enums\FeedbackType;
+use YousefAman\FeedbackBoard\Livewire\Concerns\WithStagedUploads;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
 use YousefAman\FeedbackBoard\Services\AttachmentStorage;
+use YousefAman\FeedbackBoard\Support\Ui;
 
 class FeedbackForm extends Component
 {
-    use WithFileUploads;
+    use WithStagedUploads;
 
     public string $title = '';
     public string $description = '';
     public string $type = 'bug';
-    public array $files = [];
     public bool $sent = false;
+
+    /** The reference shown once the report exists. */
+    #[Locked]
+    public ?int $sentId = null;
+
+    /** "My reports" (in the current Filament panel when there is one), fixed at mount. */
+    #[Locked]
+    public string $reportsUrl = '';
+
+    /** The page the form was opened on, for the context notice. */
+    #[Locked]
+    public string $pageUrl = '';
+
+    #[Locked]
+    public bool $attachmentsFailed = false;
+
+    public function mount(): void
+    {
+        $this->reportsUrl = Ui::reportsUrl();
+        $this->pageUrl = url()->current();
+    }
 
     public function submit(CreateFeedbackItem $create, AttachmentStorage $storage): void
     {
@@ -30,6 +53,7 @@ class FeedbackForm extends Component
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'type' => ['required', 'in:bug,feature,question,other'],
+            'files' => ['array', 'max:'.$storage->maxFiles()],
             'files.*' => $storage->allowedRules(),
         ]);
 
@@ -44,22 +68,32 @@ class FeedbackForm extends Component
             ],
         ], auth()->user());
 
-        foreach ($this->files as $file) {
-            $storage->store($file, $item);
-        }
+        $this->attachmentsFailed = ! $this->storeStagedFiles($storage, $item);
 
-        $this->reset('title', 'description', 'files');
+        $this->reset('title', 'description', 'type');
+        $this->resetErrorBag();
+        $this->sentId = $item->id;
         $this->sent = true;
         $this->dispatch('feedback-submitted', id: $item->id);
     }
 
-    public function render(): \Illuminate\Contracts\View\View
+    protected function uploadRules(): array
     {
-        $limits = app(AttachmentStorage::class)->limits();
+        return app(AttachmentStorage::class)->allowedRules();
+    }
+
+    public function render(): View
+    {
+        $storage = app(AttachmentStorage::class);
+        $limits = $storage->limits();
 
         return view('feedback-board::livewire.feedback-form', [
+            'uid' => 'fb-'.$this->getId(),
+            'types' => FeedbackType::cases(),
             'attachmentTypes' => $limits['types'],
             'attachmentSize' => $limits['size'],
+            'maxFiles' => $storage->maxFiles(),
+            'followUrl' => $this->sentId === null ? $this->reportsUrl : Ui::reportLink($this->reportsUrl, $this->sentId),
         ]);
     }
 }

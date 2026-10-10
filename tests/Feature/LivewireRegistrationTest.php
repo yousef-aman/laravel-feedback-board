@@ -40,7 +40,7 @@ it('adds the stylesheet to the head of a host page that only renders the launche
         ->and(strpos($html, $link))->toBeLessThan(strpos($html, '</head>'));
 });
 
-it('renders the launcher as a themed, direction-aware dialog trigger', function () {
+it('renders the launcher as a themed, direction-aware slide-over trigger', function () {
     $this->actingAs(TestUser::create(['name' => 'Client', 'email' => 'c@x.com']));
     config()->set('feedback-board.ui.theme', 'dark');
     app()->setLocale('ar');
@@ -51,14 +51,15 @@ it('renders the launcher as a themed, direction-aware dialog trigger', function 
         ->and($html)->toContain('data-fb-theme="dark"')
         ->and($html)->toContain('dir="rtl"')
         ->and($html)->toContain('aria-haspopup="dialog"')
-        ->and($html)->toContain('role="dialog"')
-        ->and($html)->toContain('aria-labelledby="fb-launcher-title"')
+        ->and($html)->toContain('<span class="fb-launcher__label">أبلغ عن مشكلة</span>')
+        ->and($html)->toContain('class="fb-slide-over" id="fb-launcher-panel"')
+        ->and($html)->toContain('role="dialog" aria-modal="true" aria-labelledby="fb-launcher-title" x-trap.noscroll="open"')
         ->and($html)->toContain('id="fb-launcher-title"')
-        ->and($html)->toContain('x-on:keydown.escape.window="open = false"')
-        ->and($html)->toContain('x-trap.noscroll="open"')
+        ->and($html)->toContain('x-on:keydown.escape.window="open && (open = false)"')
         ->and($html)->not->toContain('x-transition')
+        ->and($html)->not->toContain('fb-modal')
         ->and($html)->toContain("\$dispatch('fb-launcher-opened')")
         ->and($html)->toContain("x-on:fb-launcher-opened.window=\"\$wire.sent && \$wire.set('sent', false)\"")
-        ->and($html)->toContain('wire:model="title" maxlength="255" dir="auto" placeholder=" "')
+        ->and($html)->toContain('wire:model="title" maxlength="255" aria-required="true" dir="auto" placeholder="مثال: زر الحفظ لا يستجيب في صفحة الطلبات"')
         ->and($html)->toContain('aria-label="إغلاق"');
 });

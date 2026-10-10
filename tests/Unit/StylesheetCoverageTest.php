@@ -18,7 +18,7 @@ it('styles every static fb- class used in the package views', function () {
         ...glob(__DIR__.'/../../resources/views-filament/*/*.blade.php'),
     ];
     // Element ids and the launcher's browser event share the prefix but are not classes.
-    $notClasses = ['fb-launcher-title', 'fb-drawer-title', 'fb-launcher-opened', 'fb-overlay-close'];
+    $notClasses = ['fb-launcher-title', 'fb-drawer-title', 'fb-launcher-opened', 'fb-overlay-close', 'fb-launcher-panel'];
     $used = [];
 
     foreach ($views as $view) {

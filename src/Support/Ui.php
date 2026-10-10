@@ -74,4 +74,18 @@ final class Ui
 
         return is_string($scheme) && in_array(strtolower($scheme), ['http', 'https'], true) ? $url : null;
     }
+
+    /** "My reports" on the standalone page, optionally opening one report. */
+    public static function reportsUrl(?int $reportId = null): string
+    {
+        $url = route('feedback-board.page');
+
+        return $reportId === null ? $url : self::reportLink($url, $reportId);
+    }
+
+    /** Appends the deep-link query that opens one report. */
+    public static function reportLink(string $base, int $reportId): string
+    {
+        return $base.(str_contains($base, '?') ? '&' : '?').'report='.$reportId;
+    }
 }
