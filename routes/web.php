@@ -1,8 +1,7 @@
 <?php
 
-// Feedback Board routes
-
 use Illuminate\Support\Facades\Route;
+use YousefAman\FeedbackBoard\Http\Controllers\AssetController;
 use YousefAman\FeedbackBoard\Http\Controllers\AttachmentController;
 use YousefAman\FeedbackBoard\Http\Controllers\IngestController;
 use YousefAman\FeedbackBoard\Http\Middleware\VerifyIngestSignature;
@@ -22,3 +21,9 @@ Route::middleware(['throttle:60,1', VerifyIngestSignature::class])
     ->prefix(config('feedback-board.route_prefix', 'feedback-board'))
     ->name('feedback-board.')
     ->post('ingest', IngestController::class)->name('ingest');
+
+// Public, static and cookie-less: deliberately outside route_middleware (no session, no auth).
+// No ".css" extension: common nginx configs serve *.css from disk and 404 before PHP runs.
+Route::prefix(config('feedback-board.route_prefix', 'feedback-board'))
+    ->name('feedback-board.')
+    ->get('assets/stylesheet', [AssetController::class, 'css'])->name('assets.css');
