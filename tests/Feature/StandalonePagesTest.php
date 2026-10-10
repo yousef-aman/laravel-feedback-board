@@ -49,7 +49,7 @@ it('pins the page color-scheme when the theme is forced', function () {
         ->and($html)->toContain('data-fb-theme="dark"');
 });
 
-it('renders no duplicate element ids on the reports page with a drawer open', function () {
+it('renders no duplicate element ids on the reports page with a report open', function () {
     $me = TestUser::create(['name' => 'Me', 'email' => 'me@x.com']);
     FeedbackItem::factory()->for($me, 'reporter')->count(2)->create();
 
@@ -60,7 +60,8 @@ it('renders no duplicate element ids on the reports page with a drawer open', fu
 
     preg_match_all('/\sid="([^"]+)"/', $html, $ids);
 
-    expect($ids[1])->toContain('fb-drawer-title')
+    expect(preg_grep('/-report-title$/', $ids[1]))->toHaveCount(1)
+        ->and(preg_grep('/-form-title$/', $ids[1]))->toHaveCount(1)
         ->and(array_count_values($ids[1]))->each->toBe(1);
 });
 

@@ -79,6 +79,22 @@ trait WithStagedUploads
         $this->files = array_values($this->files);
     }
 
+    /** A comment composer posts text, images, or both. */
+    protected function composerRules(AttachmentStorage $storage): array
+    {
+        return [
+            'body' => ['nullable', 'string', 'required_without:files'],
+            'files' => ['array', 'max:'.$storage->maxFiles()],
+            'files.*' => $storage->imageRules(),
+        ];
+    }
+
+    /** @return array<string, string> */
+    protected function composerMessages(): array
+    {
+        return ['body.required_without' => __('feedback-board::feedback-board.composer.empty')];
+    }
+
     /**
      * Stores the staged files once their record exists (after its transaction: disk writes cannot
      * roll back) and empties the list. A failing file is reported and skipped; false tells the
