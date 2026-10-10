@@ -32,7 +32,22 @@ return [
         'internal' => 'داخلي',
     ],
     'role' => ['reporter' => 'المُبلِّغ', 'developer' => 'فريق الدعم', 'ai' => 'المساعد الذكي'],
-    'activity' => ['created' => 'أُنشئ', 'status_changed' => 'تغيّرت الحالة', 'replied' => 'رُدّ عليه', 'assigned' => 'أُسند', 'unassigned' => 'أُلغي الإسناد'],
+    'activity' => [
+        'created' => 'أُنشئ', 'status_changed' => 'تغيّرت الحالة', 'replied' => 'رُدّ عليه', 'assigned' => 'أُسند', 'unassigned' => 'أُلغي الإسناد',
+        'priority_changed' => 'تغيّرت الأولوية', 'type_changed' => 'تغيّر النوع',
+        'someone' => 'شخص ما',
+        'sentence' => [
+            'created' => 'أنشأ :actor البلاغ',
+            'status_changed' => 'نقل :actor البلاغ من «:from» إلى «:to»',
+            'status_set' => 'نقل :actor البلاغ إلى «:to»',
+            'assigned' => 'أسند :actor البلاغ إلى :assignee',
+            'unassigned' => 'ألغى :actor الإسناد',
+            'priority_changed' => 'غيّر :actor الأولوية إلى «:to»',
+            'priority_cleared' => 'أزال :actor الأولوية',
+            'type_changed' => 'غيّر :actor النوع إلى «:to»',
+            'replied' => 'ردّ :actor',
+        ],
+    ],
     'destinations' => [
         'delivery_failed' => 'فشل إرسال الملاحظة',
     ],

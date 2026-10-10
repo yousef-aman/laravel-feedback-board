@@ -32,7 +32,22 @@ return [
         'internal' => 'Internal',
     ],
     'role' => ['reporter' => 'Reporter', 'developer' => 'Support team', 'ai' => 'AI assistant'],
-    'activity' => ['created' => 'Created', 'status_changed' => 'Status changed', 'replied' => 'Replied', 'assigned' => 'Assigned', 'unassigned' => 'Unassigned'],
+    'activity' => [
+        'created' => 'Created', 'status_changed' => 'Status changed', 'replied' => 'Replied', 'assigned' => 'Assigned', 'unassigned' => 'Unassigned',
+        'priority_changed' => 'Priority changed', 'type_changed' => 'Type changed',
+        'someone' => 'Someone',
+        'sentence' => [
+            'created' => ':actor created the report',
+            'status_changed' => ':actor moved the report from “:from” to “:to”',
+            'status_set' => ':actor moved the report to “:to”',
+            'assigned' => ':actor assigned the report to :assignee',
+            'unassigned' => ':actor removed the assignee',
+            'priority_changed' => ':actor changed the priority to “:to”',
+            'priority_cleared' => ':actor cleared the priority',
+            'type_changed' => ':actor changed the type to “:to”',
+            'replied' => ':actor replied',
+        ],
+    ],
     'destinations' => [
         'delivery_failed' => 'Feedback delivery failed',
     ],
