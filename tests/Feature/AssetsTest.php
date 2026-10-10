@@ -25,7 +25,7 @@ it('does not pin a stale, missing or malformed version', function (string $query
 
     expect($response->headers->get('Cache-Control'))->toContain('no-cache')
         ->and($response->headers->get('Cache-Control'))->not->toContain('immutable');
-})->with(['', '?id=000000000000', '?id[]=x']);
+})->with(['', '?id=000000000000', '?id[]=x', '?id=missing']);
 
 it('registers the stylesheet route without session or auth middleware', function () {
     $route = app('router')->getRoutes()->getByName('feedback-board.assets.css');
@@ -66,4 +66,26 @@ it('carries the Vite CSP nonce on the stylesheet link when one is set', function
     ));
 
     expect($this->get('/fb-test-nonce')->getContent())->toContain('nonce="fb-nonce-123"');
+});
+
+describe('without the built stylesheet', function () {
+    beforeEach(fn () => Ui::useStylesheetPath(__DIR__.'/missing/feedback-board.css'));
+    afterEach(fn () => Ui::useStylesheetPath(null));
+
+    it('still renders a page that includes the package surface', function () {
+        Route::get('/fb-test-missing', fn () => Blade::render(
+            '<!doctype html><html><head></head><body>@include(\'feedback-board::partials.assets\')</body></html>'
+        ));
+
+        expect($this->get('/fb-test-missing')->assertOk()->getContent())->toContain('assets/stylesheet');
+    });
+
+    it('answers the stylesheet route with an uncached 404', function () {
+        $response = $this->get(Ui::stylesheetUrl());
+
+        $response->assertNotFound();
+
+        expect($response->headers->get('Cache-Control'))->toContain('no-cache')
+            ->and($response->headers->get('Cache-Control'))->not->toContain('immutable');
+    });
 });

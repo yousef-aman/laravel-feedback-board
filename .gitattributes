@@ -1,0 +1,7 @@
+# Kept out of the Composer dist archive. Never add resources/ (or anything under it):
+# it holds the built stylesheet, views and translations the package serves at runtime.
+/.gitattributes     export-ignore
+/.github            export-ignore
+/.gitignore         export-ignore
+/phpunit.xml.dist   export-ignore
+/tests              export-ignore

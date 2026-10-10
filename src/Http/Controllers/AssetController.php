@@ -12,6 +12,10 @@ class AssetController
 {
     public function css(Request $request): Response
     {
+        if (! Ui::stylesheetExists()) {
+            return new Response('', 404, ['Cache-Control' => 'no-cache']);
+        }
+
         $id = $request->query('id');
         $current = is_string($id) && hash_equals(Ui::stylesheetVersion(), $id);
 

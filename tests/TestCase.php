@@ -13,6 +13,8 @@ class TestCase extends Orchestra
 
         // Livewire keeps @assets bookkeeping in statics that only flushState() resets.
         app('livewire')->flushState();
+
+        \YousefAman\FeedbackBoard\Support\Ui::useStylesheetPath(null);
     }
 
     protected function getPackageProviders($app): array
