@@ -1,4 +1,5 @@
-<div class="fb-triage-suggestion">
+<div class="fb-scope fb-triage-suggestion" data-fb-theme="{{ \YousefAman\FeedbackBoard\Support\Ui::theme() }}" dir="{{ __('feedback-board::feedback-board.dir') }}">
+    @include('feedback-board::partials.assets')
     @if (($triage['summary'] ?? null) !== null)
         <p><strong>{{ __('feedback-board::feedback-board.triage.summary') }}:</strong> {{ $triage['summary'] }}</p>
     @endif
