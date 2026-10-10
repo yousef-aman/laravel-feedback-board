@@ -4,7 +4,7 @@ A self-hosted, embeddable feedback widget for Laravel applications. Clients subm
 
 ## Positioning
 
-Feedback Board is self-hosted by design. Reports are captured inside the authenticated client's session (no third-party script, no external SaaS), stored in your own database, and processed through your own notification and AI pipelines. You own the data, the hosting, and the runner. Phase 2 will add pluggable destination drivers, AI triage (A/B/C classification), and a multi-tenant developer hub — see the Roadmap section below.
+Feedback Board is self-hosted by design. Reports are captured inside the authenticated client's session (no third-party script, no external SaaS), stored in your own database, and processed through your own notification and AI pipelines. You own the data, the hosting, and the runner. Optional destination drivers (webhook, Slack, GitHub Issues), AI triage and an AI runner contract plug into the same pipeline; a multi-tenant developer hub is planned — see the [Roadmap](#roadmap).
 
 ## Requirements
 
@@ -213,25 +213,36 @@ Key configuration options in `config/feedback-board.php`:
 
 | Key | Type | Description |
 |-----|------|-------------|
+| `project` | string | Project name stamped on every new report (`FEEDBACK_BOARD_PROJECT`, default: `'default'`) |
 | `authorization.developer_resolver` | callable\|null | Public static method returning `bool`; prefer `FeedbackBoard::resolveDevelopersUsing()` (a closure here breaks `config:cache`) |
-| `attachments.disk` | string | Storage disk for uploaded attachments (default: `'local'`) |
-| `attachments.max_kb` | int | Maximum upload size in kilobytes (default: `10240`) |
+| `attachments.disk` | string | Storage disk for uploaded attachments (`FEEDBACK_BOARD_DISK`, default: `'local'`, private) |
+| `attachments.directory` | string | Directory on that disk (default: `'feedback-board'`) |
+| `attachments.max_kb` | int | Maximum upload size in kilobytes (default: `10240`); the form shows the lower of this, PHP's `upload_max_filesize` and Livewire's upload limit |
+| `attachments.allowed_mimes` | array | Allowed file extensions (default: images, `pdf`, `txt`, `log`) |
 | `route_prefix` | string | URL prefix for package routes (default: `'feedback-board'`) |
 | `route_middleware` | array | Middleware applied to package routes (default: `['web', 'auth']`) |
 | `ui.theme` | string | Dark-mode strategy: `class` (default), `system`, `light` or `dark` — see [Styling & theming](#styling--theming) |
 | `notifications.developers` | array\|callable | Developer e-mail addresses (`FEEDBACK_BOARD_DEVELOPER_EMAIL`, comma-separated; invalid entries are skipped); for models prefer `FeedbackBoard::notifyDevelopersUsing()` |
 | `notifications.channels` | array | Notification channels (default: `['mail']`; add `'database'` after `make:notifications-table`) |
-| `destinations.default` | string | Default destination driver name (default: `'mail'`) |
-| `destinations.enabled` | array | Active destination drivers — empty by default (all opt-in; Phase 2 enables webhook/github/slack/etc.) |
-| `ingest.enabled` | bool | Enable the remote ingest endpoint (default: `false`) |
-| `ingest.secret` | string\|null | HMAC secret for ingest signature verification |
+| `destinations.default` | string | Kept for contract parity; the `mail` driver is a no-op (default: `'mail'`) |
+| `destinations.enabled` | array | Automatic destination drivers, e.g. `['webhook', 'slack']` — empty by default. GitHub is never listed here: its first issue is created by a developer (see [Destinations](#destinations-outbound)) |
+| `destinations.lock_store` | string\|null | Atomic cache store for GitHub delivery locks (`FEEDBACK_DESTINATIONS_LOCK_STORE`; `null` = app default, which must not be `file`) |
+| `destinations.webhook` / `.slack` / `.github` | array | Per-driver URL, secret or token, and event list — see [Destinations](#destinations-outbound) |
+| `ingest.enabled` | bool | Enable the signed ingest endpoint (`FEEDBACK_BOARD_INGEST_ENABLED`, default: `false`) |
+| `ingest.secret` | string\|null | HMAC secret for ingest signature verification (`FEEDBACK_BOARD_INGEST_SECRET`) |
 | `ingest.tolerance` | int | Timestamp drift tolerance in seconds (default: `300`); rate limiting is handled by the route (`throttle:60,1`) |
-
-## Roadmap (Phase 2)
-
-- **Pluggable destination drivers** — send reports to Slack, Jira, Linear, GitHub Issues, or custom webhooks via a unified driver interface
-- **AI triage (A/B/C)** — automatic classification and prioritisation using your own Claude runner
-- **Multi-tenant developer hub** — a centralised dashboard aggregating reports across multiple client applications
+| `ai.enabled` | bool | Enable AI triage (`FEEDBACK_BOARD_AI_ENABLED`, default: `false`) — see [AI Triage](#ai-triage-level-a) |
+| `ai.default` | string | Triage driver (`FEEDBACK_BOARD_AI_DRIVER`, default: `'anthropic'`) |
+| `ai.queue` | string\|null | Queue for triage jobs (`FEEDBACK_BOARD_AI_QUEUE`; `null` = default queue) |
+| `ai.lock_store` | string\|null | Atomic cache store for the per-item AI lock, also used by the runner (`FEEDBACK_BOARD_AI_LOCK_STORE`; must not be `file`) |
+| `ai.max_input_chars` | int | Combined title and description budget sent to the model (default: `4000`) |
+| `ai.anthropic.*` | array | `api_key` (`FEEDBACK_BOARD_ANTHROPIC_KEY`), `model` (`FEEDBACK_BOARD_ANTHROPIC_MODEL`, default: `'claude-haiku-4-5'`), `timeout` (`30`), `max_tokens` (`1024`) |
+| `runner.enabled` | bool | Enable the AI runner (`FEEDBACK_BOARD_RUNNER_ENABLED`, default: `false`) — see [AI Runner Contract](#ai-runner-contract-level-bc) |
+| `runner.endpoint` / `runner.secret` | string\|null | Runner task-receive URL and HMAC secret (`FEEDBACK_RUNNER_ENDPOINT`, `FEEDBACK_RUNNER_SECRET`) |
+| `runner.timeout` / `runner.connect_timeout` | int | Dispatch HTTP timeouts in seconds (defaults: `8`, `4`) |
+| `runner.max_analysis_chars` / `runner.max_diff_chars` | int | Caps on the stored analysis and suggested diff (defaults: `10000`, `20000`) |
+| `runner.callback_url` | string\|null | Optional ingest URL placed in the task envelope (`FEEDBACK_RUNNER_CALLBACK_URL`) |
+| `runner.stale_after` | int | Seconds before the UI marks a running task as possibly stale (default: `1800`) |
 
 ## Destinations (outbound)
 
@@ -337,6 +348,16 @@ Reference implementations:
 - [`docs/examples/runner/receiver.example.php`](docs/examples/runner/receiver.example.php) — minimal HMAC-verifying PHP receiver
 - [`docs/examples/runner/github-actions-feedback-runner.example.yml`](docs/examples/runner/github-actions-feedback-runner.example.yml) — GitHub Actions workflow
 
+## Roadmap
+
+Shipped in 1.0: destination drivers (signed webhook, Slack, GitHub Issues), in-app AI triage (Level A) and the AI runner contract (Level B/C).
+
+Planned for 1.1:
+
+- **Multi-tenant developer hub** — one dashboard that aggregates reports from several client applications.
+
+See [CHANGELOG.md](CHANGELOG.md) for release notes.
+
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).
