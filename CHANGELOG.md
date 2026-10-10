@@ -28,7 +28,7 @@ The first public release, to be tagged `1.0.0`.
 
 ### Upgrading from a pre-release install
 
-These notes apply only to apps that installed the package from `master` before this release.
+These notes apply only to apps that installed the package from its development branch before this release.
 
 - **Notification channels.** The default for `notifications.channels` is now `['mail']`; it was `['mail', 'database']`.
   - A config file you published earlier keeps its old value.
