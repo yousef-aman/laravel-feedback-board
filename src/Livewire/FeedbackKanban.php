@@ -21,6 +21,8 @@ class FeedbackKanban extends Component
 
     public function open(int $id): void { $this->selectedId = $id; }
 
+    public function close(): void { $this->selectedId = null; }
+
     public function moveTo(int $itemId, string $status, TransitionStatus $transition): void
     {
         $item = FeedbackItem::findOrFail($itemId);

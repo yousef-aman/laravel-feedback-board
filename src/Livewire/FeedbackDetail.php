@@ -13,6 +13,7 @@ use YousefAman\FeedbackBoard\Enums\FeedbackPriority;
 use YousefAman\FeedbackBoard\Enums\FeedbackStatus;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
 use YousefAman\FeedbackBoard\Policies\FeedbackItemPolicy;
+use YousefAman\FeedbackBoard\Support\Ui;
 
 class FeedbackDetail extends Component
 {
@@ -116,6 +117,48 @@ class FeedbackDetail extends Component
             'attachments' => $this->item->attachments,
             'statuses' => FeedbackStatus::cases(),
             'priorities' => FeedbackPriority::cases(),
+            'reporterName' => $this->item->reporter_name ?: ($this->item->reporter_email ?: null),
+            'assigneeName' => $this->assigneeName(),
+            'context' => $this->context(),
         ]);
+    }
+
+    private function assigneeName(): ?string
+    {
+        if (! $this->item->assignee_id) {
+            return null;
+        }
+
+        $name = data_get($this->item->assignee, 'name') ?: data_get($this->item->assignee, 'email');
+
+        return is_string($name) && $name !== '' ? $name : '#'.$this->item->assignee_id;
+    }
+
+    /**
+     * Captured request context (page URL, browser, locale). The URL comes from the Referer header
+     * of the reporter's request, so it only becomes a link when it is http(s).
+     *
+     * @return list<array{label: string, value: string, href: ?string}>
+     */
+    private function context(): array
+    {
+        $meta = is_array($this->item->meta) ? $this->item->meta : [];
+        $rows = [];
+
+        foreach (['url' => 'page_url', 'user_agent' => 'browser', 'locale' => 'locale'] as $key => $label) {
+            $value = $meta[$key] ?? null;
+
+            if (! is_string($value) || trim($value) === '') {
+                continue;
+            }
+
+            $rows[] = [
+                'label' => __('feedback-board::feedback-board.board.'.$label),
+                'value' => $value,
+                'href' => $key === 'url' ? Ui::safeUrl($value) : null,
+            ];
+        }
+
+        return $rows;
     }
 }
