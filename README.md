@@ -16,7 +16,7 @@ Feedback Board is self-hosted by design. Reports are captured inside the authent
 ## Installation
 
 ```bash
-composer require yousefaman/feedback-board
+composer require yousef-aman/laravel-feedback-board
 php artisan feedback-board:install
 ```
 
