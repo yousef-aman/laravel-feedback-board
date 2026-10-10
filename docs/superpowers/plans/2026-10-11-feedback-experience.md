@@ -38,7 +38,7 @@ The inputs most likely to break for a real user that no single spec test names. 
 1. **A pasted screenshot** (an unnamed clipboard blob) on Livewire 3 and 4, in Chrome and Firefox: it must upload exactly once, get a `screenshot-YYYYMMDD-HHMMSS.<ext>` name that matches its type, and become an image attachment. Task 6 pins the queue and rename contract in the markup and stages a renamed file on the server; the browser pass (Task 12) pastes three images.
 2. **A report whose only attachment is an 8–10 MB phone photo**, on a board with many cards: covers are lazy-loaded and the board runs no per-card query. Task 8 counts queries for 2 and 10 cards and asserts `loading="lazy" decoding="async"`.
 3. **An RTL panel with a long English title and an English URL** in the same card and dialog: titles stay `dir="auto"`, URLs `dir="ltr"`, and nothing widens the page. Tasks 8 and 9 assert the attributes under the Arabic locale; the browser pass checks overflow at 390 px.
-4. **A panel whose primary colour is light** (amber or yellow): button text must stay readable. Task 10 asserts that amber prints its 950 shade as the contrast token and pink prints white.
+4. **A panel whose primary colour is light** (amber or yellow): button text must stay readable. Task 10 asserts that amber prints its 950 shade as the contrast token and indigo prints white.
 5. **A first panel visit after `composer update` but before `migrate`**: the panel must still render, with one log warning per process. Task 10 drops the new columns and loads two panel pages.
 
 ## File map
@@ -1052,7 +1052,7 @@ use YousefAman\FeedbackBoard\Policies\FeedbackItemPolicy;
 
 class ApplyTriageSuggestion
 {
-    public function __construct(private SetPriority $priority) {}
+    public function __construct(private SetPriority $priority = new SetPriority()) {}
 
     /**
      * Apply a suggestion to canonical columns. Whitelists type/priority, only applies values that
@@ -1140,7 +1140,7 @@ class FeedbackActivity extends Model
     public function item(): BelongsTo { return $this->belongsTo(FeedbackItem::class, 'feedback_item_id'); }
     public function actor(): MorphTo { return $this->morphTo(); }
 
-    /** One-line text for the item timeline. */
+    /** One-line text for the item timeline. Kept as public API for host code; the package's views use sentence(). */
     public function summary(): string
     {
         $properties = (array) $this->properties;
@@ -1472,6 +1472,7 @@ git commit -m "feat(attachments): serve allow-listed images inline, guard intern
 - Modify: `src/Services/AttachmentStorage.php`
 - Modify: `src/Notifications/FeedbackRepliedNotification.php`
 - Modify: `src/Destinations/Drivers/GithubIssueDriver.php`
+- Modify: `src/Destinations/Support/WebhookPayload.php` (doc comment only)
 - Modify: `resources/lang/en/feedback-board.php`, `resources/lang/ar/feedback-board.php` (`mail.reply_images`)
 - Test: `tests/Feature/AttachmentRulesTest.php` (new), `tests/Feature/NotificationTest.php`, `tests/Feature/Destinations/GithubIssueDriverTest.php`, `tests/Feature/Destinations/WebhookPayloadTest.php`
 
@@ -1938,7 +1939,6 @@ final class Icons
     private const PATHS = [
         'arrow-down-tray' => 'M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3',
         'arrow-up-tray' => 'M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5',
-        'chat-bubble-bottom-center-text' => 'M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z',
         'chat-bubble-left-right' => 'M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 0 1-.825-.242m9.345-8.334a2.126 2.126 0 0 0-.476-.095 48.64 48.64 0 0 0-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0 0 11.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155',
         'chat-bubble-oval-left-ellipsis' => 'M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z',
         'check-circle' => 'M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
@@ -2631,10 +2631,13 @@ function fbFormUser(): TestUser
     return TestUser::create(['name' => 'Lena', 'email' => 'l@x.com']);
 }
 
-/** Livewire's temporary uploads (they persist between tests, so compare counts). */
+/** Livewire's temporary uploads. Livewire 4 writes a .json metadata file beside each one, which delete() leaves. */
 function fbTemporaryUploadCount(): int
 {
-    return count(FileUploadConfiguration::storage()->allFiles());
+    return count(array_filter(
+        FileUploadConfiguration::storage()->allFiles(),
+        fn (string $path) => ! str_ends_with($path, '.json'),
+    ));
 }
 
 it('submits a report with staged attachments and the authenticated user as reporter', function () {
@@ -2731,8 +2734,9 @@ it('previews only allow-listed images among the pending files', function () {
         ->assertCount('files', 3)
         ->html();
 
-    expect(preg_match_all('/<span class="fb-upload__thumb">\s*<img /', $html))->toBe(1)
-        ->and(preg_match_all('/<span class="fb-upload__thumb">\s*<svg /', $html))->toBe(2)
+    // Livewire marks @if blocks in component views with <!--[if BLOCK]><![endif]--> comments.
+    expect(preg_match_all('/<span class="fb-upload__thumb">(?:\s|<!--\[if \w+\]><!\[endif\]-->)*<img /', $html))->toBe(1)
+        ->and(preg_match_all('/<span class="fb-upload__thumb">(?:\s|<!--\[if \w+\]><!\[endif\]-->)*<svg /', $html))->toBe(2)
         ->and($html)->toContain('<span class="fb-upload__name" dir="auto">logo.svg</span>');
 });
 
@@ -3059,7 +3063,7 @@ queue: [],
 draining: false,
 enqueue(files) {
     for (const file of Array.from(files || [])) {
-        this.queue.push(this.named(file));
+        this.queue.push(file);
         this.uploading++;
     }
     this.drain();
@@ -3096,7 +3100,8 @@ pasted(event) {
     }
     if (files.length === 0) return;
     event.preventDefault();
-    this.enqueue(files);
+    /* Only pasted images get the screenshot name; picked and dropped files keep theirs. */
+    this.enqueue(files.map((file) => this.named(file)));
 },
 picked(event) {
     this.enqueue(event.target.files);
@@ -3319,7 +3324,7 @@ Replace `resources/views/livewire/feedback-form.blade.php` with:
                     @if ($files !== [])
                         <ul class="fb-uploads">
                             @foreach ($files as $index => $file)
-                                <li class="fb-upload" wire:key="{{ $uid }}-file-{{ $index }}-{{ $file->getFilename() }}">
+                                <li class="fb-upload" wire:key="{{ $uid }}-file-{{ $index }}-{{ md5($file->getFilename()) }}">
                                     <span class="fb-upload__thumb">
                                         @if (\YousefAman\FeedbackBoard\Support\Images::matches($file->getMimeType(), $file->getClientOriginalName()))
                                             <img src="{{ $file->temporaryUrl() }}" alt="">
@@ -4395,7 +4400,7 @@ Create `resources/views/partials/pending-images.blade.php`:
 @if ($files !== [])
     <div class="fb-pending">
         @foreach ($files as $index => $file)
-            <span class="fb-pending__item" wire:key="{{ $uid }}-pending-{{ $index }}-{{ $file->getFilename() }}">
+            <span class="fb-pending__item" wire:key="{{ $uid }}-pending-{{ $index }}-{{ md5($file->getFilename()) }}">
                 @if (\YousefAman\FeedbackBoard\Support\Images::matches($file->getMimeType(), $file->getClientOriginalName()))
                     <img src="{{ $file->temporaryUrl() }}" alt="">
                 @else
@@ -4515,7 +4520,7 @@ Replace `resources/views/livewire/feedback-item-modal.blade.php` with:
         @else
             <ol class="fb-steps" aria-label="{{ __('feedback-board::feedback-board.item.steps_label') }}">
                 @foreach ($steps as $step)
-                    <li @class(['fb-step', 'fb-step--done' => $step['done'], 'fb-step--current' => $step['current'] && ! $step['done']]) @if ($step['current']) aria-current="step" @endif>
+                    <li @class(['fb-step', 'fb-step--done' => $step['done'], 'fb-step--current' => $step['current'] && ! $step['done']]) aria-current="{{ $step['current'] ? 'step' : 'false' }}">
                         <span class="fb-step__bar" aria-hidden="true"></span>{{ $step['status']->label() }}
                     </li>
                 @endforeach
@@ -5206,6 +5211,7 @@ git commit -m "feat(reports): my reports with filters, unread replies and deep l
 
 **Files:**
 - Modify: `src/Livewire/FeedbackKanban.php`, `resources/views/livewire/feedback-kanban.blade.php`
+- Modify: `src/Models/FeedbackItem.php` (`reporterLabel()`)
 - Modify: `resources/dist/feedback-board.css`, both language files
 - Test: `tests/Feature/KanbanTest.php` (replaced)
 
@@ -5449,6 +5455,22 @@ Expected: FAIL — no `fb-card__prio`, no `type` property or `filterType()`, no 
 
 - [ ] **Step 3: The component**
 
+In `src/Models/FeedbackItem.php`, add after `reporterActivity()` (Task 9's dialog uses it too):
+
+```php
+    /** The reporter's name, else e-mail, for display; null when neither is set. */
+    public function reporterLabel(): ?string
+    {
+        foreach ([$this->reporter_name, $this->reporter_email] as $value) {
+            if (is_string($value) && trim($value) !== '') {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+```
+
 Replace `src/Livewire/FeedbackKanban.php` with:
 
 ```php
@@ -5574,7 +5596,7 @@ class FeedbackKanban extends Component
         return [
             // The relation filters by MIME type; isImage() also checks the extension.
             'cover' => $cover?->isImage() ? $cover : null,
-            'reporter' => filled($item->reporter_name) ? $item->reporter_name : (filled($item->reporter_email) ? $item->reporter_email : null),
+            'reporter' => $item->reporterLabel(),
             'assignee' => $item->assignee_id !== null ? Person::name($item->assignee, $item->assignee_id) : null,
         ];
     }
@@ -5965,7 +5987,7 @@ Expected: no failures.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/Livewire/FeedbackKanban.php resources/views/livewire/feedback-kanban.blade.php resources/dist/feedback-board.css resources/lang tests/Feature/KanbanTest.php
+git add src/Models/FeedbackItem.php src/Livewire/FeedbackKanban.php resources/views/livewire/feedback-kanban.blade.php resources/dist/feedback-board.css resources/lang tests/Feature/KanbanTest.php
 git commit -m "feat(kanban): type filters, cover images, priority and type chips, counts and avatars in one query"
 ```
 
@@ -6128,14 +6150,15 @@ it('merges comments and activity sentences into one feed, newest first, without 
     $component->call('assignToMe');
 
     $html = $component->html();
-    $moved = strpos($html, 'Dev moved the report from “New” to “In review”');
+    // Names are wrapped in Unicode isolates (U+2068 … U+2069) inside sentences.
+    $moved = strpos($html, "\u{2068}Dev\u{2069} moved the report from “New” to “In review”");
     $reply = strpos($html, 'Looking into it');
-    $assigned = strpos($html, 'Dev assigned the report to Dev');
+    $assigned = strpos($html, "\u{2068}Dev\u{2069} assigned the report to \u{2068}Dev\u{2069}");
 
     expect($moved)->not->toBeFalse()
         ->and($assigned)->toBeLessThan($reply)
         ->and($reply)->toBeLessThan($moved)
-        ->and($html)->not->toContain('Dev replied')
+        ->and($html)->not->toContain("\u{2069} replied")
         ->and($html)->toContain('x-show="showActivity"');
 });
 
@@ -6166,7 +6189,7 @@ it('writes the unassignment as a sentence in the Arabic feed and keeps titles an
     Livewire::actingAs(detailDev())->test(FeedbackDetail::class, ['item' => $item])
         ->call('assignToMe')
         ->call('unassign')
-        ->assertSee('ألغى Dev الإسناد')
+        ->assertSee("ألغى \u{2068}Dev\u{2069} الإسناد")
         ->assertSeeHtml('dir="rtl"')
         ->assertSeeHtml('<h2 id="fb-drawer-title" class="fb-headline__title" dir="auto">Export to CSV fails</h2>')
         ->assertSeeHtml('dir="ltr">https://app.test/orders/7</a>');
@@ -6262,7 +6285,8 @@ it('guards sendToGithub like every other write', function () {
 
     config()->set('feedback-board.authorization.developer_resolver', fn () => false);
 
-    $component->call('sendToGithub')->assertForbidden();
+    // This file runs without exception handling (tests/Pest.php), so the 403 is thrown.
+    expect(fn () => $component->call('sendToGithub'))->toThrow(\Symfony\Component\HttpKernel\Exception\HttpException::class);
     Bus::assertNotDispatched(DeliverToDestination::class);
 });
 
@@ -6473,7 +6497,7 @@ class FeedbackDetail extends Component
             'feed' => $this->feed(),
             'statuses' => FeedbackStatus::cases(),
             'priorities' => FeedbackPriority::cases(),
-            'reporterName' => $this->reporterName(),
+            'reporterName' => $this->item->reporterLabel(),
             'assigneeName' => $this->item->assignee_id !== null ? Person::name($this->item->assignee, $this->item->assignee_id) : null,
             'context' => $this->context(),
             'canAttach' => app(AttachmentStorage::class)->imageMimes() !== [],
@@ -6523,7 +6547,7 @@ class FeedbackDetail extends Component
             ->concat($activities->map(fn (FeedbackActivity $activity) => [
                 'kind' => 'activity',
                 'model' => $activity,
-                'sentence' => $activity->sentence(Person::name($activity->actor, $activity->actor_id), $assignees[$activity->id] ?? null),
+                'sentence' => $activity->sentence(self::isolate(Person::name($activity->actor, $activity->actor_id)), self::isolate($assignees[$activity->id] ?? null)),
                 'at' => $activity->created_at?->getTimestamp() ?? 0,
                 'rank' => 0,
                 'id' => $activity->id,
@@ -6536,19 +6560,14 @@ class FeedbackDetail extends Component
     private function commentName(FeedbackComment $comment): string
     {
         return Person::name($comment->author, $comment->author_id)
-            ?? ($comment->author_role === AuthorRole::Reporter ? $this->reporterName() : null)
+            ?? ($comment->author_role === AuthorRole::Reporter ? $this->item->reporterLabel() : null)
             ?? $comment->author_role->label();
     }
 
-    private function reporterName(): ?string
+    /** Unicode isolates (FSI … PDI), the text form of <bdi>: a Latin name keeps its order inside an Arabic sentence. */
+    private static function isolate(?string $name): ?string
     {
-        foreach ([$this->item->reporter_name, $this->item->reporter_email] as $value) {
-            if (is_string($value) && trim($value) !== '') {
-                return $value;
-            }
-        }
-
-        return null;
+        return $name === null ? null : "\u{2068}{$name}\u{2069}";
     }
 
     /** The resource action's conditions: configured, and no issue yet. */
@@ -6740,19 +6759,19 @@ Replace `resources/views/livewire/feedback-detail.blade.php` with:
                                     {{ __('feedback-board::feedback-board.triage.apply_type') }}: {{ \YousefAman\FeedbackBoard\Enums\FeedbackType::tryFrom((string) $triage['suggested_type'])?->label() ?? $triage['suggested_type'] }}
                                 </button>
                             @endif
-        
+
                             @if (($triage['suggested_priority'] ?? null) && $triage['suggested_priority'] !== ($item->priority?->value))
                                 <button type="button" class="fb-btn fb-btn--sm" wire:click="applyTriage('priority')">
                                     {{ __('feedback-board::feedback-board.triage.apply_priority') }}: {{ \YousefAman\FeedbackBoard\Enums\FeedbackPriority::tryFrom((string) $triage['suggested_priority'])?->label() ?? $triage['suggested_priority'] }}
                                 </button>
                             @endif
-        
+
                             <button type="button" class="fb-btn fb-btn--sm" wire:click="requestTriage">{{ __('feedback-board::feedback-board.triage.retriage') }}</button>
                         </div>
                     @endif
                 </div>
             @endif
-        
+
             @php($runner = $item->ai_state['runner'] ?? null)
             @php($runnerConfigured = (bool) \YousefAman\FeedbackBoard\Runner\Support\RunnerGate::configured())
             @if ($runnerConfigured)
@@ -6772,14 +6791,14 @@ Replace `resources/views/livewire/feedback-detail.blade.php` with:
                         @elseif ($runner['status'] === 'completed')
                             <p>{{ __('feedback-board::feedback-board.runner.completed') }}</p>
                         @endif
-        
+
                         @if (($runner['diff'] ?? null) !== null)
                             <details class="fb-details"><summary>{{ __('feedback-board::feedback-board.runner.diff') }}</summary><pre class="fb-pre">{{ $runner['diff'] }}</pre></details>
                         @endif
                         @if (($runner['pr_url'] ?? null) !== null)
                             <a class="fb-link" href="{{ $runner['pr_url'] }}" target="_blank" rel="noopener noreferrer" dir="ltr">{{ $runner['pr_url'] }}</a>
                         @endif
-        
+
                         @if (! in_array($runner['status'], ['dispatched','running'], true))
                             <div class="fb-actions">
                                 <button type="button" class="fb-btn fb-btn--sm" wire:click="dispatchToRunner">{{ __('feedback-board::feedback-board.runner.resend') }}</button>
@@ -7473,6 +7492,8 @@ In `resources/lang/ar/feedback-board.php`, change `'context' => 'السياق'` 
     ],
 ```
 
+In both files, also delete the keys `thread`, `activity`, `reply`, `internal_note` and `internal` from the `board` block: the old drawer was their last user. First confirm with `grep -rnE "board\.(thread|activity|reply|internal_note|internal)'" src resources` that nothing prints them.
+
 - [ ] **Step 7: Run the tests to verify they pass**
 
 Run: `vendor/bin/pest tests/Feature/FeedbackDetailTest.php tests/Feature/KanbanTest.php tests/Feature/MyReportsTest.php tests/Unit/StylesheetTest.php tests/Unit/StylesheetCoverageTest.php tests/Feature/LocalizationTest.php`
@@ -7670,7 +7691,8 @@ it('prints the panel primary as bridge tokens with a readable contrast colour', 
 })->with([
     // Amber is Filament's default primary and a light one: white on amber-600 is 3.2:1, its 950 shade 5:1.
     'amber, a light primary' => [null, Color::Amber, Color::Amber[950]],
-    'pink' => [Color::Pink, Color::Pink, '#ffffff'],
+    // White on indigo-600 is 6.6:1, far from the threshold on every Filament minor.
+    'indigo, a dark primary' => [Color::Indigo, Color::Indigo, '#ffffff'],
 ]);
 
 it('carries the Vite CSP nonce when the app sets one', function () {
@@ -7711,7 +7733,7 @@ In `tests/Filament/FilamentTestCase.php`, add:
     }
 ```
 
-In `tests/Feature/FilamentPluginTest.php`, append inside the test, after the last `->and(…)`:
+In `tests/Feature/FilamentPluginTest.php`, remove the `;` that ends the existing `expect(…)` chain and continue the chain with:
 
 ```php
         ->and(class_exists(\YousefAman\FeedbackBoard\Filament\Pages\MyFeedbackPage::class))->toBeTrue()
@@ -8234,7 +8256,7 @@ it('styles nothing that no view uses', function () {
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `vendor/bin/pest tests/Feature/StandalonePagesTest.php tests/Unit/StylesheetCoverageTest.php`
-Expected: FAIL — no app bar, the board page still has `fb-standalone__title`, and the guard lists at least `fb-standalone__main--narrow` and `fb-standalone__title` (styled, used by no view once Step 3 lands).
+Expected: FAIL — no app bar, and the board page still has `fb-standalone__title`. The dead-CSS guard may already pass here: it starts guarding once Step 3 removes the last users of `fb-standalone__main--narrow` and `fb-standalone__title`, which Step 4 then deletes.
 
 - [ ] **Step 3: The app bar and the pages**
 
@@ -8423,7 +8445,7 @@ and directly after the table:
 
 f) In "Webhook (signed)", append: `A reply that carries only images has an empty `body` (`""`).`
 
-g) In "AI Triage", replace `in the Livewire detail panel or the Filament resource` with `in the board's card dialog or the Filament resource`.
+g) In "AI Triage", replace `in the Livewire detail panel or the Filament resource` with `in the board's card dialog or the Filament resource` (the phrase wraps across two lines in the README; replace it across the line break).
 
 - [ ] **Step 8: CHANGELOG**
 
