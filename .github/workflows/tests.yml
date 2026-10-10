@@ -4,13 +4,39 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        php: ['8.2', '8.3']
-        laravel: ['11.*', '12.*']
+        php: ['8.2', '8.3', '8.4', '8.5']
+        laravel: ['12.*', '13.*']
+        # The package's own floors: `composer require` replaces the root constraint, so `3.*`
+        # would let prefer-lowest resolve Livewire versions with known advisories.
+        livewire: ['^3.8.3', '^4.3.4']
+        stability: ['prefer-stable']
+        exclude:
+          - php: '8.2'
+            laravel: '13.*'
+        include:
+          - php: '8.2'
+            laravel: '12.*'
+            livewire: '^3.8.3'
+            stability: 'prefer-lowest'
+          - php: '8.2'
+            laravel: '12.*'
+            livewire: '^4.3.4'
+            stability: 'prefer-lowest'
+    name: PHP ${{ matrix.php }} · L${{ matrix.laravel }} · LW${{ matrix.livewire }} · ${{ matrix.stability }}
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
-        with: { php-version: '${{ matrix.php }}' }
-      - run: composer require "laravel/framework:${{ matrix.laravel }}" --no-update
-      - run: composer update --prefer-dist --no-interaction
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - run: composer require "laravel/framework:${{ matrix.laravel }}" "livewire/livewire:${{ matrix.livewire }}" --no-update --no-interaction
+      - if: matrix.stability == 'prefer-stable'
+        run: composer update --prefer-stable --prefer-dist --no-interaction
+      # Composer >= 2.9 skips versions with known advisories by default, which would hide the declared floors.
+      - if: matrix.stability == 'prefer-lowest'
+        run: composer update --prefer-lowest --prefer-dist --no-interaction
+        env:
+          COMPOSER_NO_SECURITY_BLOCKING: '1'
       - run: vendor/bin/pest

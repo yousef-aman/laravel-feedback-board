@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace YousefAman\FeedbackBoard\Triage\Support;
 
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Throwable;
 use YousefAman\FeedbackBoard\Jobs\TriageFeedbackItem;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
 
@@ -18,6 +21,11 @@ final class TriageDispatcher
      * share the same JSON column. Leave $locked = false (default) when called from
      * TriageNewFeedback: that listener runs inside the item-creation transaction, where
      * acquiring a cache lock is a footgun and the new row cannot yet race a runner write.
+     *
+     * The unlocked path must never fail the reporter's submission: the job is dispatched
+     * after commit inside rescue(), so a transient provider error rethrown by the sync
+     * queue, or a failed push (e.g. Redis down), is reported and recorded as a failed
+     * triage instead of propagating. The locked (manual) path lets errors reach the developer.
      */
     public static function dispatch(FeedbackItem $item, bool $locked = false): void
     {
@@ -25,9 +33,23 @@ final class TriageDispatcher
             ? self::lockedWritePending($item->id)
             : self::writePending($item->id);
 
-        if ($proceed) {
-            TriageFeedbackItem::dispatch($item->id);
+        if (! $proceed) {
+            return;
         }
+
+        if ($locked) {
+            TriageFeedbackItem::dispatch($item->id);
+
+            return;
+        }
+
+        // Bus::dispatch, not ::dispatch(): a PendingDispatch fires from its destructor, outside rescue().
+        $id = $item->id;
+        DB::afterCommit(fn () => rescue(
+            fn () => Bus::dispatch(new TriageFeedbackItem($id)),
+            fn (Throwable $e) => (new TriageFeedbackItem($id))->failed($e),
+            report: true,
+        ));
     }
 
     /**
