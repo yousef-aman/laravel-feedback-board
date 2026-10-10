@@ -19,10 +19,12 @@ class FeedbackForm extends Component
     public string $description = '';
     public string $type = 'bug';
     public array $files = [];
+    public bool $sent = false;
 
     public function submit(CreateFeedbackItem $create, AttachmentStorage $storage): void
     {
         $this->authorize('create', FeedbackItem::class);
+        $this->sent = false;
 
         $data = $this->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -47,11 +49,17 @@ class FeedbackForm extends Component
         }
 
         $this->reset('title', 'description', 'files');
+        $this->sent = true;
         $this->dispatch('feedback-submitted', id: $item->id);
     }
 
     public function render(): \Illuminate\Contracts\View\View
     {
-        return view('feedback-board::livewire.feedback-form');
+        $limits = app(AttachmentStorage::class)->limits();
+
+        return view('feedback-board::livewire.feedback-form', [
+            'attachmentTypes' => $limits['types'],
+            'attachmentSize' => $limits['size'],
+        ]);
     }
 }
