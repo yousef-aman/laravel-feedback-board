@@ -2,54 +2,43 @@
 
 use Illuminate\Support\Facades\Process;
 
-// Composer installs from `git archive`, so an export-ignore rule decides what ships. Asking
-// git itself (rather than parsing .gitattributes) keeps the check true to its pattern rules.
-// check-attr does not apply a directory's attribute to the files inside it, but git archive
-// skips the whole directory, so a path counts as ignored when it or any parent directory is.
-function exportIgnored(array $paths): array
+// Composer installs the dist archive that GitHub builds with `git archive`, so export-ignore
+// rules decide what ships. These tests list the archive git itself would build (the committed
+// tree, filtered by the working copy's .gitattributes) instead of re-implementing gitattributes
+// pattern rules, which treat `dir`, `dir/` and `dir/**` differently.
+function packagingGit(string|array $command): array
 {
     $root = dirname(__DIR__, 2);
 
     if (! Process::path($root)->run(['git', 'rev-parse', '--is-inside-work-tree'])->successful()) {
-        test()->markTestSkipped('Not a git checkout.');
+        // A CI lane without a git checkout must not go green by skipping.
+        getenv('CI')
+            ? test()->fail('The packaging tests need a git checkout in CI.')
+            : test()->markTestSkipped('Not a git checkout.');
     }
 
-    $candidates = collect($paths)->flatMap(function (string $path) {
-        $segments = explode('/', $path);
+    $output = Process::path($root)->run($command)->throw()->output();
 
-        return array_map(fn (int $n) => implode('/', array_slice($segments, 0, $n)), range(1, count($segments)));
-    })->unique()->values();
-
-    $result = Process::path($root)
-        ->input($candidates->implode("\n")."\n")
-        ->run(['git', 'check-attr', '--stdin', 'export-ignore'])
-        ->throw();
-
-    $ignored = collect(explode("\n", trim($result->output())))
-        ->filter(fn (string $line) => str_ends_with($line, ': export-ignore: set'))
-        ->map(fn (string $line) => substr($line, 0, -strlen(': export-ignore: set')))
-        ->all();
-
-    return array_values(array_filter($paths, fn (string $path) => collect($ignored)
-        ->contains(fn (string $i) => $path === $i || str_starts_with($path, $i.'/'))));
+    return array_values(array_filter(explode("\n", $output), fn (string $line) => $line !== '' && ! str_ends_with($line, '/')));
 }
 
-it('ships every file the package needs at runtime', function () {
-    $root = dirname(__DIR__, 2);
-    $paths = ['composer.json', 'LICENSE', 'README.md', 'CHANGELOG.md'];
+function archivedFiles(): array
+{
+    return packagingGit('git archive --worktree-attributes --format=tar HEAD | tar -t');
+}
 
-    foreach (['src', 'config', 'database', 'resources', 'routes'] as $dir) {
-        foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator("$root/$dir", FilesystemIterator::SKIP_DOTS)) as $file) {
-            $paths[] = substr($file->getPathname(), strlen($root) + 1);
-        }
-    }
+it('ships every tracked file the package needs at runtime', function () {
+    $runtime = packagingGit(['git', 'ls-tree', '-r', '--name-only', 'HEAD', '--',
+        'src', 'config', 'database', 'resources', 'routes', 'docs/runner-contract.md', 'docs/examples',
+        'composer.json', 'LICENSE', 'README.md', 'CHANGELOG.md',
+    ]);
 
-    expect($paths)->toContain('resources/dist/feedback-board.css')
-        ->and(exportIgnored($paths))->toBe([]);
+    expect($runtime)->toContain('resources/dist/feedback-board.css', 'docs/runner-contract.md')
+        ->and(array_values(array_diff($runtime, archivedFiles())))->toBe([]);
 });
 
 it('keeps development-only files out of the dist archive', function () {
-    $paths = ['tests/Pest.php', 'docs/superpowers/specs/x.md', '.github/workflows/tests.yml', 'phpunit.xml.dist', '.gitignore', '.gitattributes'];
+    $leaked = preg_grep('#^(tests/|docs/superpowers/|\.github/|phpunit\.xml\.dist$|\.gitignore$|\.gitattributes$)#', archivedFiles());
 
-    expect(exportIgnored($paths))->toBe($paths);
+    expect(array_values($leaked))->toBe([]);
 });
