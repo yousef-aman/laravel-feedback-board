@@ -47,3 +47,19 @@ it('publishes the Filament-only view with the package views', function () {
 
     expect($sources)->toContain(realpath(__DIR__.'/../../resources/views-filament'));
 });
+
+it('styles the board page and titles it with the translated board title', function () {
+    $html = $this->actingAs(FilamentTestUser::create(['name' => 'Dev']))
+        ->get(FeedbackBoardPage::getUrl())
+        ->assertOk()
+        ->getContent();
+
+    $link = '<link rel="stylesheet" href="'.\YousefAman\FeedbackBoard\Support\Ui::stylesheetUrl().'"';
+
+    expect(substr_count($html, $link))->toBe(1)
+        ->and(strpos($html, $link))->toBeLessThan(strpos($html, '</head>'))
+        ->and($html)->toContain('class="fb-scope fb-kanban"')
+        ->and(FeedbackBoardPage::getNavigationLabel())->toBe(__('feedback-board::feedback-board.board.title'))
+        ->and((new FeedbackBoardPage)->getTitle())->toBe(__('feedback-board::feedback-board.board.title'))
+        ->and((new FeedbackBoardPage)->getMaxContentWidth())->toBe(\Filament\Support\Enums\Width::Full);
+});

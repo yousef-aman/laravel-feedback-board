@@ -1167,3 +1167,56 @@
     margin-inline-start: auto;
     color: var(--_fb-text-muted);
 }
+
+/* ---------- Standalone pages ---------- */
+
+.fb-standalone {
+    min-block-size: 100vh;
+    margin: 0;
+    background: var(--_fb-bg);
+    font-family: var(--fb-font, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Arabic", Tahoma, Arial, sans-serif);
+}
+
+.fb-standalone__main {
+    margin-inline: auto;
+    padding: 1.5rem 1rem;
+}
+
+.fb-standalone__main--narrow {
+    max-inline-size: 72rem;
+}
+
+.fb-standalone__title {
+    margin-block-end: 1.25rem;
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+@media (min-width: 40rem) {
+    .fb-standalone__main {
+        padding: 2rem;
+    }
+}
+
+/* ---------- Filament action-modal views ---------- */
+
+.fb-runner-result,
+.fb-triage-suggestion {
+    display: grid;
+    gap: 0.5rem;
+}
+
+/* ---------- Reduced motion (keep last) ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+    .fb-scope *,
+    .fb-scope *::before,
+    .fb-scope *::after {
+        animation: none;
+        transition: none;
+    }
+
+    .fb-launcher:hover {
+        transform: none;
+    }
+}
