@@ -2,8 +2,17 @@
 
 return [
     'dir' => 'ltr',
+    'close' => 'Close',
     'launcher' => 'Report an issue',
-    'form' => ['title' => 'Title', 'description' => 'Describe the issue', 'submit' => 'Send'],
+    'form' => [
+        'title' => 'Title', 'description' => 'Describe the issue', 'submit' => 'Send',
+        'type' => 'Type', 'attachments' => 'Attachments',
+        'attachments_hint' => 'Allowed: :types · up to :size MB each',
+        'uploading' => 'Uploading…',
+        'sent_title' => 'Thanks — your report was sent',
+        'sent_body' => "We'll keep you posted on its progress.",
+        'view_reports' => 'View my reports', 'send_another' => 'Send another report',
+    ],
     'type' => ['bug' => 'Bug', 'feature' => 'Feature request', 'question' => 'Question', 'other' => 'Other'],
     'status' => ['new' => 'New', 'in_review' => 'In review', 'in_progress' => 'In progress', 'resolved' => 'Resolved', 'closed' => 'Closed', 'declined' => 'Declined'],
     'priority' => ['low' => 'Low', 'medium' => 'Medium', 'high' => 'High', 'urgent' => 'Urgent'],
@@ -16,7 +25,14 @@ return [
         'my_reports' => 'My reports', 'reply' => 'Reply', 'internal_note' => 'Internal note',
         'title' => 'Feedback board', 'thread' => 'Thread', 'activity' => 'Activity', 'attachments' => 'Attachments',
         'assign_me' => 'Assign to me', 'unassign' => 'Unassign',
+        'new_report' => 'New report', 'empty_reports' => "You haven't sent any reports yet.",
+        'empty_column' => 'No items', 'status' => 'Status', 'priority' => 'Priority',
+        'no_priority' => 'No priority', 'assignee' => 'Assignee', 'unassigned' => 'Unassigned',
+        'context' => 'Context', 'page_url' => 'Page', 'browser' => 'Browser', 'locale' => 'Language',
+        'internal' => 'Internal',
     ],
+    'role' => ['reporter' => 'Reporter', 'developer' => 'Support team', 'ai' => 'AI assistant'],
+    'activity' => ['created' => 'Created', 'status_changed' => 'Status changed', 'replied' => 'Replied', 'assigned' => 'Assigned', 'unassigned' => 'Unassigned'],
     'destinations' => [
         'delivery_failed' => 'Feedback delivery failed',
     ],
