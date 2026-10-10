@@ -32,25 +32,31 @@ it('forbids non-developers and lets a developer move a card', function () {
     expect($item->refresh()->status)->toBe(FeedbackStatus::InProgress);
 });
 
-it('opens a card detail panel from the board', function () {
+it('opens a card in a dialog and closes it', function () {
     $item = FeedbackItem::factory()->create(['title' => 'Card X']);
 
     Livewire::actingAs(kanbanDev())->test(FeedbackKanban::class)
         ->call('open', $item->id)
         ->assertSet('selectedId', $item->id)
-        ->assertSeeLivewire('feedback-board::feedback-detail');
-});
-
-it('closes the detail drawer', function () {
-    $item = FeedbackItem::factory()->create(['title' => 'Card X']);
-
-    Livewire::actingAs(kanbanDev())->test(FeedbackKanban::class)
-        ->call('open', $item->id)
-        ->assertSeeHtml('class="fb-drawer"')
+        ->assertSeeLivewire('feedback-board::feedback-detail')
+        ->assertSeeHtml('<div class="fb-dialog" x-data x-on:keydown.escape.window="$wire.close()" x-on:fb-overlay-close.stop="$wire.close()">')
+        ->assertSeeHtml('<div class="fb-dialog__backdrop" wire:click="close"></div>')
+        ->assertSeeHtml('<div class="fb-dialog__panel" role="dialog" aria-modal="true" aria-labelledby="fb-drawer-title" x-trap.noscroll="true">')
+        ->assertDontSeeHtml('fb-drawer"')
         ->call('close')
         ->assertSet('selectedId', null)
-        ->assertDontSeeHtml('class="fb-drawer"')
+        ->assertDontSeeHtml('class="fb-dialog"')
         ->assertDontSeeLivewire('feedback-board::feedback-detail');
+});
+
+it('renders no duplicate element ids with a card open', function () {
+    FeedbackItem::factory()->count(3)->create();
+
+    $html = Livewire::actingAs(kanbanDev())->test(FeedbackKanban::class)->call('open', FeedbackItem::first()->id)->html();
+    preg_match_all('/\sid="([^"]+)"/', $html, $ids);
+
+    expect($ids[1])->toContain('fb-drawer-title')
+        ->and(array_count_values($ids[1]))->each->toBe(1);
 });
 
 it('renders columns with counts, empty placeholders and keyboard-operable cards', function () {

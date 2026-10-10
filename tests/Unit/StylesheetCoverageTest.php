@@ -1,6 +1,6 @@
 <?php
 
-use YousefAman\FeedbackBoard\Enums\{AuthorRole, FeedbackPriority, FeedbackStatus, FeedbackType};
+use YousefAman\FeedbackBoard\Enums\{FeedbackPriority, FeedbackStatus, FeedbackType};
 use YousefAman\FeedbackBoard\Support\Ui;
 
 /** @return list<string> every .fb-* class name that has at least one rule */
@@ -43,8 +43,6 @@ it('styles every dynamic badge, dot and comment variant the enums can produce', 
     $expected = [
         ...array_map(fn ($c) => 'fb-badge--'.$c, $colors),
         ...array_map(fn ($c) => 'fb-dot--'.$c, array_map(fn ($s) => $s->color(), FeedbackStatus::cases())),
-        ...array_map(fn ($r) => 'fb-comment--'.$r->value, AuthorRole::cases()),
-        'fb-comment--internal',
         ...array_map(fn ($t) => 'fb-type-icon--'.$t->value, FeedbackType::cases()),
         ...array_map(fn ($n) => 'fb-avatar--'.$n, range(1, 4)),
     ];

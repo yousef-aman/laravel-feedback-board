@@ -87,17 +87,10 @@
     </div>
 
     @if ($selected)
-        <div class="fb-drawer" x-data x-on:keydown.escape.window="$wire.close()">
-            <div class="fb-drawer__backdrop" wire:click="close"></div>
-            <div class="fb-drawer__panel" role="dialog" aria-modal="true" aria-labelledby="fb-drawer-title" x-trap.noscroll="true">
-                <div class="fb-drawer__bar">
-                    <button type="button" class="fb-icon-btn" wire:click="close" aria-label="{{ __('feedback-board::feedback-board.close') }}">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
-                    </button>
-                </div>
-                <div class="fb-drawer__body">
-                    @livewire('feedback-board::feedback-detail', ['item' => $selected], key('detail-'.$selected->id))
-                </div>
+        <div class="fb-dialog" x-data x-on:keydown.escape.window="$wire.close()" x-on:fb-overlay-close.stop="$wire.close()">
+            <div class="fb-dialog__backdrop" wire:click="close"></div>
+            <div class="fb-dialog__panel" role="dialog" aria-modal="true" aria-labelledby="fb-drawer-title" x-trap.noscroll="true">
+                @livewire('feedback-board::feedback-detail', ['item' => $selected], key('detail-'.$selected->id))
             </div>
         </div>
     @endif
