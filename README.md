@@ -223,7 +223,7 @@ Key configuration options in `config/feedback-board.php`:
 | `route_middleware` | array | Middleware applied to package routes (default: `['web', 'auth']`) |
 | `ui.theme` | string | Dark-mode strategy (`FEEDBACK_BOARD_THEME`): `class` (default), `system`, `light` or `dark` — see [Styling & theming](#styling--theming) |
 | `notifications.developers` | array\|callable | Developer e-mail addresses (`FEEDBACK_BOARD_DEVELOPER_EMAIL`, comma-separated; invalid entries are skipped); for models prefer `FeedbackBoard::notifyDevelopersUsing()` |
-| `notifications.channels` | array | Notification channels (default: `['mail']`; add `'database'` after `make:notifications-table`) |
+| `notifications.channels` | array | Notification channels (default: `['mail']`; add `'database'` after `make:notifications-table` and `migrate`) |
 | `destinations.default` | string | Kept for contract parity; the `mail` driver is a no-op (default: `'mail'`) |
 | `destinations.enabled` | array | Automatic destination drivers, e.g. `['webhook', 'slack']` — empty by default. Do not add `github` here: its first issue is created by a developer, and later comments are posted without it (see [Destinations](#destinations-outbound)) |
 | `destinations.lock_store` | string\|null | Cache store for the locks around GitHub delivery, delivery-failure records and the runner's PR link (`FEEDBACK_DESTINATIONS_LOCK_STORE`; `null` = app default). With several servers, use a shared store such as `redis` or `database` |
@@ -281,7 +281,8 @@ URL, or token). Internal notes are never forwarded to any destination.
 
 Optional, in-app AI triage that suggests a **type** and **priority** and a short
 **summary** for each new report. Suggestions are stored on the item; a developer
-reviews and applies them — the AI never changes a report's fields on its own.
+reviews them and applies the type and priority one field at a time (the summary is shown,
+not applied) — the AI never changes a report's fields on its own.
 
 **Opt-in.** Disabled by default. Enable it and configure a provider:
 
