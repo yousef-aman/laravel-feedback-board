@@ -21,6 +21,16 @@ return [
     'route_prefix' => 'feedback-board',
     'route_middleware' => ['web', 'auth'],
 
+    'ui' => [
+        // Dark-mode strategy for the package's own screens:
+        //   'class'  — dark when an ancestor element has the class "dark" (Filament panels, Laravel's
+        //              Livewire/Flux starter kits, Tailwind's class strategy). The package's standalone
+        //              pages have no host to set that class, so there they follow the operating system.
+        //   'system' — follow the operating system (prefers-color-scheme).
+        //   'light' / 'dark' — always light / always dark.
+        'theme' => env('FEEDBACK_BOARD_THEME', 'class'),
+    ],
+
     'notifications' => [
         // E-mail addresses to notify (FEEDBACK_BOARD_DEVELOPER_EMAIL may be comma-separated).
         // For notifiable models, register FeedbackBoard::notifyDevelopersUsing(...) in
