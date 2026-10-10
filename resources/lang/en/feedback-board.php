@@ -132,4 +132,13 @@ return [
         'empty' => 'Write a reply or attach an image.',
         'images_failed' => 'Some images could not be saved.',
     ],
+    'kanban' => [
+        'filter_label' => 'Filter by type',
+        'all' => 'All',
+        'comments' => 'Comments: :count',
+        'attachments' => 'Attachments: :count',
+        'internal' => 'Internal notes: :count',
+        'reporter' => 'Reporter: :name',
+        'assignee' => 'Assignee: :name',
+    ],
 ];

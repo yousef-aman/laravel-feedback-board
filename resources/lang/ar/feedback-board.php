@@ -132,4 +132,13 @@ return [
         'empty' => 'اكتب ردًا أو أرفق صورة.',
         'images_failed' => 'تعذّر حفظ بعض الصور.',
     ],
+    'kanban' => [
+        'filter_label' => 'تصفية حسب النوع',
+        'all' => 'الكل',
+        'comments' => 'التعليقات: :count',
+        'attachments' => 'المرفقات: :count',
+        'internal' => 'الملاحظات الداخلية: :count',
+        'reporter' => 'المُبلِّغ: :name',
+        'assignee' => 'المسؤول: :name',
+    ],
 ];

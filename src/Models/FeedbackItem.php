@@ -110,6 +110,18 @@ class FeedbackItem extends Model
         return $this->reporter_activity_at ?? $this->created_at;
     }
 
+    /** The reporter's name, else e-mail, for display; null when neither is set. */
+    public function reporterLabel(): ?string
+    {
+        foreach ([$this->reporter_name, $this->reporter_email] as $value) {
+            if (is_string($value) && trim($value) !== '') {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
     /**
      * Non-internal comments by anyone but the reporter (developer and AI replies, which also
      * e-mail the reporter), newer than the reporter's last read. Second precision; a reply in
