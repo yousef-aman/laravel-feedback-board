@@ -43,3 +43,13 @@ it('includes the reply body for a public reply', function () {
     $payload = WebhookPayload::build($item, new FeedbackReplied($comment), 'd');
     expect($payload['change'])->toBe(['author_role' => 'developer', 'body' => 'hello']);
 });
+
+it('carries an empty body for an image-only reply', function () {
+    $item = FeedbackItem::factory()->create();
+    $comment = FeedbackComment::factory()->create([
+        'feedback_item_id' => $item->id, 'body' => '', 'is_internal' => false, 'author_role' => AuthorRole::Developer,
+    ]);
+
+    expect(WebhookPayload::build($item, new FeedbackReplied($comment), 'd')['change'])
+        ->toBe(['author_role' => 'developer', 'body' => '']);
+});

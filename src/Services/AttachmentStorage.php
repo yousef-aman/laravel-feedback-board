@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Validator;
 use YousefAman\FeedbackBoard\Models\FeedbackAttachment;
 use YousefAman\FeedbackBoard\Models\FeedbackComment;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
+use YousefAman\FeedbackBoard\Support\Images;
 
 class AttachmentStorage
 {
@@ -17,6 +18,33 @@ class AttachmentStorage
         $mimes = implode(',', config('feedback-board.attachments.allowed_mimes', []));
         $max = (int) config('feedback-board.attachments.max_kb', 10240);
         return ['file', 'mimes:'.$mimes, 'max:'.$max];
+    }
+
+    /**
+     * The configured extensions that are allow-listed images: what comment composers accept.
+     *
+     * @return list<string>
+     */
+    public function imageMimes(): array
+    {
+        $configured = array_map(
+            fn ($mime) => strtolower(trim((string) $mime)),
+            (array) config('feedback-board.attachments.allowed_mimes', []),
+        );
+
+        return array_values(array_intersect(Images::extensions(), $configured));
+    }
+
+    public function imageRules(): array
+    {
+        $max = (int) config('feedback-board.attachments.max_kb', 10240);
+
+        return ['file', 'mimes:'.implode(',', $this->imageMimes()), 'max:'.$max];
+    }
+
+    public function maxFiles(): int
+    {
+        return max(1, (int) config('feedback-board.attachments.max_files', 10));
     }
 
     /**

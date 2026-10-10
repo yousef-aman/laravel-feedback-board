@@ -19,6 +19,7 @@ return [
     'mail' => [
         'new_subject' => 'New feedback: :title', 'new_line' => 'A new report was submitted.',
         'reply_subject' => 'New reply on your feedback',
+        'reply_images' => 'A reply with images was added.',
         'resolved_subject' => 'Resolved: :title', 'resolved_line' => 'Your report was resolved.',
     ],
     'board' => [
