@@ -14,6 +14,7 @@ final class WebhookPayload
      * Build the curated, whitelisted outbound payload. NEVER serialize the raw
      * model: ai_state, external_refs, meta, reporter_email, reporter_id and
      * assignee_* must never appear here.
+     * An image-only reply carries body ''; its images stay in the app.
      */
     public static function build(FeedbackItem $item, object $event, string $deliveryId): array
     {

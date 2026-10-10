@@ -19,6 +19,7 @@ return [
     'mail' => [
         'new_subject' => 'ملاحظة جديدة: :title', 'new_line' => 'تم رفع ملاحظة جديدة.',
         'reply_subject' => 'رد جديد على ملاحظتك',
+        'reply_images' => 'أُضيف رد يحتوي على صور.',
         'resolved_subject' => 'تم الحل: :title', 'resolved_line' => 'تم حل ملاحظتك.',
     ],
     'board' => [

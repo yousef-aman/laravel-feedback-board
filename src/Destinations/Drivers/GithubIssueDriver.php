@@ -34,6 +34,11 @@ class GithubIssueDriver implements Destination
             return;
         }
 
+        // GitHub rejects an empty comment (422); an image-only reply has no text to mirror.
+        if ($event instanceof FeedbackReplied && trim((string) $event->comment->body) === '') {
+            return;
+        }
+
         $store = config('feedback-board.destinations.lock_store');
         try {
             Cache::store($store)->lock('feedback-board:github:'.$item->id, 60)->block(8, function () use ($item, $event, $deliveryId, $token, $repo) {

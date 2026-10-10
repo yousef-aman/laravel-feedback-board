@@ -140,3 +140,15 @@ it('fails the job and persists no ref when a create response lacks an issue numb
         ->toThrow(RuntimeException::class);
     expect($item->refresh()->external_refs['github'] ?? null)->toBeNull();
 });
+
+it('skips the auto-comment for an image-only reply', function () {
+    Http::fake();
+    $item = FeedbackItem::factory()->create([
+        'external_refs' => ['github' => ['issue_number' => 7, 'node_id' => 'N_1', 'html_url' => 'u', 'repo' => 'acme/app', 'posted' => []]],
+    ]);
+    $comment = FeedbackComment::factory()->create(['feedback_item_id' => $item->id, 'body' => '', 'is_internal' => false]);
+
+    (new GithubIssueDriver())->send($item, new FeedbackReplied($comment), 'dlv-images');
+
+    Http::assertNothingSent();
+});

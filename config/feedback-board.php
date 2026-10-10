@@ -16,6 +16,8 @@ return [
         'directory' => 'feedback-board',
         'max_kb' => 10240, // 10 MB
         'allowed_mimes' => ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'txt', 'log'],
+        // Files per report form and per comment (comment composers accept the image types above only).
+        'max_files' => 10,
     ],
 
     'route_prefix' => 'feedback-board',
