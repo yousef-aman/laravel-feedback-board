@@ -7,6 +7,7 @@ namespace YousefAman\FeedbackBoard\Livewire;
 use Livewire\Component;
 use YousefAman\FeedbackBoard\Actions\AssignFeedback;
 use YousefAman\FeedbackBoard\Actions\ReplyToFeedback;
+use YousefAman\FeedbackBoard\Actions\SetPriority;
 use YousefAman\FeedbackBoard\Actions\TransitionStatus;
 use YousefAman\FeedbackBoard\Enums\AuthorRole;
 use YousefAman\FeedbackBoard\Enums\FeedbackPriority;
@@ -64,11 +65,11 @@ class FeedbackDetail extends Component
         $this->item->refresh();
     }
 
-    public function setPriority(string $priority): void
+    public function setPriority(string $priority, SetPriority $action): void
     {
         $this->guard();
-        $p = \YousefAman\FeedbackBoard\Enums\FeedbackPriority::tryFrom($priority) ?? abort(422);
-        $this->item->update(['priority' => $p]);
+        $p = $priority === '' ? null : (FeedbackPriority::tryFrom($priority) ?? abort(422));
+        $action->handle($this->item, $p, auth()->user());
         $this->item->refresh();
     }
 
