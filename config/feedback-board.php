@@ -50,12 +50,11 @@ return [
         // its first issue is created by the manual developer action.
         'enabled' => [],            // e.g. ['webhook', 'slack']
 
-        // Atomic cache store backing the per-item GitHub lock and the *_last_error
-        // write. MUST be one of redis|memcached|dynamodb|database. null = app default
-        // store. WARNING: if the resolved store is not a LockProvider (e.g. the `file`
-        // driver), Cache::store(...)->lock() THROWS on the first GitHub delivery and the
-        // first failure write — set this to an atomic store in any app whose default
-        // cache is `file`. `array` is atomic but process-local (tests use it).
+        // Cache store whose lock guards the per-item GitHub delivery, the *_last_error
+        // write and the runner's PR link. null = app default store. The lock must be
+        // shared by every worker: `file` only coordinates workers on one server, so with
+        // several servers use redis|memcached|dynamodb|database. `array` is
+        // process-local (tests use it).
         'lock_store' => env('FEEDBACK_DESTINATIONS_LOCK_STORE'),
 
         'webhook' => [
@@ -92,10 +91,9 @@ return [
 
         'queue' => env('FEEDBACK_BOARD_AI_QUEUE'), // null = default queue
 
-        // Atomic cache store backing the per-item ai_state lock. MUST be a
-        // LockProvider (redis|memcached|dynamodb|database). null = app default.
-        // `array` is atomic but process-local (tests use it). Same caveat as
-        // destinations.lock_store: a `file` store THROWS on lock().
+        // Cache store whose lock guards the per-item ai_state (triage and runner).
+        // null = app default. Same rule as destinations.lock_store: with several
+        // servers use a shared store; `array` is process-local (tests use it).
         'lock_store' => env('FEEDBACK_BOARD_AI_LOCK_STORE'),
 
         // Combined title+description budget sent to the model (cost bound).
@@ -130,9 +128,8 @@ return [
         // UI-only "may be stale" hint after this many seconds. No background reaper.
         'stale_after' => 1800,
 
-        // NOTE: all ai_state.runner writes reuse feedback-board.ai.lock_store, which
-        // MUST be a LockProvider (redis|memcached|dynamodb|database) whenever
-        // runner is enabled — a `file` store THROWS on lock(). The first runner write
-        // happens synchronously inside the dispatch action.
+        // NOTE: all ai_state.runner writes reuse feedback-board.ai.lock_store (shared
+        // across servers when there are several). The first runner write happens
+        // synchronously inside the dispatch action.
     ],
 ];
