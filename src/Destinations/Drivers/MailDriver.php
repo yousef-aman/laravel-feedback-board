@@ -10,14 +10,13 @@ use YousefAman\FeedbackBoard\Models\FeedbackItem;
 class MailDriver implements Destination
 {
     /**
-     * Deliberate NO-OP in the MVP.
+     * Deliberate no-op.
      *
-     * Mail delivery is already handled by Task 9's notification layer
+     * Mail delivery is handled by the notification layer
      * (NewFeedbackNotification / FeedbackRepliedNotification /
      * FeedbackResolvedNotification dispatched via SendFeedbackNotifications).
-     * This driver exists solely for contract parity so that future drivers
-     * (Slack, webhook, …) can be swapped in via the DestinationManager
-     * without touching any call-site code.
+     * This driver exists for contract parity with the other destination drivers
+     * resolved through the DestinationManager.
      */
     public function send(FeedbackItem $item, object $event, string $deliveryId): void
     {
