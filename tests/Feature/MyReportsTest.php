@@ -286,3 +286,24 @@ it('starts the reply box at two rows so its two-line placeholder is not clipped'
     Livewire::actingAs($me)->test(FeedbackItemModal::class, ['item' => $item])
         ->assertSeeHtml('wire:model="body" rows="2"');
 });
+
+it('never leaves a reporter bubble empty when an accepted image has a name that does not match its type', function () {
+    $me = fbReporter();
+    $item = FeedbackItem::factory()->for($me, 'reporter')->create();
+    $jpeg = tempnam(sys_get_temp_dir(), 'fb');
+    imagejpeg(imagecreatetruecolor(4, 4), $jpeg);
+
+    $asJfif = FeedbackComment::factory()->for($item, 'item')->create(['body' => '', 'author_role' => AuthorRole::Reporter, 'is_internal' => false]);
+    $thumb = app(AttachmentStorage::class)->store(UploadedFile::fake()->createWithContent('x.jfif', file_get_contents($jpeg)), $item, $asJfif);
+    $asJpg = FeedbackComment::factory()->for($item, 'item')->create(['body' => '', 'author_role' => AuthorRole::Reporter, 'is_internal' => false]);
+    $link = app(AttachmentStorage::class)->store(UploadedFile::fake()->image('x.png'), $item, $asJpg);
+    $link->update(['original_name' => 'x.jpg']);
+
+    expect($thumb->fresh()->isImage())->toBeTrue()
+        ->and($link->fresh()->isImage())->toBeFalse();
+
+    $html = preg_replace('/<!--\[if (?:END)?BLOCK\]><!\[endif\]-->/', '', Livewire::actingAs($me)->test(FeedbackItemModal::class, ['item' => $item])->html());
+
+    expect($html)->toMatch('/fb-msg__bubble[^>]*>\s*<div class="fb-thumbs">/')
+        ->and($html)->toMatch('/fb-msg__bubble[^>]*>\s*<ul class="fb-doc-links">\s*<li><a class="fb-doc-link" href="[^"]+"><svg.*?<span dir="auto">x\.jpg<\/span>/s');
+});
