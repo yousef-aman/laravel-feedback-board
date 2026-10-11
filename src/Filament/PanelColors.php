@@ -66,8 +66,8 @@ final class PanelColors
     public static function allowed(mixed $value): bool
     {
         return is_string($value) && (
-            preg_match('/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i', $value) === 1
-            || preg_match('/^oklch\(\d*\.?\d+%? \d*\.?\d+ \d*\.?\d+\)$/', $value) === 1
+            preg_match('/^#(?:[0-9a-f]{3}|[0-9a-f]{6})\z/i', $value) === 1
+            || preg_match('/^oklch\(\d*\.?\d+%? \d*\.?\d+ \d*\.?\d+\)\z/', $value) === 1
         );
     }
 }
