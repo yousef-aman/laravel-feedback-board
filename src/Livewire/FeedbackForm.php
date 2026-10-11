@@ -38,8 +38,13 @@ class FeedbackForm extends Component
     #[Locked]
     public bool $attachmentsFailed = false;
 
-    public function mount(): void
+    /** The heading id the surrounding dialog is labelled by; empty derives it from the component id. */
+    #[Locked]
+    public string $titleId = '';
+
+    public function mount(string $titleId = ''): void
     {
+        $this->titleId = $titleId;
         $this->reportsUrl = Ui::reportsUrl();
         $this->pageUrl = url()->current();
     }
@@ -89,6 +94,7 @@ class FeedbackForm extends Component
 
         return view('feedback-board::livewire.feedback-form', [
             'uid' => 'fb-'.$this->getId(),
+            'titleId' => $this->titleId !== '' ? $this->titleId : 'fb-'.$this->getId().'-title',
             'types' => FeedbackType::cases(),
             'attachmentTypes' => $limits['types'],
             'attachmentSize' => $limits['size'],

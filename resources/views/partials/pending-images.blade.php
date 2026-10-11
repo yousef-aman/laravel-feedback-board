@@ -3,7 +3,7 @@
     <div class="fb-pending">
         @foreach ($files as $index => $file)
             <span class="fb-pending__item" wire:key="{{ $uid }}-pending-{{ $index }}-{{ md5($file->getFilename()) }}">
-                @if (\YousefAman\FeedbackBoard\Support\Images::matches($file->getMimeType(), $file->getClientOriginalName()))
+                @if (\YousefAman\FeedbackBoard\Support\Images::matches($file->getMimeType(), $file->getClientOriginalName()) && $file->isPreviewable())
                     <img src="{{ $file->temporaryUrl() }}" alt="">
                 @else
                     <x-feedback-board::icon name="photo" />

@@ -264,3 +264,25 @@ it('never shows the images of an internal note to the reporter', function () {
         ->assertDontSeeHtml('data-fb-src="'.$secret->url().'"')
         ->assertDontSee('secret.png');
 });
+
+it('shows an icon for a pending reply image when the host narrows the previewable types', function () {
+    config()->set('livewire.temporary_file_upload.preview_mimes', ['pdf']);
+    $me = fbReporter();
+    $item = FeedbackItem::factory()->for($me, 'reporter')->create();
+
+    $html = Livewire::actingAs($me)->test(FeedbackItemModal::class, ['item' => $item])
+        ->set('upload', UploadedFile::fake()->image('shot.png'))
+        ->assertCount('files', 1)
+        ->html();
+
+    expect($html)->toContain('fb-pending__item')
+        ->and($html)->not->toMatch('/fb-pending__item[^>]*>(?:\s|<!--[^>]*-->)*<img /');
+});
+
+it('starts the reply box at two rows so its two-line placeholder is not clipped', function () {
+    $me = fbReporter();
+    $item = FeedbackItem::factory()->for($me, 'reporter')->create();
+
+    Livewire::actingAs($me)->test(FeedbackItemModal::class, ['item' => $item])
+        ->assertSeeHtml('wire:model="body" rows="2"');
+});

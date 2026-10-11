@@ -110,7 +110,7 @@
                 </label>
             @endif
             <label class="fb-sr-only" for="{{ $uid }}-body">{{ __('feedback-board::feedback-board.composer.reply_label') }}</label>
-            <textarea id="{{ $uid }}-body" class="fb-textarea fb-reply__input" wire:model="body" rows="1" dir="auto"
+            <textarea id="{{ $uid }}-body" class="fb-textarea fb-reply__input" wire:model="body" rows="2" dir="auto"
                       placeholder="{{ __('feedback-board::feedback-board.composer.placeholder_reporter') }}"
                       x-on:input="$el.style.height = 'auto'; $el.style.height = $el.scrollHeight + 'px'"></textarea>
             <button type="submit" class="fb-btn fb-btn--primary" x-bind:disabled="uploading > 0" wire:loading.attr="disabled" wire:target="reply">

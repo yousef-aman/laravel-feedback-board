@@ -226,3 +226,15 @@ it('paints its own background on host-facing surfaces under a forced or system t
         expect($selectors)->toContain('.'.$root.':not([data-fb-theme="class"])');
     }
 });
+
+it('positions the kanban scroller so the screen-reader-only spans inside cards are clipped by it', function () {
+    $rule = collect(fbCssRules(fbStylesheet()))->first(fn ($r) => $r['at'] === null && $r['selector'] === '.fb-kanban__columns');
+
+    expect($rule['body'])->toMatch('/(?:^|;|\s)position:\s*relative;/');
+});
+
+it('sizes the reply input to two rows', function () {
+    $rule = collect(fbCssRules(fbStylesheet()))->first(fn ($r) => $r['at'] === null && $r['selector'] === '.fb-reply__input');
+
+    expect($rule['body'])->toMatch('/min-height:\s*4\.25rem;/');
+});
