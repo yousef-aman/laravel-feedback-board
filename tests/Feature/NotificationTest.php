@@ -51,3 +51,14 @@ it('stores a Filament-format database payload when Filament is installed', funct
     $data = (new NewFeedbackNotification($item))->toArray(new \Illuminate\Notifications\AnonymousNotifiable());
     expect($data)->toHaveKey('format', 'filament')->and($data)->toHaveKey('feedback_item_id', $item->id);
 });
+
+it('mails a fallback line for an image-only reply', function () {
+    $client = TestUser::create(['name' => 'C', 'email' => 'c@x.com']);
+    $item = FeedbackItem::factory()->for($client, 'reporter')->create();
+
+    $comment = app(ReplyToFeedback::class)->handle($item, '', null, AuthorRole::Developer);
+    $mail = (new FeedbackRepliedNotification($comment))->toMail($client);
+
+    expect($mail->introLines)->toBe([__('feedback-board::feedback-board.mail.reply_images')])
+        ->and($mail->introLines[0])->toBe('A reply with images was added.');
+});

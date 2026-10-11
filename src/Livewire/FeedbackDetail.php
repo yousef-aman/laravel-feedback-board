@@ -4,22 +4,32 @@ declare(strict_types=1);
 
 namespace YousefAman\FeedbackBoard\Livewire;
 
+use Illuminate\Contracts\View\View;
+use Illuminate\Support\Collection;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
-use YousefAman\FeedbackBoard\Actions\AssignFeedback;
-use YousefAman\FeedbackBoard\Actions\ReplyToFeedback;
-use YousefAman\FeedbackBoard\Actions\TransitionStatus;
-use YousefAman\FeedbackBoard\Enums\AuthorRole;
-use YousefAman\FeedbackBoard\Enums\FeedbackPriority;
-use YousefAman\FeedbackBoard\Enums\FeedbackStatus;
-use YousefAman\FeedbackBoard\Models\FeedbackItem;
+use YousefAman\FeedbackBoard\Actions\{ApplyTriageSuggestion, AssignFeedback, DispatchToRunner, ReplyToFeedback, RequestTriage, SendItemToGithub, SetPriority, TransitionStatus};
+use YousefAman\FeedbackBoard\Enums\{ActivityAction, AuthorRole, FeedbackPriority, FeedbackStatus};
+use YousefAman\FeedbackBoard\Livewire\Concerns\WithStagedUploads;
+use YousefAman\FeedbackBoard\Models\{FeedbackActivity, FeedbackComment, FeedbackItem};
 use YousefAman\FeedbackBoard\Policies\FeedbackItemPolicy;
-use YousefAman\FeedbackBoard\Support\Ui;
+use YousefAman\FeedbackBoard\Services\AttachmentStorage;
+use YousefAman\FeedbackBoard\Support\{Person, Ui};
 
 class FeedbackDetail extends Component
 {
+    use WithStagedUploads;
+
     public FeedbackItem $item;
+
+    /** Shared by reply() and internalNote(): the composer's mode decides which one the form calls. */
     public string $body = '';
-    public string $note = '';
+
+    #[Locked]
+    public bool $imagesFailed = false;
+
+    #[Locked]
+    public bool $githubQueued = false;
 
     public function mount(FeedbackItem $item): void
     {
@@ -32,44 +42,38 @@ class FeedbackDetail extends Component
         abort_unless(FeedbackItemPolicy::isDeveloper(auth()->user()), 403);
     }
 
-    public function reply(ReplyToFeedback $reply): void
+    /** A reply the reporter sees and is notified about. */
+    public function reply(ReplyToFeedback $reply, AttachmentStorage $storage): void
     {
-        $this->guard();
-        $this->validate(['body' => ['required', 'string']]);
-        $reply->handle($this->item, $this->body, auth()->user(), AuthorRole::Developer);
-        $this->reset('body');
-        $this->item->refresh();
+        $this->comment($reply, $storage, internal: false);
     }
 
-    public function internalNote(ReplyToFeedback $reply): void
+    /** A note only developers see; nobody is notified. */
+    public function internalNote(ReplyToFeedback $reply, AttachmentStorage $storage): void
     {
-        $this->guard();
-        $this->validate(['note' => ['required', 'string']]);
-        $reply->handle($this->item, $this->note, auth()->user(), AuthorRole::Developer, isInternal: true);
-        $this->reset('note');
-        $this->item->refresh();
+        $this->comment($reply, $storage, internal: true);
     }
 
     public function assignToMe(AssignFeedback $assign): void
     {
         $this->guard();
         $assign->handle($this->item, auth()->user(), auth()->user());
-        $this->item->refresh();
+        $this->changed();
     }
 
     public function unassign(AssignFeedback $assign): void
     {
         $this->guard();
         $assign->handle($this->item, null, auth()->user());
-        $this->item->refresh();
+        $this->changed();
     }
 
-    public function setPriority(string $priority): void
+    public function setPriority(string $priority, SetPriority $action): void
     {
         $this->guard();
-        $p = \YousefAman\FeedbackBoard\Enums\FeedbackPriority::tryFrom($priority) ?? abort(422);
-        $this->item->update(['priority' => $p]);
-        $this->item->refresh();
+        $p = $priority === '' ? null : (FeedbackPriority::tryFrom($priority) ?? abort(422));
+        $action->handle($this->item, $p, auth()->user());
+        $this->changed();
     }
 
     public function changeStatus(string $status, TransitionStatus $transition): void
@@ -77,16 +81,18 @@ class FeedbackDetail extends Component
         $this->guard();
         $s = FeedbackStatus::tryFrom($status) ?? abort(422);
         $transition->handle($this->item, $s, auth()->user());
-        $this->item->refresh();
+        $this->changed();
     }
 
-    public function sendToGithub(\YousefAman\FeedbackBoard\Actions\SendItemToGithub $action): void
+    public function sendToGithub(SendItemToGithub $action): void
     {
+        $this->guard();
         $action->handle($this->item, auth()->user());
+        $this->githubQueued = true;
         $this->dispatch('feedback-sent-to-github'); // optimistic UI hook
     }
 
-    public function requestTriage(\YousefAman\FeedbackBoard\Actions\RequestTriage $action): void
+    public function requestTriage(RequestTriage $action): void
     {
         $this->guard();
         $action->handle($this->item, auth()->user());
@@ -94,14 +100,14 @@ class FeedbackDetail extends Component
         $this->dispatch('feedback-triage-requested');
     }
 
-    public function applyTriage(string $field, \YousefAman\FeedbackBoard\Actions\ApplyTriageSuggestion $action): void
+    public function applyTriage(string $field, ApplyTriageSuggestion $action): void
     {
         $this->guard();
         $action->handle($this->item, auth()->user(), [$field]);
-        $this->item->refresh();
+        $this->changed();
     }
 
-    public function dispatchToRunner(\YousefAman\FeedbackBoard\Actions\DispatchToRunner $action): void
+    public function dispatchToRunner(DispatchToRunner $action): void
     {
         $this->guard();
         $action->handle($this->item, auth()->user());
@@ -109,29 +115,104 @@ class FeedbackDetail extends Component
         $this->dispatch('feedback-runner-dispatched');
     }
 
-    public function render()
+    protected function uploadRules(): array
     {
+        return app(AttachmentStorage::class)->imageRules();
+    }
+
+    public function render(): View
+    {
+        $cover = $this->item->coverAttachment;
+
         return view('feedback-board::livewire.feedback-detail', [
-            'comments' => $this->item->comments()->oldest()->get(), // developer sees internal too
-            'activities' => $this->item->activities, // latest-first (relation default)
-            'attachments' => $this->item->attachments,
+            'uid' => 'fb-'.$this->getId(),
+            // The relation filters by MIME type; isImage() also checks the extension, as on the board.
+            'cover' => $cover?->isImage() ? $cover : null,
+            // Every attachment, comments' and internal notes' included: this view is developer-only.
+            'gallery' => $this->item->attachments()->orderBy('id')->get(),
+            'feed' => $this->feed(),
             'statuses' => FeedbackStatus::cases(),
             'priorities' => FeedbackPriority::cases(),
-            'reporterName' => $this->item->reporter_name ?: ($this->item->reporter_email ?: null),
-            'assigneeName' => $this->assigneeName(),
+            'reporterName' => $this->item->reporterLabel(),
+            'assigneeName' => $this->item->assignee_id !== null ? Person::name($this->item->assignee, $this->item->assignee_id) : null,
             'context' => $this->context(),
+            'canAttach' => app(AttachmentStorage::class)->imageMimes() !== [],
+            'canGithub' => $this->canSendToGithub(),
         ]);
     }
 
-    private function assigneeName(): ?string
+    private function comment(ReplyToFeedback $reply, AttachmentStorage $storage, bool $internal): void
     {
-        if (! $this->item->assignee_id) {
-            return null;
-        }
+        $this->guard();
+        $data = $this->validate($this->composerRules($storage), $this->composerMessages());
 
-        $name = data_get($this->item->assignee, 'name') ?: data_get($this->item->assignee, 'email');
+        $comment = $reply->handle($this->item, (string) ($data['body'] ?? ''), auth()->user(), AuthorRole::Developer, isInternal: $internal);
+        $this->imagesFailed = ! $this->storeStagedFiles($storage, $this->item, $comment);
+        $this->reset('body');
+        $this->changed();
+    }
 
-        return is_string($name) && $name !== '' ? $name : '#'.$this->item->assignee_id;
+    /** Reloads the report and tells the board, which redraws its card. */
+    private function changed(): void
+    {
+        $this->item->refresh();
+        $this->dispatch('feedback-updated');
+    }
+
+    /**
+     * Comments and activity lines, newest first. "Replied" lines are left out: the comment itself
+     * is the record. Ties (same second) put comments first, then the higher id.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function feed(): Collection
+    {
+        $comments = $this->item->comments()->with(['attachments', 'author'])->get();
+        $activities = $this->item->activities()->with('actor')->where('action', '!=', ActivityAction::Replied->value)->get();
+        $assignees = FeedbackActivity::assigneeNames($activities);
+
+        return $comments
+            ->map(fn (FeedbackComment $comment) => [
+                'kind' => 'comment',
+                'model' => $comment,
+                'name' => $this->commentName($comment),
+                'at' => $comment->created_at?->getTimestamp() ?? 0,
+                'rank' => 1,
+                'id' => $comment->id,
+            ])
+            ->concat($activities->map(fn (FeedbackActivity $activity) => [
+                'kind' => 'activity',
+                'model' => $activity,
+                'sentence' => $activity->sentence(self::isolate(Person::name($activity->actor, $activity->actor_id)), self::isolate($assignees[$activity->id] ?? null)),
+                'at' => $activity->created_at?->getTimestamp() ?? 0,
+                'rank' => 0,
+                'id' => $activity->id,
+            ]))
+            ->sortBy([['at', 'desc'], ['rank', 'desc'], ['id', 'desc']])
+            ->values();
+    }
+
+    /** The author's name; a guest reporter's comment uses the report's reporter, an AI comment its role. */
+    private function commentName(FeedbackComment $comment): string
+    {
+        return Person::name($comment->author, $comment->author_id)
+            ?? ($comment->author_role === AuthorRole::Reporter ? $this->item->reporterLabel() : null)
+            ?? $comment->author_role->label();
+    }
+
+    /** Unicode isolates (FSI … PDI), the text form of <bdi>: a Latin name keeps its order inside an Arabic sentence. */
+    private static function isolate(?string $name): ?string
+    {
+        return $name === null ? null : "\u{2068}{$name}\u{2069}";
+    }
+
+    /** The resource action's conditions: configured, and no issue yet. */
+    private function canSendToGithub(): bool
+    {
+        return FeedbackItemPolicy::isDeveloper(auth()->user())
+            && (bool) config('feedback-board.destinations.github.token')
+            && (bool) config('feedback-board.destinations.github.repo')
+            && ! isset(($this->item->external_refs ?? [])['github']);
     }
 
     /**

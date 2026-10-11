@@ -10,6 +10,8 @@ enum ActivityAction: string
     case StatusChanged = 'status_changed';
     case Replied = 'replied';
     case Assigned = 'assigned';
+    case PriorityChanged = 'priority_changed';
+    case TypeChanged = 'type_changed';
 
     public function label(): string
     {

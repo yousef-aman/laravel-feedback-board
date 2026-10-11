@@ -17,9 +17,7 @@ class FeedbackItemPolicy
 
     protected function owns(?Model $user, FeedbackItem $item): bool
     {
-        return $user !== null
-            && $item->reporter_type === $user->getMorphClass()
-            && (string) $item->reporter_id === (string) $user->getKey();
+        return $item->isReportedBy($user);
     }
 
     public function viewAny(?Model $user): bool { return self::isDeveloper($user); }

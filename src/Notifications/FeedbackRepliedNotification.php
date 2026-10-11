@@ -26,9 +26,11 @@ class FeedbackRepliedNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
+        $body = trim((string) $this->comment->body);
+
         return (new MailMessage)
             ->subject(__('feedback-board::feedback-board.mail.reply_subject'))
-            ->line($this->comment->body);
+            ->line($body !== '' ? $body : __('feedback-board::feedback-board.mail.reply_images'));
     }
 
     public function toArray(object $notifiable): array

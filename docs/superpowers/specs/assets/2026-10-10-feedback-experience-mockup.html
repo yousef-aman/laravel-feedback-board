@@ -1,0 +1,1165 @@
+<title>تصميم البلاغات الجديد</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a proposal page wrapping one live mock of the new-esaad Filament panel (sidebar + topbar + content); slide-overs, the card dialog and the lightbox are contained in the frame. */
+:root {
+  --pg-bg: #f7f5f6;
+  --pg-fg: #1c1719;
+  --pg-muted: #6b6166;
+  --pg-line: #e7e0e3;
+  --pg-card: #ffffff;
+  --pg-accent: #be185d;
+  --font-ui: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --pg-bg: #121011; --pg-fg: #f2edef; --pg-muted: #a59a9f; --pg-line: #2c2629; --pg-card: #1a1618; --pg-accent: #f472b6;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --pg-bg: #121011; --pg-fg: #f2edef; --pg-muted: #a59a9f; --pg-line: #2c2629; --pg-card: #1a1618; --pg-accent: #f472b6;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--pg-bg); color: var(--pg-fg); font-family: var(--font-ui); font-size: 15px; line-height: 1.6; padding-inline: 16px; padding-block: 28px 56px; }
+.wrap { max-width: 1280px; margin-inline: auto; display: grid; gap: 22px; }
+.intro { display: grid; gap: 6px; }
+.eyebrow { font-size: 12.5px; letter-spacing: .02em; color: var(--pg-accent); font-weight: 600; }
+h1.pg-title { margin: 0; font-size: clamp(24px, 3.2vw, 32px); line-height: 1.25; font-weight: 700; text-wrap: balance; }
+.intro p { margin: 0; color: var(--pg-muted); max-width: 72ch; }
+.jump { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.jump .sep { width: 1px; background: var(--pg-line); margin-inline: 4px; }
+.jump button { font: inherit; font-size: 13.5px; font-weight: 500; color: var(--pg-fg); background: var(--pg-card); border: 1px solid var(--pg-line); border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+.jump button:hover { border-color: var(--pg-accent); color: var(--pg-accent); }
+.jump button:focus-visible { outline: 2px solid var(--pg-accent); outline-offset: 2px; }
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.note { background: var(--pg-card); border: 1px solid var(--pg-line); border-radius: 12px; padding: 16px 18px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.note h2 { margin: 0; font-size: 15.5px; font-weight: 700; }
+.note ul { margin: 0; padding-inline-start: 18px; color: var(--pg-muted); font-size: 14px; display: grid; gap: 4px; }
+.note li::marker { color: var(--pg-accent); }
+
+/* ---------- The mock panel ---------- */
+.mock {
+  --m-bg: #fafafa; --m-surface: #ffffff; --m-sidebar: #ffffff; --m-col: #f1f1f3; --m-fg: #18181b; --m-fg2: #3f3f46; --m-muted: #71717a; --m-faint: #a1a1aa;
+  --m-line: #ececef; --m-ring: rgba(9, 9, 11, .08); --m-input: #ffffff; --m-input-ring: #d4d4d8; --m-hover: #f4f4f5;
+  --m-pri: #db2777; --m-pri-hover: #be185d; --m-pri-fg: #ffffff; --m-pri-tint: #fdf2f8; --m-pri-text: #be185d; --m-pri-ring: rgba(219, 39, 119, .35);
+  --m-backdrop: rgba(9, 9, 11, .5); --m-shadow: 0 20px 50px -12px rgba(9, 9, 11, .3); --m-chrome: #ececee; --m-cover: #e9e9ec; --m-lightbox: rgba(9, 9, 11, .88);
+  --m-warn-bg: #fffbeb; --m-warn-fg: #b45309; --m-warn-ring: rgba(217, 119, 6, .24);
+  --m-info-bg: #eff6ff; --m-info-fg: #1d4ed8; --m-info-ring: rgba(37, 99, 235, .2);
+  --m-ok-bg: #f0fdf4; --m-ok-fg: #15803d; --m-ok-ring: rgba(22, 163, 74, .22);
+  --m-danger-bg: #fef2f2; --m-danger-fg: #b91c1c; --m-danger-ring: rgba(220, 38, 38, .22);
+  --m-gray-bg: #f4f4f5; --m-gray-fg: #52525b; --m-gray-ring: rgba(82, 82, 91, .18);
+  --m-bubble-me: #f4f4f5; --m-bubble-dev: #fdf2f8; --m-internal: #fffbeb;
+  position: relative; height: 820px; border-radius: 14px; overflow: hidden; background: var(--m-bg); color: var(--m-fg);
+  border: 1px solid var(--pg-line); box-shadow: 0 30px 60px -30px rgba(28, 23, 25, .35);
+  display: grid; grid-template-rows: auto 1fr; font-size: 14px; isolation: isolate;
+}
+.mock[data-mode="dark"] {
+  --m-bg: #09090b; --m-surface: #18181b; --m-sidebar: #0f0f11; --m-col: #121214; --m-fg: #fafafa; --m-fg2: #d4d4d8; --m-muted: #a1a1aa; --m-faint: #71717a;
+  --m-line: #26262b; --m-ring: rgba(255, 255, 255, .09); --m-input: #1f1f23; --m-input-ring: #3f3f46; --m-hover: #222226;
+  --m-pri: #ec4899; --m-pri-hover: #f472b6; --m-pri-fg: #ffffff; --m-pri-tint: rgba(236, 72, 153, .13); --m-pri-text: #f9a8d4; --m-pri-ring: rgba(244, 114, 182, .45);
+  --m-backdrop: rgba(0, 0, 0, .62); --m-shadow: 0 20px 50px -12px rgba(0, 0, 0, .7); --m-chrome: #1c1c1f; --m-cover: #101012; --m-lightbox: rgba(0, 0, 0, .9);
+  --m-warn-bg: rgba(245, 158, 11, .12); --m-warn-fg: #fbbf24; --m-warn-ring: rgba(245, 158, 11, .28);
+  --m-info-bg: rgba(59, 130, 246, .13); --m-info-fg: #93c5fd; --m-info-ring: rgba(59, 130, 246, .3);
+  --m-ok-bg: rgba(34, 197, 94, .12); --m-ok-fg: #86efac; --m-ok-ring: rgba(34, 197, 94, .26);
+  --m-danger-bg: rgba(239, 68, 68, .13); --m-danger-fg: #fca5a5; --m-danger-ring: rgba(239, 68, 68, .3);
+  --m-gray-bg: rgba(161, 161, 170, .12); --m-gray-fg: #d4d4d8; --m-gray-ring: rgba(161, 161, 170, .22);
+  --m-bubble-me: #232327; --m-bubble-dev: rgba(236, 72, 153, .12); --m-internal: rgba(245, 158, 11, .09);
+  color-scheme: dark;
+}
+.mock svg.i { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.mock button, .mock select { font: inherit; color: inherit; }
+.mock :focus-visible { outline: 2px solid var(--m-pri); outline-offset: 2px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.chrome { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: var(--m-chrome); border-bottom: 1px solid var(--m-line); }
+.chrome .dots { display: flex; gap: 6px; }
+.chrome .dots span { width: 10px; height: 10px; border-radius: 50%; background: var(--m-input-ring); }
+.chrome .url { direction: ltr; font-family: var(--font-mono); font-size: 12px; color: var(--m-muted); background: var(--m-surface); border-radius: 6px; padding: 3px 10px; flex: 1; text-align: left; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.fi { display: grid; grid-template-columns: 248px 1fr; min-height: 0; }
+.side { background: var(--m-sidebar); border-inline-end: 1px solid var(--m-line); display: flex; flex-direction: column; min-height: 0; }
+.brand { display: flex; align-items: center; gap: 10px; padding: 18px 20px; font-weight: 700; font-size: 16px; }
+.brand-mark { width: 30px; height: 30px; border-radius: 9px; background: var(--m-pri); color: var(--m-pri-fg); display: grid; place-items: center; font-size: 15px; }
+.nav { padding: 6px 12px 16px; overflow-y: auto; display: grid; gap: 2px; align-content: start; }
+.nav-group { font-size: 12.5px; font-weight: 600; color: var(--m-muted); padding: 14px 10px 6px; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; color: var(--m-fg2); font-weight: 500; font-size: 14px; background: none; border: 0; width: 100%; text-align: start; cursor: pointer; }
+.nav-item .i { color: var(--m-faint); }
+.nav-item:hover { background: var(--m-hover); }
+.nav-item.is-active { background: var(--m-hover); color: var(--m-pri-text); }
+.nav-item.is-active .i { color: var(--m-pri); }
+.nav-item .grow { flex: 1; }
+.nav-item .dev { font-size: 10.5px; color: var(--m-faint); font-weight: 500; }
+.nav-badge { font-size: 11.5px; font-weight: 600; padding: 1px 7px; border-radius: 6px; font-variant-numeric: tabular-nums; }
+.nav-badge.pri { background: var(--m-pri-tint); color: var(--m-pri-text); box-shadow: inset 0 0 0 1px var(--m-pri-ring); }
+.nav-badge.gray { background: var(--m-gray-bg); color: var(--m-gray-fg); }
+
+.main { display: grid; grid-template-rows: auto 1fr; min-height: 0; min-width: 0; }
+.top { display: flex; align-items: center; gap: 10px; padding: 10px 24px; background: var(--m-surface); border-bottom: 1px solid var(--m-line); }
+.top .search { flex: 1; max-width: 360px; display: flex; align-items: center; gap: 8px; color: var(--m-faint); background: var(--m-input); box-shadow: inset 0 0 0 1px var(--m-input-ring); border-radius: 8px; padding: 6px 10px; font-size: 13.5px; }
+.top .spacer { flex: 1; }
+.icon-btn { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px; border: 0; background: none; color: var(--m-muted); cursor: pointer; position: relative; flex: none; }
+.icon-btn:hover { background: var(--m-hover); color: var(--m-fg); }
+.icon-btn.sm { width: 30px; height: 30px; }
+.icon-btn.sm .i { width: 17px; height: 17px; }
+.icon-btn .ping { position: absolute; top: 7px; inset-inline-end: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--m-pri); }
+.avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--m-pri-tint); color: var(--m-pri-text); display: grid; place-items: center; font-weight: 700; font-size: 13px; box-shadow: inset 0 0 0 1px var(--m-pri-ring); }
+.burger { display: none; }
+
+.content { overflow-y: auto; padding: 26px 28px 110px; min-width: 0; }
+.content.is-board { padding-bottom: 28px; }
+.crumbs { font-size: 13px; color: var(--m-muted); display: flex; gap: 6px; align-items: center; }
+.page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-top: 4px; margin-bottom: 18px; }
+.page-head h2 { margin: 0; font-size: 24px; font-weight: 700; line-height: 1.3; }
+.page-head p { margin: 2px 0 0; color: var(--m-muted); font-size: 14px; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 8px; padding: 8px 14px; font-weight: 600; font-size: 14px; cursor: pointer; line-height: 1.4; white-space: nowrap; }
+.btn .i { width: 18px; height: 18px; }
+.btn-pri { background: var(--m-pri); color: var(--m-pri-fg); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.btn-pri:hover { background: var(--m-pri-hover); }
+.btn-gray { background: var(--m-surface); color: var(--m-fg2); box-shadow: inset 0 0 0 1px var(--m-input-ring); }
+.btn-gray:hover { background: var(--m-hover); }
+.btn-sm { padding: 5px 10px; font-size: 13px; }
+.btn-lg { padding: 10px 18px; font-size: 15px; }
+
+.card { background: var(--m-surface); border-radius: 12px; box-shadow: 0 0 0 1px var(--m-ring), 0 1px 2px rgba(0,0,0,.04); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 18px; }
+.stat { padding: 18px 20px; display: grid; gap: 4px; }
+.stat .k { color: var(--m-muted); font-size: 13.5px; font-weight: 500; }
+.stat .v { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat .d { font-size: 12.5px; color: var(--m-ok-fg); }
+.mini-table h3 { margin: 0; padding: 14px 20px 10px; font-size: 15px; font-weight: 600; border-bottom: 1px solid var(--m-line); }
+.mini-row { display: grid; grid-template-columns: 1fr auto auto; gap: 14px; padding: 11px 20px; border-bottom: 1px solid var(--m-line); color: var(--m-fg2); align-items: center; }
+.mini-row:last-child { border-bottom: 0; }
+.mini-row .m { color: var(--m-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+.tabs { display: inline-flex; gap: 4px; padding: 4px; border-radius: 10px; background: var(--m-surface); box-shadow: 0 0 0 1px var(--m-ring); margin-bottom: 14px; flex-wrap: wrap; }
+.tab { border: 0; background: none; padding: 6px 12px; border-radius: 7px; font-weight: 600; font-size: 13.5px; color: var(--m-muted); cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.tab.is-active { background: var(--m-pri-tint); color: var(--m-pri-text); }
+.tab .n { font-size: 11.5px; padding: 0 6px; border-radius: 6px; background: var(--m-gray-bg); color: var(--m-gray-fg); font-variant-numeric: tabular-nums; }
+.tab.is-active .n { background: var(--m-surface); color: var(--m-pri-text); }
+
+.rlist { overflow: hidden; }
+.rhead, .rrow { display: grid; grid-template-columns: minmax(0, 1fr) 130px 120px 90px; gap: 16px; align-items: center; padding: 12px 20px; }
+.rhead { font-size: 12.5px; color: var(--m-muted); font-weight: 600; border-bottom: 1px solid var(--m-line); background: var(--m-bg); }
+.rrow { border: 0; border-bottom: 1px solid var(--m-line); background: none; width: 100%; text-align: start; cursor: pointer; }
+.rrow:last-child { border-bottom: 0; }
+.rrow:hover { background: var(--m-hover); }
+.rtitle { display: flex; gap: 12px; align-items: center; min-width: 0; }
+.ticon { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; flex: none; }
+.ticon .i { width: 19px; height: 19px; }
+.t-bug { background: var(--m-danger-bg); color: var(--m-danger-fg); }
+.t-feature { background: var(--m-pri-tint); color: var(--m-pri-text); }
+.t-question { background: var(--m-info-bg); color: var(--m-info-fg); }
+.t-other { background: var(--m-gray-bg); color: var(--m-gray-fg); }
+.rtext { min-width: 0; display: grid; }
+.rtext b { font-weight: 600; color: var(--m-fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rtext span { font-size: 12.5px; color: var(--m-muted); font-variant-numeric: tabular-nums; }
+.rmeta { color: var(--m-muted); font-size: 13px; }
+.replies { display: inline-flex; align-items: center; gap: 6px; color: var(--m-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.replies .i { width: 17px; height: 17px; }
+.replies .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--m-pri); }
+.replies.has-new { color: var(--m-pri-text); font-weight: 600; }
+
+.badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; padding: 2px 9px; border-radius: 7px; white-space: nowrap; justify-self: start; }
+.badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.s-new, .s-closed { background: var(--m-gray-bg); color: var(--m-gray-fg); box-shadow: inset 0 0 0 1px var(--m-gray-ring); }
+.s-in_review { background: var(--m-info-bg); color: var(--m-info-fg); box-shadow: inset 0 0 0 1px var(--m-info-ring); }
+.s-in_progress { background: var(--m-warn-bg); color: var(--m-warn-fg); box-shadow: inset 0 0 0 1px var(--m-warn-ring); }
+.s-resolved { background: var(--m-ok-bg); color: var(--m-ok-fg); box-shadow: inset 0 0 0 1px var(--m-ok-ring); }
+.s-declined { background: var(--m-danger-bg); color: var(--m-danger-fg); box-shadow: inset 0 0 0 1px var(--m-danger-ring); }
+.prio { display: inline-flex; font-size: 11.5px; font-weight: 700; padding: 1px 8px; border-radius: 5px; white-space: nowrap; }
+.p-urgent { background: var(--m-danger-bg); color: var(--m-danger-fg); box-shadow: inset 0 0 0 1px var(--m-danger-ring); }
+.p-high { background: var(--m-warn-bg); color: var(--m-warn-fg); box-shadow: inset 0 0 0 1px var(--m-warn-ring); }
+.p-medium { background: var(--m-info-bg); color: var(--m-info-fg); box-shadow: inset 0 0 0 1px var(--m-info-ring); }
+.p-low { background: var(--m-gray-bg); color: var(--m-gray-fg); box-shadow: inset 0 0 0 1px var(--m-gray-ring); }
+.av { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; flex: none; box-shadow: 0 0 0 2px var(--m-surface); }
+.av.lg { width: 32px; height: 32px; font-size: 13px; }
+.c1 { background: var(--m-pri-tint); color: var(--m-pri-text); }
+.c2 { background: var(--m-info-bg); color: var(--m-info-fg); }
+.c3 { background: var(--m-ok-bg); color: var(--m-ok-fg); }
+.c4 { background: var(--m-warn-bg); color: var(--m-warn-fg); }
+.avs { display: flex; }
+.avs .av + .av { margin-inline-start: -6px; }
+
+/* Board */
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+.fchip { border: 0; background: var(--m-surface); box-shadow: inset 0 0 0 1px var(--m-input-ring); border-radius: 999px; padding: 5px 12px; font-size: 13px; font-weight: 600; color: var(--m-fg2); cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.fchip .i { width: 16px; height: 16px; }
+.fchip.is-active { background: var(--m-pri-tint); color: var(--m-pri-text); box-shadow: inset 0 0 0 1px var(--m-pri-ring); }
+.kanban { display: flex; gap: 12px; overflow-x: auto; align-items: flex-start; padding-bottom: 10px; min-height: 560px; }
+.col { flex: 0 0 272px; background: var(--m-col); border-radius: 12px; display: flex; flex-direction: column; box-shadow: inset 0 0 0 1px var(--m-ring); }
+.col-head { display: flex; align-items: center; gap: 8px; padding: 12px 14px 8px; font-weight: 700; font-size: 14px; }
+.col-head .sdot { width: 8px; height: 8px; border-radius: 50%; }
+.col-head .cnt { margin-inline-start: auto; font-size: 12px; color: var(--m-muted); font-weight: 600; font-variant-numeric: tabular-nums; }
+.col-body { padding: 4px 8px 10px; display: grid; gap: 8px; min-height: 80px; border-radius: 10px; }
+.col-body.is-over { background: var(--m-pri-tint); box-shadow: inset 0 0 0 2px var(--m-pri-ring); }
+.col-empty { font-size: 12.5px; color: var(--m-faint); text-align: center; padding: 18px 8px; border: 1.5px dashed var(--m-input-ring); border-radius: 10px; }
+.kcard { background: var(--m-surface); border-radius: 10px; box-shadow: 0 0 0 1px var(--m-ring), 0 1px 2px rgba(0,0,0,.05); overflow: hidden; cursor: pointer; border: 0; padding: 0; text-align: start; width: 100%; display: block; }
+.kcard:hover { box-shadow: 0 0 0 1px var(--m-pri-ring), 0 4px 12px -4px rgba(0,0,0,.15); }
+.kcard.is-dragging { opacity: .45; }
+.kcover { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; object-position: top; background: var(--m-cover); border-bottom: 1px solid var(--m-line); }
+.kbody { padding: 10px 12px 11px; display: grid; gap: 8px; }
+.kchips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.ktype { display: inline-flex; gap: 4px; align-items: center; font-size: 11.5px; font-weight: 600; color: var(--m-muted); }
+.ktype .i { width: 14px; height: 14px; }
+.ktitle { font-weight: 600; font-size: 14px; line-height: 1.6; color: var(--m-fg); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.kfoot { display: flex; align-items: center; gap: 10px; color: var(--m-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.kfoot .b { display: inline-flex; gap: 4px; align-items: center; }
+.kfoot .b .i { width: 15px; height: 15px; }
+.kfoot .b.lock { color: var(--m-warn-fg); }
+.kfoot .avs { margin-inline-start: auto; }
+
+/* Launcher */
+.launcher { position: absolute; bottom: 22px; inset-inline-end: 22px; z-index: 5; display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px 11px 16px; border-radius: 999px; border: 0; background: var(--m-pri); color: var(--m-pri-fg); font-weight: 600; font-size: 14.5px; cursor: pointer; box-shadow: 0 10px 24px -8px var(--m-pri-ring), 0 2px 6px rgba(0,0,0,.12); }
+.launcher:hover { background: var(--m-pri-hover); }
+.launcher .i { width: 20px; height: 20px; }
+
+/* Slide-over */
+.so { position: absolute; inset: 0; z-index: 10; display: flex; }
+.so[hidden], .dlg-wrap[hidden], .lb[hidden] { display: none !important; }
+.so-backdrop, .dlg-backdrop { position: absolute; inset: 0; background: var(--m-backdrop); animation: fade .2s ease-out; }
+.so-panel { position: relative; margin-inline-start: auto; width: min(460px, 100%); height: 100%; background: var(--m-surface); box-shadow: var(--m-shadow); display: grid; grid-template-rows: auto 1fr auto; animation: slide .28s cubic-bezier(.2,.8,.2,1); min-width: 0; }
+.so-panel.wide { width: min(560px, 100%); }
+@keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pop { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .so-backdrop, .so-panel, .dlg, .dlg-backdrop { animation: none; } }
+.so-head { display: flex; align-items: flex-start; gap: 12px; padding: 20px 22px 16px; border-bottom: 1px solid var(--m-line); }
+.so-head .ttl { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.so-head h3 { margin: 0; font-size: 18px; font-weight: 700; line-height: 1.4; }
+.so-head p { margin: 0; font-size: 13.5px; color: var(--m-muted); }
+.so-body { overflow-y: auto; padding: 20px 22px 24px; display: grid; gap: 20px; align-content: start; min-width: 0; }
+.so-foot { padding: 14px 22px; border-top: 1px solid var(--m-line); display: flex; align-items: center; gap: 10px; background: var(--m-surface); flex-wrap: wrap; }
+.so-foot .grow { flex: 1; }
+.link { background: none; border: 0; color: var(--m-pri-text); font-weight: 600; font-size: 13.5px; cursor: pointer; padding: 4px; }
+.link:hover { text-decoration: underline; }
+
+.field { display: grid; gap: 8px; }
+.field > label, .field > .lbl { font-size: 13.5px; font-weight: 600; color: var(--m-fg2); }
+.field .req { color: var(--m-pri); }
+.input, .textarea, .select { width: 100%; font: inherit; font-size: 14.5px; color: var(--m-fg); background: var(--m-input); border: 0; box-shadow: inset 0 0 0 1px var(--m-input-ring); border-radius: 9px; padding: 9px 12px; }
+.textarea { min-height: 112px; resize: vertical; line-height: 1.7; }
+.input::placeholder, .textarea::placeholder { color: var(--m-faint); }
+.input:focus, .textarea:focus, .select:focus { outline: none; box-shadow: inset 0 0 0 2px var(--m-pri); }
+.err { font-size: 12.5px; color: var(--m-danger-fg); }
+.sel { position: relative; }
+.sel .select { appearance: none; -webkit-appearance: none; padding-inline-end: 32px; font-size: 13.5px; padding-block: 7px; cursor: pointer; }
+.sel .i { position: absolute; inset-inline-end: 9px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; pointer-events: none; color: var(--m-muted); }
+
+.types { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.type { position: relative; display: flex; gap: 10px; align-items: flex-start; padding: 12px; border-radius: 11px; background: var(--m-input); box-shadow: inset 0 0 0 1px var(--m-input-ring); cursor: pointer; min-width: 0; }
+.type input { position: absolute; opacity: 0; pointer-events: none; }
+.type .ticon { width: 34px; height: 34px; border-radius: 9px; }
+.type b { display: block; font-size: 14px; font-weight: 600; }
+.type small { display: block; font-size: 12px; color: var(--m-muted); line-height: 1.5; }
+.type:hover { box-shadow: inset 0 0 0 1px var(--m-faint); }
+.type:has(input:checked) { background: var(--m-pri-tint); box-shadow: inset 0 0 0 2px var(--m-pri); }
+.type:has(input:focus-visible) { outline: 2px solid var(--m-pri); outline-offset: 2px; }
+
+.drop { display: grid; justify-items: center; gap: 6px; text-align: center; padding: 18px 14px; border-radius: 11px; border: 1.5px dashed var(--m-input-ring); background: var(--m-bg); color: var(--m-muted); cursor: pointer; }
+.drop:hover, .drop.is-over { border-color: var(--m-pri); background: var(--m-pri-tint); color: var(--m-pri-text); }
+.drop .i { width: 26px; height: 26px; }
+.drop b { color: var(--m-fg); font-weight: 600; font-size: 14px; }
+.drop b u { color: var(--m-pri-text); text-decoration: none; }
+.drop span { font-size: 12.5px; }
+.files { display: grid; gap: 8px; }
+.file { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 10px; box-shadow: inset 0 0 0 1px var(--m-ring); background: var(--m-surface); min-width: 0; }
+.thumb { width: 40px; height: 40px; border-radius: 7px; background: var(--m-cover); color: var(--m-gray-fg); display: grid; place-items: center; flex: none; overflow: hidden; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.file .meta { flex: 1; min-width: 0; display: grid; }
+.file .meta b { font-weight: 500; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file .meta span { font-size: 12px; color: var(--m-muted); }
+.pending { display: flex; gap: 8px; flex-wrap: wrap; }
+.pending .pthumb { position: relative; width: 52px; height: 52px; border-radius: 8px; overflow: hidden; box-shadow: 0 0 0 1px var(--m-ring); background: var(--m-cover); }
+.pending .pthumb img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.pending .pthumb button { position: absolute; top: 2px; inset-inline-start: 2px; width: 20px; height: 20px; border-radius: 50%; border: 0; display: grid; place-items: center; background: var(--m-surface); color: var(--m-fg); cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,.25); padding: 0; }
+.pending .pthumb button .i { width: 12px; height: 12px; stroke-width: 2.2; }
+
+.ctx { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 10px; background: var(--m-bg); box-shadow: inset 0 0 0 1px var(--m-ring); font-size: 13px; color: var(--m-fg2); }
+.ctx .i { color: var(--m-muted); width: 18px; height: 18px; margin-top: 2px; }
+.ltr { direction: ltr; unicode-bidi: isolate; font-family: var(--font-mono); font-size: 12px; color: var(--m-muted); overflow-wrap: anywhere; }
+
+.sent { display: grid; justify-items: center; text-align: center; gap: 10px; padding: 34px 10px 10px; }
+.sent .ok { width: 64px; height: 64px; border-radius: 50%; background: var(--m-ok-bg); color: var(--m-ok-fg); display: grid; place-items: center; box-shadow: inset 0 0 0 1px var(--m-ok-ring); }
+.sent .ok .i { width: 32px; height: 32px; stroke-width: 2; }
+.sent h4 { margin: 4px 0 0; font-size: 20px; font-weight: 700; }
+.sent p { margin: 0; color: var(--m-muted); max-width: 34ch; }
+.sent .ref { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--m-fg); }
+.sent .actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 10px; }
+
+.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.step { display: grid; gap: 6px; font-size: 12px; color: var(--m-faint); font-weight: 500; }
+.step .bar { height: 4px; border-radius: 4px; background: var(--m-line); }
+.step.done { color: var(--m-fg2); }
+.step.done .bar { background: var(--m-pri); }
+.step.cur { color: var(--m-pri-text); font-weight: 700; }
+.step.cur .bar { background: linear-gradient(to left, var(--m-pri) 55%, var(--m-line) 55%); }
+.dmeta { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; color: var(--m-muted); }
+.dmeta span { display: inline-flex; gap: 5px; align-items: center; }
+.dmeta .i { width: 15px; height: 15px; }
+.desc { font-size: 14.5px; line-height: 1.85; color: var(--m-fg2); margin: 0; }
+.sec-title { font-size: 13px; font-weight: 700; color: var(--m-muted); margin: 0; display: flex; align-items: center; gap: 6px; }
+.sec-title .i { width: 17px; height: 17px; }
+.thread { display: grid; gap: 12px; }
+.msg { display: grid; gap: 4px; max-width: 88%; }
+.msg .who { font-size: 12px; color: var(--m-muted); display: flex; gap: 6px; align-items: center; }
+.msg .who b { color: var(--m-fg2); font-weight: 600; }
+.msg .bubble { padding: 10px 13px; border-radius: 14px; line-height: 1.75; font-size: 14px; display: grid; gap: 8px; }
+.msg.me { justify-self: start; }
+.msg.me .bubble { background: var(--m-bubble-me); border-start-start-radius: 4px; }
+.msg.dev { justify-self: end; }
+.msg.dev .who { justify-content: flex-end; }
+.msg.dev .bubble { background: var(--m-bubble-dev); border-start-end-radius: 4px; color: var(--m-fg); box-shadow: inset 0 0 0 1px var(--m-pri-ring); }
+.new { font-size: 11px; font-weight: 700; color: var(--m-pri-fg); background: var(--m-pri); padding: 0 6px; border-radius: 5px; }
+.waiting { display: flex; gap: 10px; align-items: center; padding: 14px; border-radius: 10px; background: var(--m-bg); color: var(--m-muted); font-size: 13.5px; box-shadow: inset 0 0 0 1px var(--m-ring); }
+.imgs { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+.imgbtn { border: 0; padding: 0; border-radius: 8px; overflow: hidden; cursor: zoom-in; background: var(--m-cover); box-shadow: 0 0 0 1px var(--m-ring); display: block; }
+.imgbtn img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; object-position: top; }
+.composer { display: grid; gap: 8px; width: 100%; }
+.composer .row { display: flex; gap: 8px; align-items: flex-end; }
+.composer .textarea { min-height: 44px; height: 44px; padding-block: 10px; resize: none; }
+
+/* Card dialog (developer) */
+.dlg-wrap { position: absolute; inset: 0; z-index: 12; display: grid; place-items: center; padding: 18px; }
+.dlg { position: relative; width: min(1060px, 100%); height: 100%; background: var(--m-surface); border-radius: 14px; box-shadow: var(--m-shadow); display: grid; grid-template-rows: auto 1fr; overflow: hidden; animation: pop .22s ease-out; min-width: 0; }
+.dlg-cover { position: relative; height: 150px; background: var(--m-cover); display: grid; place-items: center; overflow: hidden; border-bottom: 1px solid var(--m-line); }
+.dlg-cover img { height: 100%; max-width: 70%; object-fit: cover; object-position: top; cursor: zoom-in; box-shadow: 0 0 0 1px var(--m-ring); }
+.dlg-cover.none { height: 64px; }
+.dlg-cover .bar { position: absolute; inset-inline: 14px; top: 14px; display: flex; align-items: center; gap: 8px; }
+.dlg-cover .bar .grow { flex: 1; }
+.dlg-cover .bar .sel { width: 170px; }
+.dlg-cover .bar .select { background: var(--m-surface); font-weight: 700; }
+.round { width: 34px; height: 34px; border-radius: 50%; border: 0; display: grid; place-items: center; background: var(--m-surface); color: var(--m-fg); cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,.18); }
+.round:hover { background: var(--m-hover); }
+.dlg-cols { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); min-height: 0; }
+.dlg-main { overflow-y: auto; padding: 22px 26px 28px; display: grid; gap: 22px; align-content: start; min-width: 0; }
+.dlg-side { overflow-y: auto; background: var(--m-bg); border-inline-start: 1px solid var(--m-line); padding: 18px 20px 24px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+.dlg-title { display: flex; gap: 12px; align-items: flex-start; }
+.dlg-title h3 { margin: 0; font-size: 22px; line-height: 1.45; font-weight: 700; text-wrap: balance; }
+.dlg-title .sub { font-size: 13px; color: var(--m-muted); margin-top: 2px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.props { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.prop { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.prop > span { font-size: 12.5px; font-weight: 600; color: var(--m-muted); }
+.prop .who { display: flex; align-items: center; gap: 8px; min-height: 34px; font-size: 13.5px; font-weight: 500; }
+.ai-box { display: grid; gap: 10px; padding: 14px; border-radius: 12px; background: var(--m-bg); box-shadow: inset 0 0 0 1px var(--m-ring); }
+.ai-box .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13.5px; color: var(--m-fg2); }
+.ai-box .row .grow { flex: 1; }
+.actions-row { display: flex; flex-wrap: wrap; gap: 8px; }
+details.tech { border-radius: 10px; box-shadow: inset 0 0 0 1px var(--m-ring); padding: 10px 14px; }
+details.tech summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--m-muted); }
+details.tech dl { margin: 10px 0 2px; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 13px; }
+details.tech dt { color: var(--m-muted); }
+details.tech dd { margin: 0; min-width: 0; }
+.agrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.aitem { display: grid; gap: 6px; min-width: 0; }
+.aitem .imgbtn img { aspect-ratio: 16 / 10; }
+.aitem b { font-size: 12.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.aitem span { font-size: 11.5px; color: var(--m-muted); }
+.side-head { display: flex; align-items: center; gap: 8px; }
+.side-head h4 { margin: 0; font-size: 15px; font-weight: 700; flex: 1; display: flex; gap: 6px; align-items: center; }
+.side-head h4 .i { width: 18px; height: 18px; color: var(--m-muted); }
+.seg { display: inline-flex; padding: 3px; border-radius: 9px; background: var(--m-surface); box-shadow: inset 0 0 0 1px var(--m-ring); gap: 2px; }
+.seg button { border: 0; background: none; padding: 5px 10px; border-radius: 7px; font-size: 12.5px; font-weight: 600; color: var(--m-muted); cursor: pointer; display: inline-flex; gap: 5px; align-items: center; }
+.seg button .i { width: 14px; height: 14px; }
+.seg button[aria-pressed="true"] { background: var(--m-pri-tint); color: var(--m-pri-text); }
+.seg button.internal[aria-pressed="true"] { background: var(--m-warn-bg); color: var(--m-warn-fg); }
+.dev-composer { display: grid; gap: 8px; padding: 12px; border-radius: 12px; background: var(--m-surface); box-shadow: 0 0 0 1px var(--m-ring); }
+.dev-composer.is-internal { background: var(--m-internal); box-shadow: 0 0 0 1px var(--m-warn-ring); }
+.dev-composer .textarea { min-height: 76px; resize: vertical; }
+.dev-composer .row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.dev-composer .row .grow { flex: 1; }
+.dev-composer .hint { font-size: 12px; color: var(--m-muted); }
+.feed { display: grid; gap: 14px; }
+.entry { display: flex; gap: 10px; align-items: flex-start; min-width: 0; }
+.entry .body { flex: 1; min-width: 0; display: grid; gap: 6px; }
+.entry .head { font-size: 12.5px; color: var(--m-muted); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.entry .head b { color: var(--m-fg); font-weight: 700; font-size: 13.5px; }
+.role { font-size: 11px; font-weight: 700; padding: 0 6px; border-radius: 5px; background: var(--m-gray-bg); color: var(--m-gray-fg); }
+.role.dev { background: var(--m-pri-tint); color: var(--m-pri-text); }
+.entry .text { padding: 10px 12px; border-radius: 10px; background: var(--m-surface); box-shadow: 0 0 0 1px var(--m-ring); font-size: 14px; line-height: 1.75; color: var(--m-fg2); display: grid; gap: 8px; }
+.entry.internal .text { background: var(--m-internal); box-shadow: 0 0 0 1px var(--m-warn-ring); }
+.lock-tag { display: inline-flex; gap: 4px; align-items: center; font-size: 11px; font-weight: 700; color: var(--m-warn-fg); }
+.lock-tag .i { width: 13px; height: 13px; }
+.entry.activity { align-items: center; font-size: 12.5px; color: var(--m-muted); }
+.entry.activity .adot { width: 24px; display: grid; place-items: center; flex: none; }
+.entry.activity .adot span { width: 7px; height: 7px; border-radius: 50%; background: var(--m-faint); }
+.entry.activity b { color: var(--m-fg2); font-weight: 600; }
+.feed.hide-activity .entry.activity { display: none; }
+
+/* Lightbox */
+.lb { position: absolute; inset: 0; z-index: 30; background: var(--m-lightbox); display: grid; place-items: center; padding: 50px 24px 24px; }
+.lb img { max-width: 100%; max-height: 100%; border-radius: 8px; box-shadow: var(--m-shadow); }
+.lb .round { position: absolute; top: 14px; inset-inline-end: 14px; }
+.lb .cap { position: absolute; top: 18px; inset-inline-start: 20px; color: #f4f4f5; font-size: 13.5px; font-weight: 600; }
+
+@media (max-width: 1100px) {
+  .props { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 920px) {
+  .fi { grid-template-columns: 1fr; }
+  .side { display: none; }
+  .burger { display: grid; }
+  .rhead { display: none; }
+  .rrow { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "t s" "t r"; row-gap: 4px; }
+  .rrow .rtitle { grid-area: t; }
+  .rrow .badge { grid-area: s; justify-self: end; }
+  .rrow .rmeta { display: none; }
+  .rrow .replies { grid-area: r; justify-self: end; }
+  .dlg-wrap { padding: 0; }
+  .dlg { border-radius: 0; grid-template-rows: auto 1fr; }
+  .dlg-cols { display: block; overflow-y: auto; }
+  .dlg-main, .dlg-side { overflow: visible; }
+  .dlg-side { border-inline-start: 0; border-top: 1px solid var(--m-line); }
+}
+@media (max-width: 560px) {
+  .mock { height: 740px; }
+  .content { padding: 18px 16px 100px; }
+  .top { padding: 10px 14px; }
+  .top .search { display: none; }
+  .launcher span { display: none; }
+  .launcher { padding: 13px; }
+  .types { grid-template-columns: 1fr; }
+  .props { grid-template-columns: 1fr; }
+  .so-head, .so-body, .so-foot { padding-inline: 16px; }
+  .dlg-main, .dlg-side { padding-inline: 16px; }
+  .col { flex-basis: 248px; }
+}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 18 18 6M6 6l12 12"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 4.5v15m7.5-7.5h-15"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/></symbol>
+  <symbol id="i-stack" viewBox="0 0 24 24"><path d="M6 6.878V6a2.25 2.25 0 0 1 2.25-2.25h7.5A2.25 2.25 0 0 1 18 6v.878m-12 0c.235-.083.487-.128.75-.128h10.5c.263 0 .515.045.75.128m-12 0A2.25 2.25 0 0 0 4.5 9v.878m13.5-3A2.25 2.25 0 0 1 19.5 9v.878m0 0a2.246 2.246 0 0 0-.75-.128H5.25c-.263 0-.515.045-.75.128m15 0A2.25 2.25 0 0 1 21 12v6a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 18v-6c0-.98.626-1.813 1.5-2.122"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><path d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><path d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 0 1-.825-.242m9.345-8.334a2.126 2.126 0 0 0-.476-.095 48.64 48.64 0 0 0-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0 0 11.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155"/></symbol>
+  <symbol id="i-comment" viewBox="0 0 24 24"><path d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"/></symbol>
+  <symbol id="i-columns" viewBox="0 0 24 24"><path d="M9 4.5v15m6-15v15m-10.875 0h15.75c.621 0 1.125-.504 1.125-1.125V5.625c0-.621-.504-1.125-1.125-1.125H4.125C3.504 4.5 3 5.004 3 5.625v12.75c0 .621.504 1.125 1.125 1.125Z"/></symbol>
+  <symbol id="i-inbox" viewBox="0 0 24 24"><path d="m7.875 14.25 1.214 1.942a2.25 2.25 0 0 0 1.908 1.058h2.006c.776 0 1.497-.4 1.908-1.058l1.214-1.942M2.41 9h4.636a2.25 2.25 0 0 1 1.872 1.002l.164.246a2.25 2.25 0 0 0 1.872 1.002h2.092a2.25 2.25 0 0 0 1.872-1.002l.164-.246A2.25 2.25 0 0 1 16.954 9h4.636M2.41 9a2.25 2.25 0 0 0-.16.832V12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 12V9.832c0-.287-.055-.57-.16-.832M2.41 9a2.25 2.25 0 0 1 .382-.632l3.285-3.832a2.25 2.25 0 0 1 1.708-.786h8.43c.657 0 1.281.287 1.709.786l3.284 3.832c.163.19.291.404.382.632M4.5 20.25h15A2.25 2.25 0 0 0 21.75 18v-2.625c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125V18a2.25 2.25 0 0 0 2.25 2.25Z"/></symbol>
+  <symbol id="i-bug" viewBox="0 0 24 24"><path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.383a14.406 14.406 0 0 1-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 1 0-7.517 0c.85.493 1.509 1.333 1.509 2.316V18"/></symbol>
+  <symbol id="i-question" viewBox="0 0 24 24"><path d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><path d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></symbol>
+  <symbol id="i-speak" viewBox="0 0 24 24"><path d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5"/></symbol>
+  <symbol id="i-photo" viewBox="0 0 24 24"><path d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z"/></symbol>
+  <symbol id="i-clip" viewBox="0 0 24 24"><path d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><path d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m4.5 12.75 6 6 9-13.5"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><path d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/></symbol>
+  <symbol id="i-bars" viewBox="0 0 24 24"><path d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><path d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m19.5 8.25-7.5 7.5-7.5-7.5"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><path d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z"/></symbol>
+  <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z"/></symbol>
+  <symbol id="i-code" viewBox="0 0 24 24"><path d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5"/></symbol>
+  <symbol id="i-cpu" viewBox="0 0 24 24"><path d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 0 0 2.25-2.25V6.75a2.25 2.25 0 0 0-2.25-2.25H6.75A2.25 2.25 0 0 0 4.5 6.75v10.5a2.25 2.25 0 0 0 2.25 2.25Zm.75-12h9v9h-9v-9Z"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z"/></symbol>
+</svg>
+
+<div class="wrap" dir="rtl" lang="ar">
+  <header class="intro">
+    <span class="eyebrow">نموذج تصميم · لوحة new-esaad</span>
+    <h1 class="pg-title">تجربة البلاغات داخل لوحتك</h1>
+    <p>نموذج تفاعلي قبل كتابة الكود. جهة الموظف: زر «أبلغ عن مشكلة» وصفحة «بلاغاتي». جهة المطوّر: «لوحة البلاغات» ببطاقات تعرض الصورة، وتفاصيل البطاقة بالتعليقات ورفع الصور. اسحب البطاقات بين الأعمدة، والصق صورة في خانة التعليق، واضغط أي صورة لتكبيرها.</p>
+    <div class="jump" role="group" aria-label="انتقل مباشرة">
+      <button type="button" data-jump="form">نموذج الإبلاغ</button>
+      <button type="button" data-jump="sent">بعد الإرسال</button>
+      <button type="button" data-jump="reports">بلاغاتي</button>
+      <button type="button" data-jump="detail">بلاغ ومحادثته</button>
+      <span class="sep" aria-hidden="true"></span>
+      <button type="button" data-jump="board">لوحة البلاغات</button>
+      <button type="button" data-jump="card">تفاصيل بطاقة</button>
+      <span class="sep" aria-hidden="true"></span>
+      <button type="button" data-jump="theme">تبديل الوضع الداكن</button>
+    </div>
+  </header>
+
+  <div class="mock" id="mock" dir="rtl" data-mode="light">
+    <div class="chrome" aria-hidden="true">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <div class="url" id="url">new-esaad.test/admin</div>
+    </div>
+
+    <div class="fi">
+      <aside class="side" aria-label="القائمة">
+        <div class="brand"><span class="brand-mark">إ</span>إسعاد</div>
+        <nav class="nav">
+          <button class="nav-item" data-go="dash"><svg class="i"><use href="#i-home"/></svg><span class="grow">لوحة المعلومات والإحصاءات</span></button>
+          <button class="nav-item" type="button"><svg class="i"><use href="#i-stack"/></svg><span class="grow">المستفيدون</span><span class="nav-badge pri">6687</span></button>
+          <button class="nav-item" type="button"><svg class="i"><use href="#i-stack"/></svg><span class="grow">برامج الداعمين</span><span class="nav-badge pri">793</span></button>
+          <button class="nav-item" type="button"><svg class="i"><use href="#i-grid"/></svg><span class="grow">البرامج</span><span class="nav-badge gray">10</span></button>
+          <button class="nav-item" type="button"><svg class="i"><use href="#i-users"/></svg><span class="grow">التابعون</span><span class="nav-badge gray">10750</span></button>
+          <div class="nav-group">الملاحظات</div>
+          <button class="nav-item" data-go="reports"><svg class="i"><use href="#i-chat"/></svg><span class="grow">بلاغاتي</span><span class="nav-badge pri" id="navUnread">1</span></button>
+          <button class="nav-item" data-go="board"><svg class="i"><use href="#i-columns"/></svg><span class="grow">لوحة البلاغات <span class="dev">· للمطوّرين</span></span><span class="nav-badge gray" id="navOpen"></span></button>
+          <button class="nav-item" type="button"><svg class="i"><use href="#i-inbox"/></svg><span class="grow">كل البلاغات <span class="dev">· للمطوّرين</span></span></button>
+        </nav>
+      </aside>
+
+      <div class="main">
+        <div class="top">
+          <button class="icon-btn burger" type="button" aria-label="القائمة"><svg class="i"><use href="#i-bars"/></svg></button>
+          <div class="search"><svg class="i"><use href="#i-search"/></svg>بحث</div>
+          <div class="spacer"></div>
+          <button class="icon-btn" type="button" id="themeBtn" aria-label="تبديل الوضع الداكن"><svg class="i"><use href="#i-moon" id="themeIcon"/></svg></button>
+          <button class="icon-btn" type="button" aria-label="الإشعارات"><svg class="i"><use href="#i-bell"/></svg><span class="ping"></span></button>
+          <span class="avatar" aria-hidden="true">ر</span>
+        </div>
+
+        <div class="content" id="content">
+          <section id="view-dash">
+            <div class="crumbs">الرئيسية</div>
+            <div class="page-head"><div><h2>لوحة المعلومات والإحصاءات</h2><p>نظرة عامة على المستفيدين والبرامج</p></div></div>
+            <div class="stats">
+              <div class="card stat"><span class="k">المستفيدون</span><span class="v">6,687</span><span class="d">+42 هذا الأسبوع</span></div>
+              <div class="card stat"><span class="k">برامج الداعمين</span><span class="v">793</span><span class="d">+5 هذا الأسبوع</span></div>
+              <div class="card stat"><span class="k">التابعون</span><span class="v">10,750</span><span class="d">+118 هذا الأسبوع</span></div>
+            </div>
+            <div class="card mini-table">
+              <h3>آخر الطلبات</h3>
+              <div class="mini-row"><span>طلب دعم سكني · الرياض</span><span class="badge s-in_review">قيد المراجعة</span><span class="m">10:24</span></div>
+              <div class="mini-row"><span>طلب سلة غذائية · جدة</span><span class="badge s-resolved">معتمد</span><span class="m">09:51</span></div>
+              <div class="mini-row"><span>طلب دعم دراسي · الدمام</span><span class="badge s-in_progress">لدى الباحث</span><span class="m">09:12</span></div>
+              <div class="mini-row"><span>طلب أجهزة كهربائية · الطائف</span><span class="badge s-closed">مغلق</span><span class="m">أمس</span></div>
+            </div>
+          </section>
+
+          <section id="view-reports" hidden>
+            <div class="crumbs">الملاحظات <span aria-hidden="true">/</span> بلاغاتي</div>
+            <div class="page-head">
+              <div><h2>بلاغاتي</h2><p>تابع بلاغاتك وردود فريق الدعم الفني</p></div>
+              <button class="btn btn-pri" type="button" data-open="form"><svg class="i"><use href="#i-plus"/></svg>بلاغ جديد</button>
+            </div>
+            <div class="tabs" role="tablist" aria-label="تصفية البلاغات">
+              <button class="tab is-active" role="tab" aria-selected="true" data-tab="all">الكل <span class="n" data-count="all"></span></button>
+              <button class="tab" role="tab" aria-selected="false" data-tab="open">مفتوحة <span class="n" data-count="open"></span></button>
+              <button class="tab" role="tab" aria-selected="false" data-tab="done">منتهية <span class="n" data-count="done"></span></button>
+            </div>
+            <div class="card rlist">
+              <div class="rhead"><span>البلاغ</span><span>الحالة</span><span>آخر تحديث</span><span>الردود</span></div>
+              <div id="rows"></div>
+            </div>
+          </section>
+
+          <section id="view-board" hidden>
+            <div class="crumbs">الملاحظات <span aria-hidden="true">/</span> لوحة البلاغات</div>
+            <div class="page-head">
+              <div><h2>لوحة البلاغات</h2><p>اسحب البطاقة بين الأعمدة لتغيير حالتها، واضغطها لفتح التفاصيل.</p></div>
+            </div>
+            <div class="filters" role="group" aria-label="تصفية حسب النوع" id="filters"></div>
+            <div class="kanban" id="kanban"></div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <button class="launcher" type="button" data-open="form"><svg class="i"><use href="#i-speak"/></svg><span>أبلغ عن مشكلة</span></button>
+
+    <!-- Slide-over: new report -->
+    <div class="so" id="so-form" hidden>
+      <div class="so-backdrop" data-close></div>
+      <form class="so-panel" id="reportForm" role="dialog" aria-modal="true" aria-labelledby="formTitle" novalidate>
+        <div class="so-head">
+          <div class="ttl"><h3 id="formTitle">الإبلاغ عن مشكلة</h3><p>صف ما حدث، وسيصل بلاغك لفريق الدعم الفني وتتابع الرد من «بلاغاتي».</p></div>
+          <button class="icon-btn" type="button" data-close aria-label="إغلاق"><svg class="i"><use href="#i-x"/></svg></button>
+        </div>
+        <div class="so-body">
+          <fieldset class="field" style="border:0;padding:0;margin:0">
+            <legend class="lbl" style="padding:0;margin-bottom:8px">نوع البلاغ</legend>
+            <div class="types">
+              <label class="type"><input type="radio" name="type" value="bug" id="t-bug" checked><span class="ticon t-bug"><svg class="i"><use href="#i-bug"/></svg></span><span><b>خلل</b><small>شيء لا يعمل كما يجب</small></span></label>
+              <label class="type"><input type="radio" name="type" value="feature" id="t-feature"><span class="ticon t-feature"><svg class="i"><use href="#i-bulb"/></svg></span><span><b>اقتراح</b><small>فكرة لتحسين النظام</small></span></label>
+              <label class="type"><input type="radio" name="type" value="question" id="t-question"><span class="ticon t-question"><svg class="i"><use href="#i-question"/></svg></span><span><b>سؤال</b><small>استفسار عن طريقة الاستخدام</small></span></label>
+              <label class="type"><input type="radio" name="type" value="other" id="t-other"><span class="ticon t-other"><svg class="i"><use href="#i-dots"/></svg></span><span><b>أخرى</b><small>أي ملاحظة غير ذلك</small></span></label>
+            </div>
+          </fieldset>
+          <div class="field">
+            <label for="f-title">العنوان <span class="req">*</span></label>
+            <input class="input" id="f-title" name="title" placeholder="مثال: زر الحفظ لا يستجيب في صفحة المستفيدين" autocomplete="off">
+            <span class="err" id="titleErr" hidden>اكتب عنوانًا قصيرًا للبلاغ.</span>
+          </div>
+          <div class="field">
+            <label for="f-desc">التفاصيل</label>
+            <textarea class="textarea" id="f-desc" name="desc" placeholder="ماذا كنت تحاول أن تفعل؟ وماذا حدث بدلًا من ذلك؟"></textarea>
+          </div>
+          <div class="field">
+            <span class="lbl">المرفقات</span>
+            <label class="drop" id="drop" for="f-files">
+              <svg class="i"><use href="#i-upload"/></svg>
+              <b>اسحب الصور أو الملفات هنا، أو <u>اختر من جهازك</u></b>
+              <span>أو الصق لقطة الشاشة مباشرة · صور، PDF، TXT، LOG حتى 10 ميغابايت</span>
+            </label>
+            <input type="file" id="f-files" multiple hidden accept="image/*,.pdf,.txt,.log">
+            <div class="files" id="files"></div>
+          </div>
+          <div class="ctx"><svg class="i"><use href="#i-info"/></svg><div>سنرفق تلقائيًا رابط الصفحة التي كنت فيها ونوع المتصفح، لنصل للمشكلة أسرع.<br><span class="ltr" id="ctxUrl">new-esaad.test/admin</span></div></div>
+        </div>
+        <div class="so-foot">
+          <button class="btn btn-pri btn-lg" type="submit"><svg class="i"><use href="#i-send"/></svg>إرسال البلاغ</button>
+          <button class="btn btn-gray btn-lg" type="button" data-close>إلغاء</button>
+          <span class="grow"></span>
+          <button class="link" type="button" data-go-reports>بلاغاتي السابقة</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Slide-over: sent -->
+    <div class="so" id="so-sent" hidden>
+      <div class="so-backdrop" data-close></div>
+      <div class="so-panel" role="dialog" aria-modal="true" aria-labelledby="sentTitle">
+        <div class="so-head">
+          <div class="ttl"><h3>الإبلاغ عن مشكلة</h3></div>
+          <button class="icon-btn" type="button" data-close aria-label="إغلاق"><svg class="i"><use href="#i-x"/></svg></button>
+        </div>
+        <div class="so-body">
+          <div class="sent" role="status">
+            <span class="ok"><svg class="i"><use href="#i-check"/></svg></span>
+            <h4 id="sentTitle">وصلنا بلاغك</h4>
+            <p>رقم البلاغ <span class="ref" id="sentRef">#128</span>. سنرسل لك إشعارًا عند الرد عليه، وتجده دائمًا في «بلاغاتي».</p>
+            <div class="actions">
+              <button class="btn btn-pri" type="button" id="followBtn">متابعة البلاغ</button>
+              <button class="btn btn-gray" type="button" data-open="form">بلاغ جديد</button>
+            </div>
+          </div>
+        </div>
+        <div></div>
+      </div>
+    </div>
+
+    <!-- Slide-over: report detail (reporter) -->
+    <div class="so" id="so-detail" hidden>
+      <div class="so-backdrop" data-close></div>
+      <div class="so-panel wide" role="dialog" aria-modal="true" aria-labelledby="dTitle">
+        <div class="so-head">
+          <span class="ticon" id="dIcon"></span>
+          <div class="ttl"><h3 id="dTitle"></h3><p id="dSub"></p></div>
+          <button class="icon-btn" type="button" data-close aria-label="إغلاق"><svg class="i"><use href="#i-x"/></svg></button>
+        </div>
+        <div class="so-body" id="dBody"></div>
+        <div class="so-foot">
+          <form class="composer" id="replyForm">
+            <div class="pending" id="replyPending"></div>
+            <div class="row">
+              <label for="f-reply" class="sr">ردّك</label>
+              <button class="icon-btn" type="button" data-pick="reply" aria-label="إرفاق صورة"><svg class="i"><use href="#i-clip"/></svg></button>
+              <textarea class="textarea" id="f-reply" placeholder="اكتب ردّك لفريق الدعم، أو الصق صورة…"></textarea>
+              <button class="btn btn-pri" type="submit"><svg class="i"><use href="#i-send"/></svg>إرسال</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card dialog (developer) -->
+    <div class="dlg-wrap" id="dlg" hidden>
+      <div class="dlg-backdrop" data-close></div>
+      <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="cTitle">
+        <div class="dlg-cover" id="cCover"></div>
+        <div class="dlg-cols">
+          <div class="dlg-main" id="cMain"></div>
+          <aside class="dlg-side" aria-label="التعليقات والنشاط">
+            <div class="side-head">
+              <h4><svg class="i"><use href="#i-comment"/></svg>التعليقات والنشاط</h4>
+              <button class="btn btn-gray btn-sm" type="button" id="toggleActivity">إخفاء النشاط</button>
+            </div>
+            <form class="dev-composer" id="devForm">
+              <div class="seg" role="group" aria-label="نوع التعليق">
+                <button type="button" aria-pressed="true" data-mode="reply"><svg class="i"><use href="#i-comment"/></svg>رد للمُبلِّغ</button>
+                <button type="button" aria-pressed="false" data-mode="internal" class="internal"><svg class="i"><use href="#i-lock"/></svg>ملاحظة داخلية</button>
+              </div>
+              <label for="f-dev" class="sr">التعليق</label>
+              <textarea class="textarea" id="f-dev" placeholder="اكتب تعليقًا… يمكنك لصق لقطة شاشة مباشرة"></textarea>
+              <div class="pending" id="devPending"></div>
+              <div class="row">
+                <button class="icon-btn sm" type="button" data-pick="dev" aria-label="إرفاق صورة"><svg class="i"><use href="#i-photo"/></svg></button>
+                <span class="hint" id="devHint">يصل الرد للمُبلِّغ ويُرسل له إشعار.</span>
+                <span class="grow"></span>
+                <button class="btn btn-pri btn-sm" type="submit">إرسال</button>
+              </div>
+            </form>
+            <div class="feed" id="cFeed"></div>
+          </aside>
+        </div>
+      </div>
+    </div>
+
+    <input type="file" id="pickImages" accept="image/*" multiple hidden>
+
+    <!-- Lightbox -->
+    <div class="lb" id="lb" hidden role="dialog" aria-modal="true" aria-label="معاينة الصورة">
+      <span class="cap" id="lbCap"></span>
+      <button class="round" type="button" data-lb-close aria-label="إغلاق المعاينة"><svg class="i"><use href="#i-x"/></svg></button>
+      <img id="lbImg" alt="">
+    </div>
+  </div>
+
+  <section class="notes" aria-label="ما الذي تغيّر">
+    <div class="note">
+      <h2>نموذج الإبلاغ</h2>
+      <ul>
+        <li>لوح ينزلق من جهة الزر بدل النافذة في وسط الشاشة.</li>
+        <li>النوع ببطاقات وأيقونات، والمرفقات بالسحب أو لصق لقطة الشاشة مع معاينة وحذف.</li>
+        <li>تنبيه بما يُرفق تلقائيًا، ورقم البلاغ بعد الإرسال.</li>
+      </ul>
+    </div>
+    <div class="note">
+      <h2>«بلاغاتي» للموظف</h2>
+      <ul>
+        <li>صفحة داخل اللوحة بتبويبات مفتوحة ومنتهية، وعدّاد للردود الجديدة في القائمة.</li>
+        <li>التفاصيل في لوح منزلق: مراحل الحالة، والوصف، ومحادثة بالصور مع فريق الدعم.</li>
+        <li>لا يرى الموظف الملاحظات الداخلية ولا سجل النشاط.</li>
+      </ul>
+    </div>
+    <div class="note">
+      <h2>لوحة البلاغات للمطوّر</h2>
+      <ul>
+        <li>أول صورة مرفقة تصير غلاف البطاقة كما في Trello، مع الأولوية والنوع وعدد التعليقات والمرفقات والأشخاص.</li>
+        <li>البطاقة تفتح نافذة بعمودين: المحتوى والمرفقات والسياق التقني، والتعليقات والنشاط.</li>
+        <li>تعليقات بالصور، رد للمُبلِّغ أو ملاحظة داخلية بلون مختلف، وإخفاء النشاط بضغطة.</li>
+      </ul>
+    </div>
+    <div class="note">
+      <h2>الاندماج مع Filament</h2>
+      <ul>
+        <li>يأخذ اللون الأساسي للوحة وخطها ووضعها الداكن من اختيار المستخدم.</li>
+        <li>أيقونة واسم عربي لكل عنصر في القائمة تحت مجموعة «الملاحظات».</li>
+        <li>الصفحة المستقلة للتطبيقات بدون Filament بنفس المكوّنات، فاتحة افتراضيًا.</li>
+      </ul>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  var mock = document.getElementById('mock');
+
+  // Example screenshots drawn on a canvas, standing in for real attachments.
+  function shot(v) {
+    var c = document.createElement('canvas'); c.width = 800; c.height = 500;
+    var g = c.getContext('2d');
+    var accents = ['#db2777', '#2563eb', '#16a34a', '#d97706', '#7c3aed', '#0891b2'];
+    var a = accents[v % accents.length];
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, 800, 500);
+    g.fillStyle = '#f4f4f5'; g.fillRect(620, 0, 180, 500);
+    g.fillStyle = a; g.fillRect(650, 26, 28, 28);
+    for (var i = 0; i < 9; i++) { g.fillStyle = i === 2 ? a + '33' : '#e4e4e7'; g.fillRect(640, 80 + i * 38, 140, 22); }
+    g.fillStyle = '#fafafa'; g.fillRect(0, 0, 620, 56); g.fillStyle = '#e4e4e7'; g.fillRect(24, 18, 200, 20);
+    g.fillStyle = '#18181b'; g.fillRect(380, 82, 210, 18); g.fillStyle = '#a1a1aa'; g.fillRect(450, 110, 140, 10);
+    if (v % 3 === 0) {
+      for (var r = 0; r < 7; r++) {
+        g.fillStyle = r === 0 ? '#f4f4f5' : '#ffffff'; g.fillRect(30, 140 + r * 44, 560, 42);
+        g.fillStyle = '#e4e4e7'; g.fillRect(30, 182 + r * 44, 560, 2);
+        for (var k = 0; k < 4; k++) { g.fillStyle = r === 0 ? '#a1a1aa' : '#d4d4d8'; g.fillRect(470 - k * 140, 155 + r * 44, 90 - (r + k) % 3 * 18, 12); }
+      }
+      g.strokeStyle = '#ef4444'; g.lineWidth = 5; g.strokeRect(40, 270, 150, 46);
+    } else if (v % 3 === 1) {
+      for (var s = 0; s < 3; s++) { g.fillStyle = '#ffffff'; g.strokeStyle = '#e4e4e7'; g.lineWidth = 2; g.fillRect(30 + s * 190, 140, 176, 96); g.strokeRect(30 + s * 190, 140, 176, 96);
+        g.fillStyle = '#18181b'; g.fillRect(110 + s * 190, 190, 80, 22); g.fillStyle = '#a1a1aa'; g.fillRect(130 + s * 190, 160, 60, 10); }
+      g.fillStyle = '#ffffff'; g.fillRect(30, 260, 560, 210); g.strokeStyle = '#e4e4e7'; g.strokeRect(30, 260, 560, 210);
+      g.strokeStyle = a; g.lineWidth = 4; g.beginPath(); g.moveTo(60, 430);
+      [380, 400, 330, 350, 300, 320, 280].forEach(function (y, j) { g.lineTo(60 + (j + 1) * 72, y); }); g.stroke();
+      g.strokeStyle = '#ef4444'; g.lineWidth = 5; g.strokeRect(420, 146, 160, 84);
+    } else {
+      for (var f = 0; f < 4; f++) { g.fillStyle = '#71717a'; g.fillRect(470, 146 + f * 78, 120, 12); g.fillStyle = '#ffffff'; g.strokeStyle = '#d4d4d8'; g.lineWidth = 2; g.fillRect(30, 166 + f * 78, 560, 38); g.strokeRect(30, 166 + f * 78, 560, 38); }
+      g.fillStyle = a; g.fillRect(30, 460, 130, 30);
+      g.strokeStyle = '#ef4444'; g.lineWidth = 5; g.strokeRect(24, 236, 572, 50);
+    }
+    return c.toDataURL('image/png');
+  }
+  var SHOTS = [0, 1, 2, 3, 4, 5].map(shot);
+
+  var TYPES = { bug: { label: 'خلل', icon: 'i-bug' }, feature: { label: 'اقتراح', icon: 'i-bulb' }, question: { label: 'سؤال', icon: 'i-question' }, other: { label: 'أخرى', icon: 'i-dots' } };
+  var STATUS = { 'new': 'جديد', in_review: 'قيد المراجعة', in_progress: 'قيد التنفيذ', resolved: 'تم الحل', closed: 'مغلق', declined: 'مرفوض' };
+  var SDOT = { 'new': 'var(--m-faint)', in_review: 'var(--m-info-fg)', in_progress: 'var(--m-warn-fg)', resolved: 'var(--m-ok-fg)', closed: 'var(--m-faint)', declined: 'var(--m-danger-fg)' };
+  var PRIO = { urgent: 'عاجلة', high: 'عالية', medium: 'متوسطة', low: 'منخفضة' };
+  var ORDER = ['new', 'in_review', 'in_progress', 'resolved', 'closed', 'declined'];
+  var OPEN = ['new', 'in_review', 'in_progress'];
+  var PEOPLE = { me: { name: 'رزان', c: 'c2' }, dev: { name: 'يوسف', c: 'c1' }, noura: { name: 'نورة', c: 'c3' }, khalid: { name: 'خالد', c: 'c4' }, sara: { name: 'سارة', c: 'c2' } };
+  var DEV_TEAM = 'فريق الدعم الفني';
+
+  function img(i, name, when) { return { src: SHOTS[i], name: name || 'لقطة-الشاشة-' + (i + 1) + '.png', when: when || '' }; }
+  var items = [
+    { id: 127, mine: true, by: 'me', type: 'bug', status: 'new', prio: null, assignee: null, title: 'الصفحة تعلق عند رفع ملف PDF كبير', updated: 'الآن', sent: 'الآن', page: 'new-esaad.test/admin/applications/create',
+      body: 'عند رفع ملف PDF بحجم 8 ميغابايت تتوقف الصفحة ولا يكتمل الرفع.', files: [], thread: [{ kind: 'activity', time: 'الآن', text: 'أنشأت رزان البلاغ' }] },
+    { id: 126, mine: true, by: 'me', type: 'bug', status: 'in_review', prio: 'high', assignee: 'dev', title: 'زر الحفظ لا يستجيب في صفحة المستفيدين', updated: 'منذ ساعة', sent: 'اليوم 9:40 ص', page: 'new-esaad.test/admin/beneficiaries/6687/edit',
+      body: 'عند تعديل بيانات المستفيد والضغط على حفظ لا يحدث شيء، والبيانات لا تُحفظ. جربت أكثر من مرة.', files: [img(0, 'زر-الحفظ.png', 'اليوم 9:40 ص')],
+      thread: [
+        { kind: 'activity', time: 'اليوم 9:40 ص', text: 'أنشأت رزان البلاغ' },
+        { kind: 'activity', time: 'اليوم 9:52 ص', text: 'نقل يوسف البلاغ إلى «قيد المراجعة» وأسنده لنفسه' },
+        { kind: 'comment', who: 'dev', internal: true, time: 'اليوم 9:58 ص', text: 'في الكونسول خطأ 419، غالبًا انتهت الجلسة قبل الحفظ. أراجع مدة الجلسة.', images: [img(3, 'console-419.png')] }
+      ] },
+    { id: 121, mine: true, by: 'me', type: 'feature', status: 'in_progress', prio: 'medium', assignee: 'dev', title: 'إضافة فلتر حسب المدينة في تقرير الداعمين', updated: 'اليوم 9:05 ص', sent: 'أمس 10:24 ص', page: 'new-esaad.test/admin/reports/supporters', unread: 1,
+      body: 'نحتاج فلترة تقرير الداعمين حسب المدينة حتى نستخرج أرقام كل فرع وحده. حاليًا نصدّر التقرير كاملًا ونفلتره في Excel.', files: [img(1, 'تقرير-الداعمين.png', 'أمس 10:24 ص')],
+      thread: [
+        { kind: 'activity', time: 'أمس 10:24 ص', text: 'أنشأت رزان البلاغ' },
+        { kind: 'comment', who: 'dev', time: 'أمس 1:10 م', text: 'فكرة ممتازة، بدأنا عليها. سنضيف الفلتر أعلى التقرير مع إمكانية اختيار أكثر من مدينة.', images: [] },
+        { kind: 'activity', time: 'أمس 1:11 م', text: 'نقل يوسف البلاغ من «قيد المراجعة» إلى «قيد التنفيذ»' },
+        { kind: 'comment', who: 'me', time: 'أمس 1:30 م', text: 'ممتاز. هل يمكن إضافة فلتر للحي أيضًا؟', images: [] },
+        { kind: 'comment', who: 'dev', time: 'اليوم 9:05 ص', text: 'هذا شكل الفلتر المبدئي. فلتر الحي في المرحلة الثانية.', images: [img(2, 'فلتر-المدينة.png'), img(4, 'نتيجة-الفلتر.png')], isNew: true }
+      ] },
+    { id: 125, by: 'noura', type: 'bug', status: 'new', prio: 'urgent', assignee: null, title: 'مبلغ الدعم يتصفّر عند تعديل البرنامج', updated: 'منذ 20 دقيقة', sent: 'اليوم 10:02 ص', page: 'new-esaad.test/admin/supporter-programs/793/edit',
+      body: 'عند إضافة مبلغ لبرنامج معين ثم إضافة مبلغ لبرنامج ثانٍ، يُمسح مبلغ البرنامج الأول.', files: [img(5, 'مبلغ-البرنامج.png', 'اليوم 10:02 ص'), img(0, 'بعد-الحفظ.png', 'اليوم 10:03 ص')],
+      thread: [{ kind: 'activity', time: 'اليوم 10:02 ص', text: 'أنشأت نورة البلاغ' }] },
+    { id: 124, by: 'khalid', type: 'feature', status: 'new', prio: null, assignee: null, title: 'إضافة حقل رقم الحساب البنكي للداعم', updated: 'أمس', sent: 'أمس 3:15 م', page: 'new-esaad.test/admin/supporters/create',
+      body: 'نحتاج حفظ رقم الآيبان للداعم في ملفه بدل كتابته في الملاحظات.', files: [], thread: [{ kind: 'activity', time: 'أمس 3:15 م', text: 'أنشأ خالد البلاغ' }] },
+    { id: 122, by: 'sara', type: 'bug', status: 'in_progress', prio: 'high', assignee: 'dev', title: 'حالة الطلب لا تتحدث بعد اعتماد اللجنة', updated: 'منذ 3 ساعات', sent: 'أمس 11:40 ص', page: 'new-esaad.test/admin/applications/5512',
+      body: 'بعد اعتماد اللجنة يبقى الطلب «لدى اللجنة» ولا ينتقل للمرحلة التالية.', files: [img(3, 'حالة-الطلب.png', 'أمس 11:40 ص')],
+      thread: [
+        { kind: 'activity', time: 'أمس 11:40 ص', text: 'أنشأت سارة البلاغ' },
+        { kind: 'comment', who: 'dev', time: 'أمس 2:00 م', text: 'وجدنا السبب: إشعار الاعتماد لا يصل لخدمة الحالات. الإصلاح في الطريق.', images: [] }
+      ] },
+    { id: 119, by: 'noura', type: 'feature', status: 'in_review', prio: 'medium', assignee: null, title: 'إخفاء زر تصدير التقارير عن بعض المستخدمين', updated: 'قبل يومين', sent: 'قبل 3 أيام', page: 'new-esaad.test/admin/roles/4/edit',
+      body: 'نريد التحكم في ظهور زر التصدير حسب الدور، فلا يراه إلا المدير والمحاسب.', files: [img(2, 'صلاحيات-الدور.png', 'قبل 3 أيام'), img(1, 'زر-التصدير.png', 'قبل 3 أيام')],
+      thread: [{ kind: 'activity', time: 'قبل 3 أيام', text: 'أنشأت نورة البلاغ' }] },
+    { id: 117, mine: true, by: 'me', type: 'question', status: 'resolved', prio: 'low', assignee: 'dev', title: 'كيف أصدّر قائمة التابعين إلى Excel؟', updated: 'قبل 3 أيام', sent: 'قبل 4 أيام', page: 'new-esaad.test/admin/dependents',
+      body: 'أحتاج قائمة التابعين لمستفيدي برنامج الدعم الدراسي في ملف Excel.', files: [],
+      thread: [
+        { kind: 'comment', who: 'dev', time: 'قبل 3 أيام', text: 'من صفحة التابعين، فلتر حسب البرنامج ثم اضغط «تصدير» أعلى الجدول واختر Excel.', images: [img(0, 'زر-التصدير.png')] },
+        { kind: 'comment', who: 'me', time: 'قبل 3 أيام', text: 'نجحت، شكرًا لكم.', images: [] },
+        { kind: 'activity', time: 'قبل 3 أيام', text: 'نقل يوسف البلاغ إلى «تم الحل»' }
+      ] },
+    { id: 115, by: 'khalid', type: 'bug', status: 'resolved', prio: 'high', assignee: 'dev', title: 'خطأ في ترتيب الأسماء في كشف الصرف', updated: 'قبل 4 أيام', sent: 'قبل أسبوع', page: 'new-esaad.test/admin/disbursements/88',
+      body: 'الأسماء في كشف الصرف المطبوع لا تتطابق مع ترتيب الشاشة.', files: [img(4, 'كشف-الصرف.png', 'قبل أسبوع')], thread: [{ kind: 'activity', time: 'قبل 4 أيام', text: 'نقل يوسف البلاغ إلى «تم الحل»' }] },
+    { id: 109, mine: true, by: 'me', type: 'bug', status: 'closed', prio: 'low', assignee: 'dev', title: 'تاريخ الميلاد يظهر بالميلادي بدل الهجري', updated: 'قبل أسبوعين', sent: 'قبل 3 أسابيع', page: 'new-esaad.test/admin/beneficiaries',
+      body: 'في ملف المستفيد يظهر تاريخ الميلاد بالميلادي رغم أن الإعداد هجري.', files: [],
+      thread: [{ kind: 'comment', who: 'dev', time: 'قبل أسبوعين', text: 'أصلحنا العرض في تحديث اليوم، ويظهر الآن حسب الإعداد. يمكنك الرد إذا تكرر.', images: [] }] }
+  ];
+  var nextId = 128, tab = 'all', typeFilter = 'all', currentCard = null, devMode = 'reply';
+
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function icon(id) { return '<svg class="i"><use href="#' + id + '"/></svg>'; }
+  function byId(id) { return items.filter(function (x) { return x.id === id; })[0]; }
+  function person(k) { return PEOPLE[k] || PEOPLE.me; }
+  function av(k, lg) { var p = person(k); return '<span class="av ' + p.c + (lg ? ' lg' : '') + '" title="' + p.name + '">' + p.name.charAt(0) + '</span>'; }
+  function comments(r, includeInternal) { return r.thread.filter(function (e) { return e.kind === 'comment' && (includeInternal || !e.internal); }); }
+  function imgsHtml(list) {
+    if (!list || !list.length) return '';
+    return '<div class="imgs">' + list.map(function (m) { return '<button class="imgbtn" type="button" data-zoom="' + esc(m.src) + '" data-cap="' + esc(m.name) + '" aria-label="تكبير ' + esc(m.name) + '"><img src="' + m.src + '" alt=""></button>'; }).join('') + '</div>';
+  }
+  function allImages(r) {
+    var out = r.files.slice();
+    r.thread.forEach(function (e) { if (e.images) out = out.concat(e.images); });
+    return out;
+  }
+
+  // ----- Views
+  function setView(v) {
+    ['dash', 'reports', 'board'].forEach(function (k) { document.getElementById('view-' + k).hidden = k !== v; });
+    document.querySelectorAll('.nav-item[data-go]').forEach(function (b) { b.classList.toggle('is-active', b.dataset.go === v); });
+    document.getElementById('url').textContent = { dash: 'new-esaad.test/admin', reports: 'new-esaad.test/admin/my-feedback', board: 'new-esaad.test/admin/feedback-board' }[v];
+    var content = document.getElementById('content'); content.scrollTop = 0; content.classList.toggle('is-board', v === 'board');
+    if (v === 'reports') renderRows();
+    if (v === 'board') renderBoard();
+  }
+
+  function renderRows() {
+    var mine = items.filter(function (r) { return r.mine; });
+    var list = mine.filter(function (r) { return tab === 'all' || (tab === 'open' ? OPEN.indexOf(r.status) > -1 : OPEN.indexOf(r.status) === -1); });
+    document.querySelector('[data-count="all"]').textContent = mine.length;
+    document.querySelector('[data-count="open"]').textContent = mine.filter(function (r) { return OPEN.indexOf(r.status) > -1; }).length;
+    document.querySelector('[data-count="done"]').textContent = mine.filter(function (r) { return OPEN.indexOf(r.status) === -1; }).length;
+    document.getElementById('rows').innerHTML = list.map(function (r) {
+      var n = comments(r, false).length;
+      return '<button class="rrow" type="button" data-row="' + r.id + '">' +
+        '<span class="rtitle"><span class="ticon t-' + r.type + '">' + icon(TYPES[r.type].icon) + '</span><span class="rtext"><b>' + esc(r.title) + '</b><span>#' + r.id + ' · ' + TYPES[r.type].label + '</span></span></span>' +
+        '<span class="badge s-' + r.status + '">' + STATUS[r.status] + '</span>' +
+        '<span class="rmeta">' + esc(r.updated) + '</span>' +
+        '<span class="replies' + (r.unread ? ' has-new' : '') + '">' + icon('i-chat') + n + (r.unread ? '<span class="dot" aria-label="رد جديد"></span>' : '') + '</span>' +
+        '</button>';
+    }).join('');
+    refreshBadges();
+  }
+  function refreshBadges() {
+    var unread = items.reduce(function (s, r) { return s + (r.mine && r.unread ? r.unread : 0); }, 0);
+    var nb = document.getElementById('navUnread'); nb.textContent = unread; nb.hidden = !unread;
+    document.getElementById('navOpen').textContent = items.filter(function (r) { return OPEN.indexOf(r.status) > -1; }).length;
+  }
+
+  function renderBoard() {
+    var counts = { all: items.length };
+    Object.keys(TYPES).forEach(function (t) { counts[t] = items.filter(function (r) { return r.type === t; }).length; });
+    document.getElementById('filters').innerHTML = ['all', 'bug', 'feature', 'question', 'other'].map(function (t) {
+      var label = t === 'all' ? 'الكل' : TYPES[t].label;
+      return '<button class="fchip' + (typeFilter === t ? ' is-active' : '') + '" type="button" data-filter="' + t + '" aria-pressed="' + (typeFilter === t) + '">' + (t === 'all' ? '' : icon(TYPES[t].icon)) + label + ' · ' + counts[t] + '</button>';
+    }).join('');
+    document.getElementById('kanban').innerHTML = ORDER.map(function (s) {
+      var list = items.filter(function (r) { return r.status === s && (typeFilter === 'all' || r.type === typeFilter); });
+      var cards = list.map(function (r) {
+        var cover = r.files.filter(function (f) { return f.src; })[0];
+        var cm = comments(r, true).length, att = allImages(r).length, internals = r.thread.filter(function (e) { return e.internal; }).length;
+        return '<button class="kcard" type="button" draggable="true" data-card="' + r.id + '">' +
+          (cover ? '<img class="kcover" src="' + cover.src + '" alt="">' : '') +
+          '<span class="kbody">' +
+            '<span class="kchips">' + (r.prio ? '<span class="prio p-' + r.prio + '">' + PRIO[r.prio] + '</span>' : '') + '<span class="ktype">' + icon(TYPES[r.type].icon) + TYPES[r.type].label + '</span></span>' +
+            '<span class="ktitle">' + esc(r.title) + '</span>' +
+            '<span class="kfoot"><span>#' + r.id + '</span>' +
+              (cm ? '<span class="b">' + icon('i-comment') + cm + '</span>' : '') +
+              (att ? '<span class="b">' + icon('i-clip') + att + '</span>' : '') +
+              (internals ? '<span class="b lock" title="ملاحظات داخلية">' + icon('i-lock') + internals + '</span>' : '') +
+              '<span class="avs">' + av(r.by) + (r.assignee ? av(r.assignee) : '') + '</span>' +
+            '</span>' +
+          '</span></button>';
+      }).join('');
+      return '<div class="col" data-col="' + s + '"><div class="col-head"><span class="sdot" style="background:' + SDOT[s] + '"></span>' + STATUS[s] + '<span class="cnt">' + list.length + '</span></div>' +
+        '<div class="col-body" data-drop="' + s + '">' + (cards || '<div class="col-empty">لا توجد بلاغات</div>') + '</div></div>';
+    }).join('');
+    refreshBadges();
+  }
+
+  function setStatus(r, s) {
+    if (!r || r.status === s) return;
+    r.thread.push({ kind: 'activity', time: 'الآن', text: 'نقل يوسف البلاغ من «' + STATUS[r.status] + '» إلى «' + STATUS[s] + '»' });
+    r.status = s; r.updated = 'الآن';
+  }
+
+  // ----- Reporter detail
+  function stepsHtml(status) {
+    var order = ['new', 'in_review', 'in_progress', 'resolved'];
+    var idx = (status === 'closed' || status === 'declined') ? 4 : order.indexOf(status);
+    return '<div class="steps" aria-label="مراحل البلاغ">' + order.map(function (s, i) {
+      var label = (s === 'resolved' && idx === 4) ? STATUS[status] : STATUS[s];
+      var cls = i < idx || (i === idx && s === 'resolved') ? 'done' : (i === idx ? 'cur' : '');
+      return '<div class="step ' + cls + '"><span class="bar"></span>' + label + '</div>';
+    }).join('') + '</div>';
+  }
+  function openDetail(id) {
+    var r = byId(id); if (!r) return;
+    var ic = document.getElementById('dIcon'); ic.className = 'ticon t-' + r.type; ic.innerHTML = icon(TYPES[r.type].icon);
+    document.getElementById('dTitle').textContent = r.title;
+    document.getElementById('dSub').innerHTML = '#' + r.id + ' · ' + TYPES[r.type].label + ' · <span class="badge s-' + r.status + '">' + STATUS[r.status] + '</span>';
+    var html = stepsHtml(r.status);
+    html += '<div class="dmeta"><span>' + icon('i-clock') + 'أُرسل ' + esc(r.sent) + '</span><span>' + icon('i-link') + '<span class="ltr">' + esc(r.page) + '</span></span></div>';
+    html += '<div class="field"><p class="sec-title">الوصف</p><p class="desc">' + esc(r.body || 'بلا وصف.') + '</p>' + imgsHtml(r.files) + '</div>';
+    html += '<p class="sec-title">المحادثة</p>';
+    var cs = comments(r, false);
+    if (!cs.length) html += '<div class="waiting">' + icon('i-clock') + 'لم يصل رد بعد. سنرسل لك إشعارًا عند الرد.</div>';
+    else html += '<div class="thread">' + cs.map(function (m) {
+      var name = m.who === 'dev' ? DEV_TEAM : 'أنت';
+      return '<div class="msg ' + (m.who === 'dev' ? 'dev' : 'me') + '"><div class="who"><b>' + name + '</b>' + esc(m.time) + (m.isNew ? '<span class="new">جديد</span>' : '') + '</div><div class="bubble">' + (m.text ? '<span>' + esc(m.text) + '</span>' : '') + imgsHtml(m.images) + '</div></div>';
+    }).join('') + '</div>';
+    document.getElementById('dBody').innerHTML = html;
+    document.getElementById('replyForm').dataset.id = r.id;
+    r.unread = 0; renderRows();
+    show('detail');
+  }
+
+  // ----- Developer card dialog
+  function openCard(id) {
+    var r = byId(id); if (!r) return;
+    currentCard = r;
+    var cover = r.files.filter(function (f) { return f.src; })[0];
+    var opts = ORDER.map(function (s) { return '<option value="' + s + '"' + (s === r.status ? ' selected' : '') + '>' + STATUS[s] + '</option>'; }).join('');
+    var bar = '<div class="bar"><div class="sel"><label for="cStatus" class="sr">الحالة</label><select class="select" id="cStatus">' + opts + '</select>' + icon('i-chev') + '</div><span class="grow"></span><button class="round" type="button" data-close aria-label="إغلاق">' + icon('i-x') + '</button></div>';
+    var coverEl = document.getElementById('cCover');
+    coverEl.className = 'dlg-cover' + (cover ? '' : ' none');
+    coverEl.innerHTML = bar + (cover ? '<img src="' + cover.src + '" alt="" data-zoom="' + esc(cover.src) + '" data-cap="' + esc(cover.name) + '">' : '');
+
+    var prioOpts = '<option value="">بلا أولوية</option>' + Object.keys(PRIO).map(function (p) { return '<option value="' + p + '"' + (p === r.prio ? ' selected' : '') + '>' + PRIO[p] + '</option>'; }).join('');
+    var assign = r.assignee ? av(r.assignee) + person(r.assignee).name + ' <button class="btn btn-gray btn-sm" type="button" data-assign="none">إلغاء الإسناد</button>' : '<span style="color:var(--m-muted)">غير مُسنَد</span> <button class="btn btn-gray btn-sm" type="button" data-assign="me">إسناد لي</button>';
+    var html = '<div class="dlg-title"><span class="ticon t-' + r.type + '">' + icon(TYPES[r.type].icon) + '</span><div><h3 id="cTitle">' + esc(r.title) + '</h3><div class="sub">#' + r.id + ' · ' + TYPES[r.type].label + ' · أرسله ' + person(r.by).name + ' ' + esc(r.sent) + '</div></div></div>';
+    html += '<div class="props">' +
+      '<div class="prop"><span>الأولوية</span><div class="sel"><label for="cPrio" class="sr">الأولوية</label><select class="select" id="cPrio">' + prioOpts + '</select>' + icon('i-chev') + '</div></div>' +
+      '<div class="prop"><span>المسؤول</span><div class="who">' + assign + '</div></div>' +
+      '<div class="prop"><span>المُبلِّغ</span><div class="who">' + av(r.by) + person(r.by).name + '</div></div>' +
+      '</div>';
+    html += '<div class="field"><p class="sec-title">' + icon('i-list') + 'الوصف</p><p class="desc">' + esc(r.body || 'بلا وصف.') + '</p></div>';
+    var imgs = allImages(r);
+    if (imgs.length) html += '<div class="field"><p class="sec-title">' + icon('i-clip') + 'المرفقات · ' + imgs.length + '</p><div class="agrid">' + imgs.map(function (m) {
+      return '<div class="aitem"><button class="imgbtn" type="button" data-zoom="' + esc(m.src) + '" data-cap="' + esc(m.name) + '" aria-label="تكبير ' + esc(m.name) + '"><img src="' + m.src + '" alt=""></button><b>' + esc(m.name) + '</b>' + (m.when ? '<span>' + esc(m.when) + '</span>' : '') + '</div>';
+    }).join('') + '</div></div>';
+    html += '<details class="tech"><summary>السياق التقني</summary><dl><dt>الصفحة</dt><dd><span class="ltr">' + esc(r.page) + '</span></dd><dt>المتصفح</dt><dd>Chrome 154 على Linux</dd><dt>اللغة</dt><dd>العربية</dd></dl></details>';
+    html += '<div class="ai-box"><div class="row"><span class="ticon t-feature" style="width:28px;height:28px">' + icon('i-sparkles') + '</span><b>اقتراح الذكاء الاصطناعي</b><span class="grow"></span><span class="prio p-' + (r.prio || 'medium') + '">' + PRIO[r.prio || 'medium'] + '</span><span class="ktype">' + icon(TYPES[r.type].icon) + TYPES[r.type].label + '</span></div><div class="row" style="color:var(--m-muted)">يبدو أنه ' + TYPES[r.type].label + ' يؤثر على عمل الموظفين اليومي. ملخص: ' + esc(r.title) + '.</div><div class="actions-row"><button class="btn btn-gray btn-sm" type="button">تطبيق النوع</button><button class="btn btn-gray btn-sm" type="button">تطبيق الأولوية</button></div></div>';
+    html += '<div class="actions-row"><button class="btn btn-gray btn-sm" type="button">' + icon('i-code') + 'إرسال إلى GitHub</button><button class="btn btn-gray btn-sm" type="button">' + icon('i-cpu') + 'إرسال للوكيل</button></div>';
+    document.getElementById('cMain').innerHTML = html;
+    renderFeed();
+    devPending = []; renderPending('dev');
+    document.getElementById('dlg').hidden = false;
+    setTimeout(function () { var c = document.querySelector('#cCover [data-close]'); c && c.focus({ preventScroll: true }); }, 30);
+  }
+  var hideActivity = false;
+  function renderFeed() {
+    var r = currentCard; if (!r) return;
+    var feed = r.thread.slice().reverse().map(function (e) {
+      if (e.kind === 'activity') return '<div class="entry activity"><span class="adot"><span></span></span><span><b>' + esc(e.text) + '</b> · ' + esc(e.time) + '</span></div>';
+      var who = e.who === 'dev' ? 'dev' : r.by;
+      var role = e.who === 'dev' ? '<span class="role dev">مطوّر</span>' : '<span class="role">مُبلِّغ</span>';
+      return '<div class="entry' + (e.internal ? ' internal' : '') + '">' + av(who, true) + '<div class="body"><div class="head"><b>' + person(who).name + '</b>' + role + esc(e.time) + (e.internal ? '<span class="lock-tag">' + icon('i-lock') + 'داخلية · لا يراها المُبلِّغ</span>' : '') + '</div><div class="text">' + (e.text ? '<span>' + esc(e.text) + '</span>' : '') + imgsHtml(e.images) + '</div></div></div>';
+    }).join('');
+    var el = document.getElementById('cFeed'); el.innerHTML = feed; el.classList.toggle('hide-activity', hideActivity);
+    document.getElementById('toggleActivity').textContent = hideActivity ? 'إظهار النشاط' : 'إخفاء النشاط';
+  }
+
+  // ----- Overlays
+  var lastFocus = null;
+  function show(which) {
+    ['form', 'sent', 'detail'].forEach(function (k) { document.getElementById('so-' + k).hidden = k !== which; });
+    if (which) {
+      var el = document.getElementById('so-' + which);
+      var target = which === 'form' ? document.getElementById('f-title') : el.querySelector('[data-close].icon-btn');
+      setTimeout(function () { target && target.focus({ preventScroll: true }); }, 30);
+    }
+  }
+  function closeTop() {
+    if (!document.getElementById('lb').hidden) { document.getElementById('lb').hidden = true; return; }
+    if (!document.getElementById('dlg').hidden) { document.getElementById('dlg').hidden = true; currentCard = null; renderBoard(); if (lastFocus) lastFocus.focus({ preventScroll: true }); return; }
+    show(null); if (lastFocus) lastFocus.focus({ preventScroll: true });
+  }
+  function zoom(src, cap) { document.getElementById('lbImg').src = src; document.getElementById('lbCap').textContent = cap || ''; document.getElementById('lb').hidden = false; document.querySelector('[data-lb-close]').focus({ preventScroll: true }); }
+
+  // ----- Files (new report) and pending images (comments)
+  var picked = [], replyPending = [], devPending = [], pickTarget = 'dev';
+  function renderFiles() {
+    document.getElementById('files').innerHTML = picked.map(function (f, i) {
+      var thumb = f.src ? '<img src="' + f.src + '" alt="">' : icon('i-clip');
+      return '<div class="file"><span class="thumb">' + thumb + '</span><span class="meta"><b>' + esc(f.name) + '</b><span>' + f.kb + ' ك.ب</span></span><button class="icon-btn" type="button" data-rm="' + i + '" aria-label="حذف ' + esc(f.name) + '">' + icon('i-x') + '</button></div>';
+    }).join('');
+  }
+  function toItems(list, cb) {
+    Array.prototype.forEach.call(list, function (f) {
+      var it = { name: f.name || 'لقطة-الشاشة.png', kb: Math.max(1, Math.round(f.size / 1024)), src: null };
+      if (f.type && f.type.indexOf('image/') === 0) { try { it.src = URL.createObjectURL(f); } catch (e) {} }
+      cb(it);
+    });
+  }
+  function renderPending(which) {
+    var list = which === 'dev' ? devPending : replyPending;
+    document.getElementById(which === 'dev' ? 'devPending' : 'replyPending').innerHTML = list.map(function (m, i) {
+      return '<span class="pthumb"><img src="' + m.src + '" alt=""><button type="button" data-unpend="' + which + ':' + i + '" aria-label="إزالة الصورة">' + icon('i-x') + '</button></span>';
+    }).join('');
+  }
+  function addPending(which, files) {
+    toItems(files, function (it) { if (!it.src) return; (which === 'dev' ? devPending : replyPending).push({ src: it.src, name: it.name }); });
+    renderPending(which);
+  }
+  function resetForm() {
+    document.getElementById('reportForm').reset();
+    picked = [{ name: 'لقطة-الشاشة.png', kb: 240, src: SHOTS[0] }];
+    renderFiles();
+    document.getElementById('titleErr').hidden = true;
+    document.getElementById('ctxUrl').textContent = document.getElementById('url').textContent;
+  }
+
+  // ----- Events
+  mock.addEventListener('click', function (e) {
+    var z = e.target.closest('[data-zoom]');
+    if (z) { zoom(z.dataset.zoom, z.dataset.cap); return; }
+    if (e.target.closest('[data-lb-close]') || e.target.id === 'lb') { document.getElementById('lb').hidden = true; return; }
+    var t = e.target.closest('button, [data-close], label');
+    if (!t) return;
+    if (t.hasAttribute('data-close')) { closeTop(); return; }
+    if (t.dataset.open === 'form') { lastFocus = t; resetForm(); show('form'); return; }
+    if (t.dataset.go) { setView(t.dataset.go); return; }
+    if (t.hasAttribute('data-go-reports')) { show(null); setView('reports'); return; }
+    if (t.dataset.tab) { tab = t.dataset.tab; document.querySelectorAll('.tab').forEach(function (b) { var on = b === t; b.classList.toggle('is-active', on); b.setAttribute('aria-selected', on); }); renderRows(); return; }
+    if (t.dataset.row) { lastFocus = t; openDetail(+t.dataset.row); return; }
+    if (t.dataset.card) { lastFocus = t; openCard(+t.dataset.card); return; }
+    if (t.dataset.filter) { typeFilter = t.dataset.filter; renderBoard(); return; }
+    if (t.dataset.rm) { picked.splice(+t.dataset.rm, 1); renderFiles(); return; }
+    if (t.dataset.unpend) { var p = t.dataset.unpend.split(':'); (p[0] === 'dev' ? devPending : replyPending).splice(+p[1], 1); renderPending(p[0]); return; }
+    if (t.dataset.pick) { pickTarget = t.dataset.pick; document.getElementById('pickImages').click(); return; }
+    if (t.dataset.assign && currentCard) {
+      currentCard.assignee = t.dataset.assign === 'me' ? 'dev' : null;
+      currentCard.thread.push({ kind: 'activity', time: 'الآن', text: t.dataset.assign === 'me' ? 'أسند يوسف البلاغ لنفسه' : 'ألغى يوسف الإسناد' });
+      openCard(currentCard.id); return;
+    }
+    if (t.dataset.mode) {
+      devMode = t.dataset.mode;
+      document.querySelectorAll('#devForm .seg button').forEach(function (b) { b.setAttribute('aria-pressed', b === t); });
+      document.getElementById('devForm').classList.toggle('is-internal', devMode === 'internal');
+      document.getElementById('devHint').textContent = devMode === 'internal' ? 'لا يراها المُبلِّغ، ولا يُرسل له إشعار.' : 'يصل الرد للمُبلِّغ ويُرسل له إشعار.';
+      return;
+    }
+    if (t.id === 'toggleActivity') { hideActivity = !hideActivity; renderFeed(); return; }
+    if (t.id === 'followBtn') { setView('reports'); openDetail(nextId - 1); return; }
+  });
+  mock.addEventListener('change', function (e) {
+    if (!currentCard) return;
+    if (e.target.id === 'cStatus') { setStatus(currentCard, e.target.value); openCard(currentCard.id); }
+    if (e.target.id === 'cPrio') { currentCard.prio = e.target.value || null; currentCard.thread.push({ kind: 'activity', time: 'الآن', text: 'غيّر يوسف الأولوية إلى «' + (PRIO[e.target.value] || 'بلا أولوية') + '»' }); openCard(currentCard.id); }
+  });
+
+  // Kanban drag and drop
+  var dragId = null;
+  mock.addEventListener('dragstart', function (e) { var c = e.target.closest && e.target.closest('[data-card]'); if (!c) return; dragId = +c.dataset.card; c.classList.add('is-dragging'); try { e.dataTransfer.setData('text/plain', String(dragId)); e.dataTransfer.effectAllowed = 'move'; } catch (x) {} });
+  mock.addEventListener('dragend', function (e) { var c = e.target.closest && e.target.closest('[data-card]'); if (c) c.classList.remove('is-dragging'); document.querySelectorAll('.col-body.is-over').forEach(function (b) { b.classList.remove('is-over'); }); });
+  mock.addEventListener('dragover', function (e) { var b = e.target.closest && e.target.closest('[data-drop]'); if (!b || dragId === null) return; e.preventDefault(); document.querySelectorAll('.col-body.is-over').forEach(function (x) { if (x !== b) x.classList.remove('is-over'); }); b.classList.add('is-over'); });
+  mock.addEventListener('drop', function (e) { var b = e.target.closest && e.target.closest('[data-drop]'); if (!b || dragId === null) return; e.preventDefault(); setStatus(byId(dragId), b.dataset.drop); dragId = null; renderBoard(); });
+
+  document.getElementById('f-files').addEventListener('change', function (e) { toItems(e.target.files, function (it) { picked.push(it); }); renderFiles(); e.target.value = ''; });
+  document.getElementById('pickImages').addEventListener('change', function (e) { addPending(pickTarget, e.target.files); e.target.value = ''; });
+  var drop = document.getElementById('drop');
+  ['dragenter', 'dragover'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('is-over'); }); });
+  ['dragleave', 'drop'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('is-over'); }); });
+  drop.addEventListener('drop', function (e) { if (e.dataTransfer && e.dataTransfer.files.length) { toItems(e.dataTransfer.files, function (it) { picked.push(it); }); renderFiles(); } });
+  function pasteInto(el, handler) { el.addEventListener('paste', function (e) { var f = (e.clipboardData && e.clipboardData.files) || []; if (f.length) { e.preventDefault(); handler(f); } }); }
+  pasteInto(document.getElementById('reportForm'), function (f) { toItems(f, function (it) { picked.push(it); }); renderFiles(); });
+  pasteInto(document.getElementById('devForm'), function (f) { addPending('dev', f); });
+  pasteInto(document.getElementById('replyForm'), function (f) { addPending('reply', f); });
+
+  document.getElementById('reportForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var title = document.getElementById('f-title').value.trim();
+    if (!title) { document.getElementById('titleErr').hidden = false; document.getElementById('f-title').focus(); return; }
+    var type = (document.querySelector('input[name="type"]:checked') || {}).value || 'bug';
+    items.unshift({ id: nextId, mine: true, by: 'me', type: type, status: 'new', prio: null, assignee: null, title: title, updated: 'الآن', sent: 'الآن', page: document.getElementById('url').textContent,
+      body: document.getElementById('f-desc').value.trim(), files: picked.map(function (f) { return { src: f.src, name: f.name, when: 'الآن' }; }), thread: [{ kind: 'activity', time: 'الآن', text: 'أنشأت رزان البلاغ' }] });
+    document.getElementById('sentRef').textContent = '#' + nextId; nextId++;
+    renderRows(); show('sent');
+  });
+  document.getElementById('replyForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var box = document.getElementById('f-reply'), text = box.value.trim();
+    if (!text && !replyPending.length) return;
+    var r = byId(+e.target.dataset.id); if (!r) return;
+    r.thread.push({ kind: 'comment', who: 'me', time: 'الآن', text: text, images: replyPending.slice() }); r.updated = 'الآن';
+    box.value = ''; replyPending = []; renderPending('reply');
+    openDetail(r.id); var body = document.getElementById('dBody'); body.scrollTop = body.scrollHeight;
+  });
+  document.getElementById('devForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var box = document.getElementById('f-dev'), text = box.value.trim();
+    if (!currentCard || (!text && !devPending.length)) return;
+    currentCard.thread.push({ kind: 'comment', who: 'dev', internal: devMode === 'internal', time: 'الآن', text: text, images: devPending.slice() });
+    if (devMode !== 'internal' && currentCard.mine) currentCard.unread = (currentCard.unread || 0) + 1;
+    box.value = ''; devPending = []; renderPending('dev'); renderFeed(); refreshBadges();
+  });
+
+  mock.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeTop(); });
+
+  function setMode(dark) { mock.dataset.mode = dark ? 'dark' : 'light'; document.getElementById('themeIcon').setAttribute('href', dark ? '#i-sun' : '#i-moon'); }
+  document.getElementById('themeBtn').addEventListener('click', function () { setMode(mock.dataset.mode !== 'dark'); });
+  var rootTheme = document.documentElement.getAttribute('data-theme'), prefersDark = false;
+  try { prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) {}
+  setMode(rootTheme ? rootTheme === 'dark' : prefersDark);
+
+  document.querySelectorAll('[data-jump]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var j = b.dataset.jump;
+      mock.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (j === 'theme') { setMode(mock.dataset.mode !== 'dark'); return; }
+      document.getElementById('dlg').hidden = true; document.getElementById('lb').hidden = true; show(null);
+      if (j === 'form') { setView('dash'); resetForm(); show('form'); }
+      if (j === 'sent') { setView('dash'); document.getElementById('sentRef').textContent = '#127'; show('sent'); }
+      if (j === 'reports') { setView('reports'); }
+      if (j === 'detail') { setView('reports'); openDetail(121); }
+      if (j === 'board') { setView('board'); }
+      if (j === 'card') { setView('board'); openCard(121); }
+    });
+  });
+
+  setView('dash');
+  renderRows();
+})();
+</script>
