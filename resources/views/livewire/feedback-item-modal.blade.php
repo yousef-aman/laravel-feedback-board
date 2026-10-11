@@ -68,6 +68,7 @@
                     @foreach ($comments as $comment)
                         @php($mine = $isMine($comment))
                         @php($commentImages = $comment->attachments->filter(fn ($attachment) => $attachment->isImage()))
+                        @php($commentFiles = $comment->attachments->reject(fn ($attachment) => $attachment->isImage()))
                         <article wire:key="c-{{ $comment->id }}" @class(['fb-msg', 'fb-msg--mine' => $mine, 'fb-msg--theirs' => ! $mine])>
                             <p class="fb-msg__who">
                                 <span class="fb-msg__author">{{ $mine ? __('feedback-board::feedback-board.item.you') : $comment->author_role->label() }}</span>
@@ -88,6 +89,13 @@
                                             <x-feedback-board::thumb :attachment="$image" />
                                         @endforeach
                                     </div>
+                                @endif
+                                @if ($commentFiles->isNotEmpty())
+                                    <ul class="fb-doc-links">
+                                        @foreach ($commentFiles as $file)
+                                            <li><a class="fb-doc-link" href="{{ $file->url() }}"><x-feedback-board::icon name="paper-clip" /><span dir="auto">{{ $file->original_name }}</span></a></li>
+                                        @endforeach
+                                    </ul>
                                 @endif
                             </div>
                         </article>

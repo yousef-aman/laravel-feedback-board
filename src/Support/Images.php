@@ -14,6 +14,8 @@ final class Images
         'png' => 'image/png',
         'gif' => 'image/gif',
         'webp' => 'image/webp',
+        'jfif' => 'image/jpeg',
+        'jpe' => 'image/jpeg',
     ];
 
     /** @return list<string> */

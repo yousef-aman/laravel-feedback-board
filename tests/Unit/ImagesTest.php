@@ -20,5 +20,5 @@ it('accepts an allow-listed image only when its extension matches its type', fun
 
 it('lists the allow-listed types and extensions', function () {
     expect(Images::mimes())->toBe(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
-        ->and(Images::extensions())->toBe(['jpg', 'jpeg', 'png', 'gif', 'webp']);
+        ->and(Images::extensions())->toBe(['jpg', 'jpeg', 'png', 'gif', 'webp', 'jfif', 'jpe']);
 });
