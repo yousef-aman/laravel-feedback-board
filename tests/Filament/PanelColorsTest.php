@@ -48,3 +48,8 @@ it('accepts oklch numbers and hex only', function () {
         ->and(PanelColors::allowed('rgb(0, 0, 0)'))->toBeFalse()
         ->and(PanelColors::allowed(null))->toBeFalse();
 });
+
+it('rejects a value with a trailing newline', function () {
+    expect(PanelColors::allowed("#db2777\n"))->toBeFalse()
+        ->and(PanelColors::allowed("oklch(0.592 0.249 0.584)\n"))->toBeFalse();
+});
