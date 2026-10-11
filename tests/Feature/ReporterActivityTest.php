@@ -122,6 +122,10 @@ it('backfills the reporter columns for reports that predate the upgrade', functi
     $migration = require __DIR__.'/../../database/migrations/update_feedback_items_add_reporter_columns.php';
     $migration->down();
 
+    // MySQL needs an index on the foreign key before the composite one can go.
+    expect(Schema::hasIndex('feedback_comments', ['feedback_item_id']))->toBeTrue()
+        ->and(Schema::hasIndex('feedback_comments', 'feedback_comments_unread_index'))->toBeFalse();
+
     DB::table('feedback_items')->insert([
         'project' => 'default', 'title' => 'Before', 'type' => 'bug', 'status' => 'new',
         'created_at' => '2026-01-01 08:00:00', 'updated_at' => '2026-01-02 10:00:00',
