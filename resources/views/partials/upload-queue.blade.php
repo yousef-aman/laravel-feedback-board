@@ -42,6 +42,9 @@ pasted(event) {
         files = Array.from((data && data.items) || []).filter((item) => item.kind === 'file').map((item) => item.getAsFile()).filter(Boolean);
     }
     if (files.length === 0) return;
+    /* Office and spreadsheet copies carry a picture next to their text: in a text field the text wins. */
+    const tag = event.target && event.target.tagName;
+    if ((tag === 'INPUT' || tag === 'TEXTAREA') && data.getData('text/plain') !== '') return;
     event.preventDefault();
     /* Only pasted images get the screenshot name; picked and dropped files keep theirs. */
     const named = files.map((file) => this.named(file));

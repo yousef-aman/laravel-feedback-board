@@ -1,6 +1,8 @@
 <div class="fb-scope fb-form fb-sheet" data-fb-theme="{{ \YousefAman\FeedbackBoard\Support\Ui::theme() }}" dir="{{ __('feedback-board::feedback-board.dir') }}"
      x-data="{ @include('feedback-board::partials.upload-queue') }"
-     x-on:paste="pasted($event)"
+     x-on:paste="! $wire.sent && pasted($event)"
+     x-on:dragover.prevent
+     x-on:drop.prevent="! $wire.sent && dropped($event)"
      x-on:fb-launcher-opened.window="$wire.sent && $wire.set('sent', false)">
     @include('feedback-board::partials.assets')
     {{-- The head lives here, not around the component, so a paste while focus rests on its close button reaches the same scope. --}}
@@ -65,7 +67,7 @@
                 <div class="fb-field">
                     <span class="fb-label">{{ __('feedback-board::feedback-board.form.attachments') }}</span>
                     <label class="fb-dropzone" x-bind:class="{ 'fb-dropzone--over': dragging }"
-                           x-on:dragover.prevent="dragging = true" x-on:dragleave="dragging = false" x-on:drop.prevent="dropped($event)">
+                           x-on:dragover.prevent="dragging = true" x-on:dragleave="dragging = false" x-on:drop.prevent.stop="dropped($event)">
                         <input type="file" class="fb-file-input" multiple x-on:change="picked($event)">
                         <x-feedback-board::icon name="arrow-up-tray" class="fb-dropzone__icon" />
                         <span class="fb-dropzone__title">{{ __('feedback-board::feedback-board.form.drop') }} <span class="fb-dropzone__browse">{{ __('feedback-board::feedback-board.form.browse') }}</span></span>
@@ -87,7 +89,7 @@
                                         <span class="fb-upload__name" dir="auto">{{ $file->getClientOriginalName() }}</span>
                                         <span class="fb-upload__size">{{ \YousefAman\FeedbackBoard\Services\AttachmentStorage::humanSize((int) $file->getSize()) }}</span>
                                     </span>
-                                    <button type="button" class="fb-icon-btn" wire:click="removeFile({{ $index }})">
+                                    <button type="button" class="fb-icon-btn" wire:click="removeFile({{ $index }})" wire:loading.attr="disabled" wire:target="removeFile">
                                         <x-feedback-board::icon name="x-mark" />
                                         <span class="fb-sr-only">{{ __('feedback-board::feedback-board.form.remove_file', ['name' => $file->getClientOriginalName()]) }}</span>
                                     </button>

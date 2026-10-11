@@ -307,3 +307,25 @@ it('never leaves a reporter bubble empty when an accepted image has a name that 
     expect($html)->toMatch('/fb-msg__bubble[^>]*>\s*<div class="fb-thumbs">/')
         ->and($html)->toMatch('/fb-msg__bubble[^>]*>\s*<ul class="fb-doc-links">\s*<li><a class="fb-doc-link" href="[^"]+"><svg.*?<span dir="auto">x\.jpg<\/span>/s');
 });
+
+it('takes dropped images on the reporter composer only when the host allows image types', function () {
+    $me = fbReporter();
+    $item = FeedbackItem::factory()->for($me, 'reporter')->create();
+
+    Livewire::actingAs($me)->test(FeedbackItemModal::class, ['item' => $item])
+        ->assertSeeHtml('x-on:dragover.prevent x-on:drop.prevent="dropped($event)"');
+
+    config()->set('feedback-board.attachments.allowed_mimes', ['pdf']);
+
+    Livewire::actingAs($me)->test(FeedbackItemModal::class, ['item' => $item])
+        ->assertDontSeeHtml('x-on:drop.prevent');
+});
+
+it('disables the pending image remove button while a removal is in flight', function () {
+    $me = fbReporter();
+    $item = FeedbackItem::factory()->for($me, 'reporter')->create();
+
+    Livewire::actingAs($me)->test(FeedbackItemModal::class, ['item' => $item])
+        ->set('upload', UploadedFile::fake()->image('a.png'))
+        ->assertSeeHtml('wire:click="removeFile(0)" wire:loading.attr="disabled" wire:target="removeFile"');
+});

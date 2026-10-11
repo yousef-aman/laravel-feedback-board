@@ -216,7 +216,7 @@
                   x-data="{ mode: 'reply', @include('feedback-board::partials.upload-queue') }"
                   x-bind:class="{ 'fb-dev-composer--internal': mode === 'internal' }"
                   x-on:submit.prevent="mode === 'internal' ? $wire.internalNote() : $wire.reply()"
-                  @if ($canAttach) x-on:paste="pasted($event)" @endif>
+                  @if ($canAttach) x-on:paste="pasted($event)" x-on:dragover.prevent x-on:drop.prevent="dropped($event)" @endif>
                 <div class="fb-segmented" role="group" aria-label="{{ __('feedback-board::feedback-board.detail.mode_label') }}">
                     <button type="button" class="fb-segmented__btn" x-bind:aria-pressed="mode === 'reply'" x-bind:class="{ 'fb-tint': mode === 'reply' }" x-on:click="mode = 'reply'">
                         <x-feedback-board::icon name="chat-bubble-left-right" />{{ __('feedback-board::feedback-board.detail.mode_reply') }}
