@@ -20,10 +20,10 @@ it('serves the reports page as a responsive standalone document with the stylesh
     expect(substr_count($html, fbStylesheetLink()))->toBe(1)
         ->and(strpos($html, fbStylesheetLink()))->toBeLessThan(strpos($html, '</head>'))
         ->and($html)->toContain('<meta name="viewport" content="width=device-width, initial-scale=1">')
-        ->and($html)->toContain('<meta name="color-scheme" content="light dark">')
+        ->and($html)->toContain('<meta name="color-scheme" content="light">')
         ->and($html)->toContain('<html lang="en" dir="ltr">')
         ->and($html)->toContain('class="fb-scope fb-standalone" data-fb-theme="class"')
-        ->and($html)->toContain('fb-standalone__main--narrow')
+        ->and($html)->toContain('<main class="fb-standalone__main">')
         ->and($html)->toContain('Mine');
 });
 
@@ -35,7 +35,9 @@ it('serves the board page with a heading and the stylesheet in its head', functi
 
     expect(substr_count($html, fbStylesheetLink()))->toBe(1)
         ->and(strpos($html, fbStylesheetLink()))->toBeLessThan(strpos($html, '</head>'))
-        ->and($html)->toContain('<h1 class="fb-standalone__title">'.__('feedback-board::feedback-board.board.title').'</h1>')
+        ->and($html)->toContain('<h1 class="fb-head__title">'.__('feedback-board::feedback-board.board.title').'</h1>')
+        ->and($html)->toContain(__('feedback-board::feedback-board.kanban.subheading'))
+        ->and($html)->toContain('<main class="fb-standalone__main fb-standalone__main--wide">')
         ->and($html)->toContain('Board card');
 });
 
@@ -49,7 +51,7 @@ it('pins the page color-scheme when the theme is forced', function () {
         ->and($html)->toContain('data-fb-theme="dark"');
 });
 
-it('renders no duplicate element ids on the reports page with a drawer open', function () {
+it('renders no duplicate element ids on the reports page with a report open', function () {
     $me = TestUser::create(['name' => 'Me', 'email' => 'me@x.com']);
     FeedbackItem::factory()->for($me, 'reporter')->count(2)->create();
 
@@ -60,7 +62,8 @@ it('renders no duplicate element ids on the reports page with a drawer open', fu
 
     preg_match_all('/\sid="([^"]+)"/', $html, $ids);
 
-    expect($ids[1])->toContain('fb-drawer-title')
+    expect(preg_grep('/-report-title$/', $ids[1]))->toHaveCount(1)
+        ->and($html)->toMatch('/aria-labelledby="fb-[A-Za-z0-9]+-form-title"/') // the heading itself renders inside the form component
         ->and(array_count_values($ids[1]))->each->toBe(1);
 });
 
@@ -72,4 +75,28 @@ it('renders the standalone pages right-to-left in Arabic', function () {
 
     expect($html)->toContain('<html lang="ar" dir="rtl">')
         ->and($html)->toContain('dir="rtl"');
+});
+
+it('follows the operating system on standalone pages only with the system theme', function () {
+    $me = TestUser::create(['name' => 'Me', 'email' => 'me@x.com']);
+    config()->set('feedback-board.ui.theme', 'system');
+
+    $html = $this->actingAs($me)->get(route('feedback-board.page'))->assertOk()->getContent();
+
+    expect($html)->toContain('<meta name="color-scheme" content="light dark">')
+        ->and($html)->toContain('data-fb-theme="system"');
+});
+
+it('gives both standalone pages an app bar with the app name and a way back', function () {
+    config()->set('app.name', 'Acme Portal');
+    $dev = TestUser::create(['name' => 'Dev', 'email' => 'd@x.com']);
+
+    foreach ([route('feedback-board.page'), route('feedback-board.board.page')] as $url) {
+        $html = $this->actingAs($dev)->get($url)->assertOk()->getContent();
+
+        expect($html)->toContain('<span class="fb-appbar__name" dir="auto">Acme Portal</span>')
+            ->and($html)->toContain('<a class="fb-appbar__back" href="'.url('/').'">')
+            ->and($html)->toContain(__('feedback-board::feedback-board.standalone.back'))
+            ->and(substr_count($html, '<h1'))->toBe(1);
+    }
 });

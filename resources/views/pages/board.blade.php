@@ -10,8 +10,14 @@
 </head>
 <body class="fb-scope fb-standalone" data-fb-theme="{{ \YousefAman\FeedbackBoard\Support\Ui::theme() }}">
     @include('feedback-board::partials.assets')
-    <main class="fb-standalone__main">
-        <h1 class="fb-standalone__title">{{ __('feedback-board::feedback-board.board.title') }}</h1>
+    @include('feedback-board::partials.standalone-header', ['wide' => true])
+    <main class="fb-standalone__main fb-standalone__main--wide">
+        <header class="fb-head">
+            <div class="fb-head__titles">
+                <h1 class="fb-head__title">{{ __('feedback-board::feedback-board.board.title') }}</h1>
+                <p class="fb-head__sub">{{ __('feedback-board::feedback-board.kanban.subheading') }}</p>
+            </div>
+        </header>
         @livewire('feedback-board::feedback-kanban')
     </main>
     @livewireScripts

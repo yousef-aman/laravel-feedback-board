@@ -66,7 +66,7 @@ Add the `<x-feedback-board::launcher/>` Blade component to your authenticated la
 </html>
 ```
 
-The launcher renders a floating button in the bottom corner of the page (bottom-right in left-to-right locales, bottom-left in right-to-left ones) that opens the feedback form in a modal dialog. Its styles load automatically — there is nothing to build, publish or link (see [Styling & theming](#styling--theming)).
+The launcher renders a floating button in the bottom corner of the page (bottom-right in left-to-right locales, bottom-left in right-to-left ones) that opens the report form in a panel sliding in from the side; reporters can add screenshots by picking, dropping or pasting them. Its styles load automatically — there is nothing to build, publish or link (see [Styling & theming](#styling--theming)).
 
 ### 2. Tell the package who your developers are
 
@@ -141,7 +141,23 @@ use YousefAman\FeedbackBoard\Filament\FeedbackBoardPlugin;
 $panel->plugin(FeedbackBoardPlugin::make());
 ```
 
-This adds a Kanban-style Feedback Board page (`/admin/feedback-board-page`) and a feedback items resource to your panel, where developers can triage, reply, assign, and resolve reports.
+This adds three entries to the panel's navigation, in a translated **Feedback** group:
+
+| Entry | Who sees it | Badge |
+|---|---|---|
+| **My reports** (`/admin/my-feedback`) | every signed-in panel user | reports with unread replies |
+| **Feedback board** (`/admin/feedback-board-page`) | developers | open reports |
+| **All reports** (the feedback items resource) | developers | — |
+
+Reporters follow their reports and reply, with images, without leaving the panel; developers triage on the Kanban and work each report in a card dialog. To keep "My reports" out of a panel, such as an admin-only one, turn it off for that panel:
+
+```php
+$panel->plugin(FeedbackBoardPlugin::make()->myReports(false));
+```
+
+**Colours.** Inside a panel the package follows the panel's primary colour, in light and dark mode, with readable text on it (white, or the colour's darkest shade for a light primary such as amber). Your own `--fb-accent` properties still win.
+
+**Limitation.** The package uses the application's default auth guard. Reporters who sign in to a panel with its own guard (`->authGuard(...)`) are not supported yet.
 
 ### Reporters who use a Filament panel
 
@@ -157,6 +173,8 @@ $panel->renderHook(
 );
 ```
 
+The form's "My reports" link opens the panel's "My reports" page when the panel shows it.
+
 ## i18n / RTL Support
 
 The package ships with English (`en`) and Arabic (`ar`) translations. The Arabic locale sets `dir` to `rtl`. Pass the direction value to your layout's `<html>` tag as shown in the usage example above.
@@ -165,13 +183,13 @@ Supported locales: `en`, `ar`. Add more by publishing translations and creating 
 
 ## Styling & theming
 
-Every package screen — the launcher, the form, "My reports", the Kanban board and the item drawers — ships with its own stylesheet. You do not build, publish or link anything: the first package component on a page adds a single cached `<link rel="stylesheet">` to the page `<head>` (through Livewire's `@assets`), served by the package at `/feedback-board/assets/stylesheet` (under your `route_prefix`; the path has no `.css` extension so web-server rules for static files never intercept it). The styles only target the package's own `fb-*` classes and never touch your markup.
+Every package screen — the launcher, the form, "My reports", the Kanban board, the slide-overs and the card dialog — ships with its own stylesheet. You do not build, publish or link anything: the first package component on a page adds a single cached `<link rel="stylesheet">` to the page `<head>` (through Livewire's `@assets`), served by the package at `/feedback-board/assets/stylesheet` (under your `route_prefix`; the path has no `.css` extension so web-server rules for static files never intercept it). The styles only target the package's own `fb-*` classes and never touch your markup.
 
 **Dark mode.** Set `FEEDBACK_BOARD_THEME` (config `feedback-board.ui.theme`):
 
 | Value | Dark when |
 |---|---|
-| `class` (default) | an ancestor element has the class `dark` — Filament panels, Laravel's Livewire starter kits and Tailwind's class strategy. The package's own standalone pages follow the operating system instead. |
+| `class` (default) | an ancestor element has the class `dark` — Filament panels, Laravel's Livewire starter kits and Tailwind's class strategy. The package's own standalone pages have no host to set that class, so they stay light; use `system` to follow the operating system there. |
 | `system` | the operating system prefers dark (`prefers-color-scheme`) |
 | `light` / `dark` | never / always |
 
@@ -182,9 +200,9 @@ Every package screen — the launcher, the form, "My reports", the Kanban board 
 | `--fb-accent` | `#4f46e5` | primary buttons, the launcher, links (light theme), focus rings, the reporter-comment accent |
 | `--fb-accent-hover` | `#4338ca` | primary button hover |
 | `--fb-accent-contrast` | `#fff` | text on the accent color |
-| `--fb-radius` | `0.75rem` | panels, dialogs and drawers |
+| `--fb-radius` | `0.75rem` | panels, dialogs and slide-overs |
 | `--fb-font` | your page font | font family |
-| `--fb-z` | `1000` (`35` inside a Filament panel) | stacking order of the launcher; the dialog and drawers sit 10 above it |
+| `--fb-z` | `1000` (`35` inside a Filament panel) | stacking order of the launcher; dialogs and slide-overs sit 10 above it, the image preview 20 above it |
 
 ```css
 :root {
@@ -195,9 +213,9 @@ Every package screen — the launcher, the form, "My reports", the Kanban board 
 
 The package never sets these properties itself (it only reads them with fallbacks), so your values win wherever you declare them — on `:root`, on `.fb-scope`, inside a dark-mode selector or a CSS `@layer`.
 
-Inside a Filament panel the board follows the panel's dark mode and uses a neutral zinc palette that matches Filament's default grays. To use the panel's primary color for the accent, set `--fb-accent: var(--primary-600); --fb-accent-hover: var(--primary-700);` in the panel's theme — and check the contrast of white text on it: Filament's default amber needs `--fb-accent-contrast: #000`.
+Inside a Filament panel the package follows the panel's dark mode and primary colour on its own (see [Filament Integration](#filament-integration)); the properties above still override it.
 
-**Right-to-left.** Layout direction follows the locale's `dir` (`ar` is right-to-left); the launcher, drawers and spacing mirror automatically.
+**Right-to-left.** Layout direction follows the locale's `dir` (`ar` is right-to-left); the launcher, slide-overs, dialogs and spacing mirror automatically.
 
 **Content Security Policy.** The stylesheet is a same-origin file, so `style-src 'self'` is enough; when you use Laravel's Vite CSP nonce (`Vite::useCspNonce()`), the `<link>` carries it too.
 
@@ -219,6 +237,7 @@ Key configuration options in `config/feedback-board.php`:
 | `attachments.directory` | string | Directory on that disk (default: `'feedback-board'`) |
 | `attachments.max_kb` | int | Maximum upload size in kilobytes (default: `10240`); the form shows the lower of this, PHP's `upload_max_filesize` and Livewire's upload limit |
 | `attachments.allowed_mimes` | array | Allowed file extensions (default: images, `pdf`, `txt`, `log`) |
+| `attachments.max_files` | int | Most files per report and per comment (default: `10`) |
 | `route_prefix` | string | URL prefix for package routes (default: `'feedback-board'`) |
 | `route_middleware` | array | Middleware applied to package routes (default: `['web', 'auth']`) |
 | `ui.theme` | string | Dark-mode strategy (`FEEDBACK_BOARD_THEME`): `class` (default), `system`, `light` or `dark` — see [Styling & theming](#styling--theming) |
@@ -244,6 +263,8 @@ Key configuration options in `config/feedback-board.php`:
 | `runner.callback_url` | string\|null | Optional ingest URL placed in the task envelope (`FEEDBACK_RUNNER_CALLBACK_URL`) |
 | `runner.stale_after` | int | Seconds before the UI marks a running task as possibly stale (default: `1800`) |
 
+**Attachments and images.** Reports and comments can both carry files. Comments (from reporters and developers, internal notes included) take images only: JPEG, PNG, GIF and WebP, within `allowed_mimes`. Those images show inline and in a preview; every other file, SVG included, downloads. An internal note's images are served to developers only. Deleting a comment deletes its files. Deleting a whole report removes its rows through the database cascade, which runs no model events, so its files stay on the disk under `attachments.directory/{report id}`; delete that directory yourself.
+
 ## Destinations (outbound)
 
 Mirror feedback events to external systems. Configure under `feedback-board.destinations`.
@@ -253,7 +274,7 @@ Set `FEEDBACK_WEBHOOK_URL` and `FEEDBACK_WEBHOOK_SECRET`, then add `'webhook'` t
 `destinations.enabled`. Each POST carries `X-Feedback-Timestamp`, `X-Feedback-Signature`
 (HMAC-SHA256 over `"{timestamp}.{rawBody}"`, bare hex — identical to the ingest contract),
 `X-Feedback-Event`, and `X-Feedback-Delivery`. The payload is a curated whitelist; verify
-the signature against the **raw request body** before trusting it.
+the signature against the **raw request body** before trusting it. A reply that carries only images has an empty `body` (`""`).
 
 ### Slack
 Create an Incoming Webhook, set `FEEDBACK_SLACK_WEBHOOK_URL`, add `'slack'` to
@@ -307,7 +328,7 @@ record only a short sanitized error code.
 
 **Triggering.** Triage runs automatically on new reports (after the creating
 transaction commits) and can be re-run from the "Triage with AI" button in the
-Livewire detail panel or the Filament resource.
+board's card dialog or the Filament resource.
 
 **Lock store.** The per-item `ai_state` lock (also used by the AI runner) comes from
 `FEEDBACK_BOARD_AI_LOCK_STORE` (unset = your app's default cache store). Like destinations, it

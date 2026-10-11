@@ -1,6 +1,6 @@
 <?php
 
-use YousefAman\FeedbackBoard\Enums\{AuthorRole, FeedbackPriority, FeedbackStatus};
+use YousefAman\FeedbackBoard\Enums\{FeedbackPriority, FeedbackStatus, FeedbackType};
 use YousefAman\FeedbackBoard\Support\Ui;
 
 /** @return list<string> every .fb-* class name that has at least one rule */
@@ -18,7 +18,7 @@ it('styles every static fb- class used in the package views', function () {
         ...glob(__DIR__.'/../../resources/views-filament/*/*.blade.php'),
     ];
     // Element ids and the launcher's browser event share the prefix but are not classes.
-    $notClasses = ['fb-launcher-title', 'fb-drawer-title', 'fb-launcher-opened'];
+    $notClasses = ['fb-launcher-title', 'fb-drawer-title', 'fb-launcher-opened', 'fb-overlay-close', 'fb-launcher-panel', 'fb-open-report-form'];
     $used = [];
 
     foreach ($views as $view) {
@@ -43,9 +43,36 @@ it('styles every dynamic badge, dot and comment variant the enums can produce', 
     $expected = [
         ...array_map(fn ($c) => 'fb-badge--'.$c, $colors),
         ...array_map(fn ($c) => 'fb-dot--'.$c, array_map(fn ($s) => $s->color(), FeedbackStatus::cases())),
-        ...array_map(fn ($r) => 'fb-comment--'.$r->value, AuthorRole::cases()),
-        'fb-comment--internal',
+        ...array_map(fn ($t) => 'fb-type-icon--'.$t->value, FeedbackType::cases()),
+        ...array_map(fn ($n) => 'fb-avatar--'.$n, range(1, 4)),
     ];
 
     expect(array_values(array_diff(array_unique($expected), fbStyledClasses())))->toBe([]);
+});
+
+it('styles nothing that no view uses', function () {
+    $views = [
+        ...glob(__DIR__.'/../../resources/views/*/*.blade.php'),
+        ...glob(__DIR__.'/../../resources/views-filament/*/*.blade.php'),
+    ];
+    $used = [];
+
+    foreach ($views as $view) {
+        preg_match_all('/(?<![\w-])fb-[a-z0-9_-]*[a-z0-9]/', (string) file_get_contents($view), $m);
+        $used = [...$used, ...$m[0]];
+    }
+
+    // Built in the views from enum values and the avatar hash, so never literal there.
+    $dynamic = [
+        ...array_map(fn ($s) => 'fb-badge--'.$s->color(), FeedbackStatus::cases()),
+        ...array_map(fn ($p) => 'fb-badge--'.$p->color(), FeedbackPriority::cases()),
+        ...array_map(fn ($s) => 'fb-dot--'.$s->color(), FeedbackStatus::cases()),
+        ...array_map(fn ($t) => 'fb-type-icon--'.$t->value, FeedbackType::cases()),
+        ...array_map(fn ($n) => 'fb-avatar--'.$n, range(1, 4)),
+    ];
+
+    $unused = array_values(array_diff(fbStyledClasses(), array_unique($used), $dynamic));
+    sort($unused);
+
+    expect($unused)->toBe([]);
 });

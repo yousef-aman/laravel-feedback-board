@@ -36,4 +36,15 @@ enum FeedbackStatus: string
     {
         return in_array($this, [self::Resolved, self::Closed, self::Declined], true);
     }
+
+    /** @return list<self> the statuses a report is still being worked in */
+    public static function openCases(): array
+    {
+        return [self::New, self::InReview, self::InProgress];
+    }
+
+    public function isOpen(): bool
+    {
+        return in_array($this, self::openCases(), true);
+    }
 }

@@ -21,7 +21,7 @@ class AssignFeedback
                 'actor_type' => $actor?->getMorphClass(),
                 'actor_id' => $actor?->getKey(),
                 'action' => ActivityAction::Assigned,
-                'properties' => ['assignee_id' => $assignee?->getKey()],
+                'properties' => ['assignee_id' => $assignee?->getKey(), 'assignee_type' => $assignee?->getMorphClass()],
             ]);
 
             return $item;
