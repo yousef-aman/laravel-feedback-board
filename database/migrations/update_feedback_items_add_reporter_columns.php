@@ -26,6 +26,15 @@ return new class extends Migration {
     }
 
     public function down(): void {
+        // MySQL backs the feedback_item_id foreign key with the composite index that leads with it, and refuses
+        // to drop that index (error 1553) unless another one covers the column first.
+        // The index stays after the rollback, so a later up() and down() find it already there.
+        if (! Schema::hasIndex('feedback_comments', ['feedback_item_id'])) {
+            Schema::table('feedback_comments', function (Blueprint $t) {
+                $t->index('feedback_item_id');
+            });
+        }
+
         Schema::table('feedback_comments', function (Blueprint $t) {
             $t->dropIndex('feedback_comments_unread_index');
         });
