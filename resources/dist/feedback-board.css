@@ -1368,6 +1368,10 @@
     background: var(--_fb-surface-muted);
 }
 
+.fb-row:focus-visible {
+    outline-offset: -2px;
+}
+
 .fb-row__main {
     display: flex;
     align-items: center;
