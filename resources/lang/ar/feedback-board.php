@@ -166,4 +166,5 @@ return [
         'plural' => 'بلاغات',
         'columns' => ['title' => 'العنوان', 'type' => 'النوع', 'status' => 'الحالة', 'priority' => 'الأولوية', 'reporter' => 'المُبلِّغ', 'created_at' => 'أُرسل'],
     ],
+    'standalone' => ['back' => 'العودة إلى التطبيق'],
 ];

@@ -2393,22 +2393,68 @@
     font-family: var(--fb-font, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Arabic", Tahoma, Arial, sans-serif);
 }
 
+.fb-appbar {
+    border-block-end: 1px solid var(--_fb-border);
+    background: var(--_fb-surface);
+}
+
+.fb-appbar__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    max-inline-size: 75rem;
+    margin-inline: auto;
+    padding: 0.75rem 1rem;
+}
+
+.fb-appbar__name {
+    min-inline-size: 0;
+    overflow: hidden;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fb-appbar__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    color: var(--_fb-link);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.fb-appbar__back:hover {
+    text-decoration: underline;
+}
+
+.fb-appbar__back .fb-icon {
+    inline-size: 1rem;
+    block-size: 1rem;
+}
+
 .fb-standalone__main {
+    display: grid;
+    gap: 1.25rem;
+    max-inline-size: 75rem;
     margin-inline: auto;
     padding: 1.5rem 1rem;
 }
 
-.fb-standalone__main--narrow {
-    max-inline-size: 72rem;
-}
-
-.fb-standalone__title {
-    margin-block-end: 1.25rem;
-    font-size: 1.5rem;
-    font-weight: 700;
+/* The board's six columns need the whole width, as in the panel. */
+.fb-standalone__main--wide,
+.fb-appbar--wide .fb-appbar__inner {
+    max-inline-size: none;
 }
 
 @media (min-width: 40rem) {
+    .fb-appbar__inner {
+        padding-inline: 2rem;
+    }
+
     .fb-standalone__main {
         padding: 2rem;
     }
