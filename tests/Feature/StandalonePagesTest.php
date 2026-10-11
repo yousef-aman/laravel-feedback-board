@@ -63,7 +63,7 @@ it('renders no duplicate element ids on the reports page with a report open', fu
     preg_match_all('/\sid="([^"]+)"/', $html, $ids);
 
     expect(preg_grep('/-report-title$/', $ids[1]))->toHaveCount(1)
-        ->and(preg_grep('/-form-title$/', $ids[1]))->toHaveCount(1)
+        ->and($html)->toMatch('/aria-labelledby="fb-[A-Za-z0-9]+-form-title"/') // the heading itself renders inside the form component
         ->and(array_count_values($ids[1]))->each->toBe(1);
 });
 

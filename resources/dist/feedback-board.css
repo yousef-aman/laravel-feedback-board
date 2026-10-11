@@ -1666,7 +1666,7 @@
 
 .fb-reply__input {
     flex: 1;
-    min-height: 2.75rem;
+    min-height: 4.25rem;
     max-block-size: 10rem;
     resize: none;
 }
@@ -1769,7 +1769,9 @@
     block-size: 1rem;
 }
 
+/* Positioned so the absolutely placed .fb-sr-only spans inside cards are clipped by this scroller instead of widening the page. */
 .fb-kanban__columns {
+    position: relative;
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: 17rem;

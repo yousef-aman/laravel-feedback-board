@@ -1,7 +1,18 @@
 <div class="fb-scope fb-form fb-sheet" data-fb-theme="{{ \YousefAman\FeedbackBoard\Support\Ui::theme() }}" dir="{{ __('feedback-board::feedback-board.dir') }}"
      x-data="{ @include('feedback-board::partials.upload-queue') }"
+     x-on:paste="pasted($event)"
      x-on:fb-launcher-opened.window="$wire.sent && $wire.set('sent', false)">
     @include('feedback-board::partials.assets')
+    {{-- The head lives here, not around the component, so a paste while focus rests on its close button reaches the same scope. --}}
+    <div class="fb-slide-over__head">
+        <div class="fb-slide-over__titles">
+            <h2 id="{{ $titleId }}" class="fb-slide-over__title">{{ __('feedback-board::feedback-board.form.heading') }}</h2>
+            <p class="fb-slide-over__sub">{{ __('feedback-board::feedback-board.form.intro') }}</p>
+        </div>
+        <button type="button" class="fb-icon-btn" x-on:click="$dispatch('fb-overlay-close')" aria-label="{{ __('feedback-board::feedback-board.close') }}">
+            <x-feedback-board::icon name="x-mark" />
+        </button>
+    </div>
     @if ($sent)
         <div class="fb-sheet__body">
             <div class="fb-sent" role="status" tabindex="-1" x-init="$nextTick(() => $el.focus())">
@@ -18,7 +29,7 @@
             </div>
         </div>
     @else
-        <form wire:submit="submit" class="fb-sheet" x-on:paste="pasted($event)">
+        <form wire:submit="submit" class="fb-sheet">
             <div class="fb-sheet__body">
                 <fieldset class="fb-fieldset">
                     <legend class="fb-label fb-legend">{{ __('feedback-board::feedback-board.form.type') }}</legend>
@@ -66,7 +77,7 @@
                             @foreach ($files as $index => $file)
                                 <li class="fb-upload" wire:key="{{ $uid }}-file-{{ $index }}-{{ md5($file->getFilename()) }}">
                                     <span class="fb-upload__thumb">
-                                        @if (\YousefAman\FeedbackBoard\Support\Images::matches($file->getMimeType(), $file->getClientOriginalName()))
+                                        @if (\YousefAman\FeedbackBoard\Support\Images::matches($file->getMimeType(), $file->getClientOriginalName()) && $file->isPreviewable())
                                             <img src="{{ $file->temporaryUrl() }}" alt="">
                                         @else
                                             <x-feedback-board::icon name="document" />

@@ -44,7 +44,16 @@ pasted(event) {
     if (files.length === 0) return;
     event.preventDefault();
     /* Only pasted images get the screenshot name; picked and dropped files keep theirs. */
-    this.enqueue(files.map((file) => this.named(file)));
+    const named = files.map((file) => this.named(file));
+    /* Several images pasted together share one stamp, so the 2nd, 3rd... renamed file gets -2, -3. */
+    const used = {};
+    this.enqueue(named.map((file, index) => {
+        if (file === files[index] || ! file.name.startsWith('screenshot-')) return file;
+        used[file.name] = (used[file.name] || 0) + 1;
+        if (used[file.name] === 1) return file;
+        const dot = file.name.lastIndexOf('.');
+        return new File([file], file.name.slice(0, dot) + '-' + used[file.name] + file.name.slice(dot), { type: file.type });
+    }));
 },
 picked(event) {
     this.enqueue(event.target.files);

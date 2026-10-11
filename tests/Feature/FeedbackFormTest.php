@@ -226,6 +226,8 @@ it('feeds the picker, drop and paste through one sequential upload queue', funct
         ->toContain('x-on:change="picked($event)"')
         ->toContain('x-on:drop.prevent="dropped($event)"')
         ->toContain("await new Promise((done) => this.\$wire.upload('upload', file, done, done, (event) => { this.progress = event.detail.progress }, done));")
+        ->toContain("used[file.name] = (used[file.name] || 0) + 1;")
+        ->toContain("file.name.slice(0, dot) + '-' + used[file.name] + file.name.slice(dot)")
         ->toContain("const types = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp' };")
         ->toContain("const generic = ['', 'image.png', 'image.jpg', 'image.jpeg', 'image.gif', 'image.webp'];")
         ->toContain('x-bind:disabled="uploading > 0" wire:loading.attr="disabled" wire:target="submit"')
@@ -280,4 +282,31 @@ it('never promises more than Livewire accepts for temporary uploads', function (
     config()->set('livewire.temporary_file_upload.rules', 'required|file|max:256');
 
     expect(app(AttachmentStorage::class)->limits()['size'])->toBe('0.3');
+});
+
+it('listens for paste on the wrapper that holds both the sheet head and the form', function () {
+    $html = Livewire::actingAs(fbFormUser())->test(FeedbackForm::class)->html();
+
+    expect(substr_count($html, 'x-on:paste="pasted($event)"'))->toBe(1)
+        ->and($html)->toMatch('/class="fb-scope fb-form fb-sheet".*?\n\s+x-on:paste="pasted\(\$event\)"\n\s+x-on:fb-launcher-opened\.window=/s')
+        ->and($html)->toMatch('/x-on:paste="pasted.*fb-slide-over__head.*<form /s')
+        ->and($html)->not->toContain('.window="pasted');
+});
+
+it('labels the dialog by the heading id its host passes in', function () {
+    $html = Livewire::actingAs(fbFormUser())->test(FeedbackForm::class, ['titleId' => 'fb-launcher-title'])->html();
+
+    expect($html)->toContain('<h2 id="fb-launcher-title" class="fb-slide-over__title">');
+});
+
+it('shows an icon instead of a preview when the host narrows the previewable types', function () {
+    config()->set('livewire.temporary_file_upload.preview_mimes', ['pdf']);
+
+    $html = Livewire::actingAs(fbFormUser())->test(FeedbackForm::class)
+        ->set('upload', UploadedFile::fake()->image('shot.png'))
+        ->assertCount('files', 1)
+        ->html();
+
+    expect($html)->not->toMatch('/<span class="fb-upload__thumb">(?:\s|<!--\[if \w+\]><!\[endif\]-->)*<img /')
+        ->and($html)->toMatch('/<span class="fb-upload__thumb">(?:\s|<!--\[if \w+\]><!\[endif\]-->)*<svg /');
 });
