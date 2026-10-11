@@ -132,6 +132,7 @@ return [
         'images_failed' => 'Some images could not be saved.',
     ],
     'kanban' => [
+        'subheading' => 'Drag a card between columns to change its status; click it to open.',
         'filter_label' => 'Filter by type',
         'all' => 'All',
         'comments' => 'Comments: :count',
@@ -158,5 +159,11 @@ return [
         'send_github' => 'Send to GitHub',
         'github_queued' => 'Sent to GitHub; the issue is being created.',
         'empty_feed' => 'No comments yet.',
+    ],
+    'nav' => ['group' => 'Feedback', 'my_reports' => 'My reports', 'all_reports' => 'All reports'],
+    'resource' => [
+        'model' => 'report',
+        'plural' => 'reports',
+        'columns' => ['title' => 'Title', 'type' => 'Type', 'status' => 'Status', 'priority' => 'Priority', 'reporter' => 'Reporter', 'created_at' => 'Sent'],
     ],
 ];

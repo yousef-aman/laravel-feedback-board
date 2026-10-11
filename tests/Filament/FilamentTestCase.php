@@ -11,6 +11,14 @@ use YousefAman\FeedbackBoard\Tests\TestCase;
  */
 class FilamentTestCase extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // The missing-migration warning is logged once per process; each test starts afresh.
+        \YousefAman\FeedbackBoard\Filament\Pages\MyFeedbackPage::resetMigrationWarning();
+    }
+
     protected function getPackageProviders($app): array
     {
         return [

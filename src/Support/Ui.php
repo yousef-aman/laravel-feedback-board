@@ -75,12 +75,24 @@ final class Ui
         return is_string($scheme) && in_array(strtolower($scheme), ['http', 'https'], true) ? $url : null;
     }
 
-    /** "My reports" on the standalone page, optionally opening one report. */
+    /** "My reports": the panel page inside a Filament panel that enables it, else the standalone page. */
     public static function reportsUrl(?int $reportId = null): string
     {
-        $url = route('feedback-board.page');
+        $url = self::panelReportsUrl() ?? route('feedback-board.page');
 
         return $reportId === null ? $url : self::reportLink($url, $reportId);
+    }
+
+    // Filament may be installed but not booted (an app without panels): check the provider, not the class.
+    private static function panelReportsUrl(): ?string
+    {
+        if (! app()->providerIsLoaded(\Filament\FilamentServiceProvider::class)) {
+            return null;
+        }
+
+        return \YousefAman\FeedbackBoard\Filament\FeedbackBoardPlugin::current()?->hasMyReports()
+            ? \YousefAman\FeedbackBoard\Filament\Pages\MyFeedbackPage::getUrl()
+            : null;
     }
 
     /** Appends the deep-link query that opens one report. */
