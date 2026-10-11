@@ -10,7 +10,8 @@
 </head>
 <body class="fb-scope fb-standalone" data-fb-theme="{{ \YousefAman\FeedbackBoard\Support\Ui::theme() }}">
     @include('feedback-board::partials.assets')
-    <main class="fb-standalone__main fb-standalone__main--narrow">
+    @include('feedback-board::partials.standalone-header')
+    <main class="fb-standalone__main">
         @livewire('feedback-board::my-reports-board')
     </main>
     @livewireScripts

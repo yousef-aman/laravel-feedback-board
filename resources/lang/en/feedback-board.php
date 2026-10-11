@@ -166,4 +166,5 @@ return [
         'plural' => 'reports',
         'columns' => ['title' => 'Title', 'type' => 'Type', 'status' => 'Status', 'priority' => 'Priority', 'reporter' => 'Reporter', 'created_at' => 'Sent'],
     ],
+    'standalone' => ['back' => 'Back to the app'],
 ];

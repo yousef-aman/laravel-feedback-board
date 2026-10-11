@@ -23,7 +23,7 @@ it('serves the reports page as a responsive standalone document with the stylesh
         ->and($html)->toContain('<meta name="color-scheme" content="light">')
         ->and($html)->toContain('<html lang="en" dir="ltr">')
         ->and($html)->toContain('class="fb-scope fb-standalone" data-fb-theme="class"')
-        ->and($html)->toContain('fb-standalone__main--narrow')
+        ->and($html)->toContain('<main class="fb-standalone__main">')
         ->and($html)->toContain('Mine');
 });
 
@@ -35,7 +35,9 @@ it('serves the board page with a heading and the stylesheet in its head', functi
 
     expect(substr_count($html, fbStylesheetLink()))->toBe(1)
         ->and(strpos($html, fbStylesheetLink()))->toBeLessThan(strpos($html, '</head>'))
-        ->and($html)->toContain('<h1 class="fb-standalone__title">'.__('feedback-board::feedback-board.board.title').'</h1>')
+        ->and($html)->toContain('<h1 class="fb-head__title">'.__('feedback-board::feedback-board.board.title').'</h1>')
+        ->and($html)->toContain(__('feedback-board::feedback-board.kanban.subheading'))
+        ->and($html)->toContain('<main class="fb-standalone__main fb-standalone__main--wide">')
         ->and($html)->toContain('Board card');
 });
 
@@ -83,4 +85,18 @@ it('follows the operating system on standalone pages only with the system theme'
 
     expect($html)->toContain('<meta name="color-scheme" content="light dark">')
         ->and($html)->toContain('data-fb-theme="system"');
+});
+
+it('gives both standalone pages an app bar with the app name and a way back', function () {
+    config()->set('app.name', 'Acme Portal');
+    $dev = TestUser::create(['name' => 'Dev', 'email' => 'd@x.com']);
+
+    foreach ([route('feedback-board.page'), route('feedback-board.board.page')] as $url) {
+        $html = $this->actingAs($dev)->get($url)->assertOk()->getContent();
+
+        expect($html)->toContain('<span class="fb-appbar__name" dir="auto">Acme Portal</span>')
+            ->and($html)->toContain('<a class="fb-appbar__back" href="'.url('/').'">')
+            ->and($html)->toContain(__('feedback-board::feedback-board.standalone.back'))
+            ->and(substr_count($html, '<h1'))->toBe(1);
+    }
 });
