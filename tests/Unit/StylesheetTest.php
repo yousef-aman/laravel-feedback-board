@@ -238,3 +238,7 @@ it('sizes the reply input to two rows', function () {
 
     expect($rule['body'])->toMatch('/min-height:\s*4\.25rem;/');
 });
+
+it('keeps the focus ring of a list row inside the clipping container', function () {
+    expect((string) file_get_contents(Ui::stylesheetPath()))->toContain(".fb-row:focus-visible {\n    outline-offset: -2px;\n}");
+});
