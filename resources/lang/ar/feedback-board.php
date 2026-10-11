@@ -132,6 +132,7 @@ return [
         'images_failed' => 'تعذّر حفظ بعض الصور.',
     ],
     'kanban' => [
+        'subheading' => 'اسحب البطاقة بين الأعمدة لتغيير حالتها، واضغطها لفتح التفاصيل.',
         'filter_label' => 'تصفية حسب النوع',
         'all' => 'الكل',
         'comments' => 'التعليقات: :count',
@@ -158,5 +159,11 @@ return [
         'send_github' => 'إرسال إلى GitHub',
         'github_queued' => 'أُرسل إلى GitHub، وجارٍ إنشاء البلاغ هناك.',
         'empty_feed' => 'لا توجد تعليقات بعد.',
+    ],
+    'nav' => ['group' => 'الملاحظات', 'my_reports' => 'بلاغاتي', 'all_reports' => 'كل البلاغات'],
+    'resource' => [
+        'model' => 'بلاغ',
+        'plural' => 'بلاغات',
+        'columns' => ['title' => 'العنوان', 'type' => 'النوع', 'status' => 'الحالة', 'priority' => 'الأولوية', 'reporter' => 'المُبلِّغ', 'created_at' => 'أُرسل'],
     ],
 ];

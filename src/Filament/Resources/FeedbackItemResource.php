@@ -12,6 +12,7 @@ use YousefAman\FeedbackBoard\Actions\ApplyTriageSuggestion;
 use YousefAman\FeedbackBoard\Actions\DispatchToRunner;
 use YousefAman\FeedbackBoard\Actions\RequestTriage;
 use YousefAman\FeedbackBoard\Actions\SendItemToGithub;
+use YousefAman\FeedbackBoard\Enums\{FeedbackPriority, FeedbackStatus, FeedbackType};
 use YousefAman\FeedbackBoard\Runner\Support\RunnerGate;
 use YousefAman\FeedbackBoard\Triage\Support\TriageGate;
 use YousefAman\FeedbackBoard\Filament\Resources\FeedbackItemResource\Pages\ListFeedbackItems;
@@ -27,18 +28,56 @@ class FeedbackItemResource extends Resource
         return FeedbackItemPolicy::isDeveloper(auth()->user());
     }
 
+    public static function getModelLabel(): string
+    {
+        return __('feedback-board::feedback-board.resource.model');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('feedback-board::feedback-board.resource.plural');
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return __('feedback-board::feedback-board.nav.all_reports');
+    }
+
+    public static function getNavigationGroup(): string
+    {
+        return __('feedback-board::feedback-board.nav.group');
+    }
+
+    public static function getNavigationIcon(): string
+    {
+        return 'heroicon-o-inbox-stack';
+    }
+
+    public static function getNavigationSort(): int
+    {
+        return 3;
+    }
+
     public static function table(Table $table): Table
     {
         return $table->columns([
-            TextColumn::make('title')->searchable()->limit(40),
-            TextColumn::make('type')->badge(),
-            TextColumn::make('status')->badge(),
-            TextColumn::make('priority')->badge()->toggleable(),
-            TextColumn::make('reporter_name')->toggleable(),
-            TextColumn::make('created_at')->dateTime()->sortable(),
+            TextColumn::make('title')->label(__('feedback-board::feedback-board.resource.columns.title'))->searchable()->limit(40),
+            // The enums do not implement Filament's HasLabel/HasColor: Filament is optional.
+            TextColumn::make('type')->label(__('feedback-board::feedback-board.resource.columns.type'))->badge()
+                ->formatStateUsing(fn (?FeedbackType $state): string => $state?->label() ?? '')
+                ->color(fn (?FeedbackType $state): string => $state?->color() ?? 'gray'),
+            TextColumn::make('status')->label(__('feedback-board::feedback-board.resource.columns.status'))->badge()
+                ->formatStateUsing(fn (?FeedbackStatus $state): string => $state?->label() ?? '')
+                ->color(fn (?FeedbackStatus $state): string => $state?->color() ?? 'gray'),
+            TextColumn::make('priority')->label(__('feedback-board::feedback-board.resource.columns.priority'))->badge()->toggleable()
+                ->formatStateUsing(fn (?FeedbackPriority $state): string => $state?->label() ?? '')
+                ->color(fn (?FeedbackPriority $state): string => $state?->color() ?? 'gray'),
+            TextColumn::make('reporter_name')->label(__('feedback-board::feedback-board.resource.columns.reporter'))->toggleable(),
+            TextColumn::make('created_at')->label(__('feedback-board::feedback-board.resource.columns.created_at'))
+                ->since()->dateTimeTooltip()->sortable(),
         ])->recordActions([
             Action::make('sendToGithub')
-                ->label('Send to GitHub')
+                ->label(__('feedback-board::feedback-board.detail.send_github'))
                 ->visible(fn (FeedbackItem $record): bool =>
                     FeedbackItemPolicy::isDeveloper(auth()->user())
                     && (bool) config('feedback-board.destinations.github.token')
