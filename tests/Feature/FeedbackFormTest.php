@@ -222,9 +222,9 @@ it('labels every field and describes the attachment limits from config', functio
 it('feeds the picker, drop and paste through one sequential upload queue', function () {
     $html = Livewire::actingAs(fbFormUser())->test(FeedbackForm::class)->html();
 
-    expect($html)->toContain('x-on:paste="pasted($event)"')
+    expect($html)->toContain('x-on:paste="! $wire.sent && pasted($event)"')
         ->toContain('x-on:change="picked($event)"')
-        ->toContain('x-on:drop.prevent="dropped($event)"')
+        ->toContain('x-on:drop.prevent.stop="dropped($event)"')
         ->toContain("await new Promise((done) => this.\$wire.upload('upload', file, done, done, (event) => { this.progress = event.detail.progress }, done));")
         ->toContain("used[file.name] = (used[file.name] || 0) + 1;")
         ->toContain("file.name.slice(0, dot) + '-' + used[file.name] + file.name.slice(dot)")
@@ -287,9 +287,9 @@ it('never promises more than Livewire accepts for temporary uploads', function (
 it('listens for paste on the wrapper that holds both the sheet head and the form', function () {
     $html = Livewire::actingAs(fbFormUser())->test(FeedbackForm::class)->html();
 
-    expect(substr_count($html, 'x-on:paste="pasted($event)"'))->toBe(1)
-        ->and($html)->toMatch('/class="fb-scope fb-form fb-sheet".*?\n\s+x-on:paste="pasted\(\$event\)"\n\s+x-on:fb-launcher-opened\.window=/s')
-        ->and($html)->toMatch('/x-on:paste="pasted.*fb-slide-over__head.*<form /s')
+    expect(substr_count($html, 'x-on:paste="! $wire.sent && pasted($event)"'))->toBe(1)
+        ->and($html)->toMatch('/class="fb-scope fb-form fb-sheet".*?\n\s+x-on:paste="! \$wire\.sent && pasted\(\$event\)"\n\s+x-on:dragover\.prevent\n\s+x-on:drop\.prevent="! \$wire\.sent && dropped\(\$event\)"\n\s+x-on:fb-launcher-opened\.window=/s')
+        ->and($html)->toMatch('/x-on:paste="! \$wire\.sent.*fb-slide-over__head.*<form /s')
         ->and($html)->not->toContain('.window="pasted');
 });
 
@@ -309,4 +309,30 @@ it('shows an icon instead of a preview when the host narrows the previewable typ
 
     expect($html)->not->toMatch('/<span class="fb-upload__thumb">(?:\s|<!--\[if \w+\]><!\[endif\]-->)*<img /')
         ->and($html)->toMatch('/<span class="fb-upload__thumb">(?:\s|<!--\[if \w+\]><!\[endif\]-->)*<svg /');
+});
+
+it('keeps a paste of text and a picture in a text field as text, and ignores pastes and drops once sent', function () {
+    $html = Livewire::actingAs(fbFormUser())->test(FeedbackForm::class)->html();
+
+    expect($html)->toContain("if ((tag === 'INPUT' || tag === 'TEXTAREA') && data.getData('text/plain') !== '') return;")
+        ->and(strpos($html, "data.getData('text/plain')"))->toBeLessThan(strpos($html, 'event.preventDefault();'))
+        ->and($html)->toContain('x-on:paste="! $wire.sent && pasted($event)"')
+        ->toContain('x-on:drop.prevent="! $wire.sent && dropped($event)"');
+});
+
+it('takes a file dropped anywhere on the form, once, and never lets the browser open it', function () {
+    $html = Livewire::actingAs(fbFormUser())->test(FeedbackForm::class)->html();
+
+    expect($html)->toContain('x-on:dragover.prevent' . "\n")
+        ->and(substr_count($html, 'x-on:drop.prevent="'))->toBe(1)
+        ->and($html)->toContain('x-on:drop.prevent.stop="dropped($event)"')
+        ->and($html)->toContain('x-on:dragover.prevent="dragging = true"');
+});
+
+it('disables a remove button while a removal is in flight, so a double click removes one file', function () {
+    $html = Livewire::actingAs(fbFormUser())->test(FeedbackForm::class)
+        ->set('upload', UploadedFile::fake()->image('a.png'))
+        ->html();
+
+    expect($html)->toContain('wire:click="removeFile(0)" wire:loading.attr="disabled" wire:target="removeFile"');
 });

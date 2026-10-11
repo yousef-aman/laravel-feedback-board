@@ -316,3 +316,10 @@ it('renders balanced div tags with every branch of the view present', function (
     // A DOM parse would repair an unclosed tag, so the tags are counted.
     expect(substr_count($html, '<div'))->toBe(substr_count($html, '</div>'));
 });
+
+it('takes dropped images on the developer composer', function () {
+    $item = FeedbackItem::factory()->create();
+
+    Livewire::actingAs(detailDev())->test(FeedbackDetail::class, ['item' => $item])
+        ->assertSeeHtml('x-on:dragover.prevent x-on:drop.prevent="dropped($event)"');
+});

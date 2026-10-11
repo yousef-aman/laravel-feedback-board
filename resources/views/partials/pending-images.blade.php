@@ -8,7 +8,7 @@
                 @else
                     <x-feedback-board::icon name="photo" />
                 @endif
-                <button type="button" class="fb-pending__remove" wire:click="removeFile({{ $index }})">
+                <button type="button" class="fb-pending__remove" wire:click="removeFile({{ $index }})" wire:loading.attr="disabled" wire:target="removeFile">
                     <x-feedback-board::icon name="x-mark" />
                     <span class="fb-sr-only">{{ __('feedback-board::feedback-board.composer.remove_image') }}</span>
                 </button>

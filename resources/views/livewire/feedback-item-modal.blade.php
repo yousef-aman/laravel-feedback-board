@@ -107,7 +107,7 @@
 
     <form class="fb-sheet__foot fb-reply" wire:submit="reply"
           x-data="{ @include('feedback-board::partials.upload-queue') }"
-          @if ($canAttach) x-on:paste="pasted($event)" @endif>
+          @if ($canAttach) x-on:paste="pasted($event)" x-on:dragover.prevent x-on:drop.prevent="dropped($event)" @endif>
         @include('feedback-board::partials.pending-images')
         <div class="fb-reply__row">
             @if ($canAttach)
