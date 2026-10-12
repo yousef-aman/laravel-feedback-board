@@ -27,6 +27,12 @@ it('renders the launcher with the nested feedback form for an authenticated user
         ->and($html)->toContain('wire:submit="submit"');
 });
 
+it('renders nothing from the launcher for a guest, so a sign-in page shows no report button', function () {
+    $html = Blade::render('<x-feedback-board::launcher />');
+
+    expect(trim($html))->toBe('');
+});
+
 it('adds the stylesheet to the head of a host page that only renders the launcher', function () {
     $this->actingAs(TestUser::create(['name' => 'Client', 'email' => 'c@x.com']));
     Route::get('/fb-host-page', fn () => Blade::render(
