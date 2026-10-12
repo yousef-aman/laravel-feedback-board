@@ -1,3 +1,5 @@
+{{-- Only a signed-in user can send a report, and a host may render this on pages guests see too (a Filament panel's BODY_END hook includes its login page). --}}
+@auth
 <div class="fb-scope" data-fb-theme="{{ \YousefAman\FeedbackBoard\Support\Ui::theme() }}" dir="{{ __('feedback-board::feedback-board.dir') }}"
      x-data="{ open: false }">
     @include('feedback-board::partials.assets')
@@ -9,3 +11,4 @@
         @include('feedback-board::partials.report-form-sheet', ['titleId' => 'fb-launcher-title'])
     </x-feedback-board::slide-over>
 </div>
+@endauth
