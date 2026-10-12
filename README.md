@@ -66,7 +66,7 @@ Add the `<x-feedback-board::launcher/>` Blade component to your authenticated la
 </html>
 ```
 
-The launcher renders a floating button in the bottom corner of the page (bottom-right in left-to-right locales, bottom-left in right-to-left ones) that opens the report form in a panel sliding in from the side; reporters can add screenshots by picking, dropping or pasting them. Its styles load automatically — there is nothing to build, publish or link (see [Styling & theming](#styling--theming)).
+The launcher renders a floating button in the bottom corner of the page (bottom-right in left-to-right locales, bottom-left in right-to-left ones) that opens the report form in a panel sliding in from the side; reporters can add screenshots by picking, dropping or pasting them. It renders only for a signed-in user (the default auth guard) and outputs nothing for a guest, so a layout that also serves a login page needs no check of its own. Its styles load automatically — there is nothing to build, publish or link (see [Styling & theming](#styling--theming)).
 
 ### 2. Tell the package who your developers are
 
@@ -173,7 +173,7 @@ $panel->renderHook(
 );
 ```
 
-The form's "My reports" link opens the panel's "My reports" page when the panel shows it.
+The hook also runs on the panel's login page, where the launcher stays hidden until the user signs in. The form's "My reports" link opens the panel's "My reports" page when the panel shows it.
 
 ## i18n / RTL Support
 
