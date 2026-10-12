@@ -11,7 +11,7 @@ The first public release, to be tagged `1.0.0`.
 
 ### Added
 
-- **In-app reporting.** The `<x-feedback-board::launcher />` component adds a floating button that opens a report form in a slide-over: a type, a title, details, and screenshots or files added by picking, dropping or pasting them. Reports capture the page URL, browser and locale.
+- **In-app reporting.** The `<x-feedback-board::launcher />` component adds a floating button for signed-in users (guests see nothing, so it can sit in a layout that also serves a login page) that opens a report form in a slide-over: a type, a title, details, and screenshots or files added by picking, dropping or pasting them. Reports capture the page URL, browser and locale.
 - **My reports.** Reporters follow each report's progress, see which reports have unread replies, and talk with the support team in a chat-style conversation that takes images. Inside a Filament panel it is a page of the panel; elsewhere it is a standalone page.
 - **Developer board.** A Kanban board with drag-and-drop status changes, type filters, and cards that show the report's screenshot as a cover. Each card opens a dialog where developers set the status, priority and assignee, browse every attachment, read the technical context, and reply to the reporter or leave internal notes, with images, next to a merged activity feed.
 - **Filament plugin (optional).** For Filament 4 and 5: "My reports" for every panel user, the Kanban board and a reports resource, in a translated navigation group with icons and badges. Package screens follow the panel's primary colour and dark mode; `->myReports(false)` turns the reporter page off for a panel.
