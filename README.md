@@ -1,3 +1,5 @@
+![Feedback Board: in-app bug reports with screenshots, a developer Kanban board and two-way replies, for Laravel and Filament](https://raw.githubusercontent.com/yousef-aman/laravel-feedback-board/main/.github/banner.png)
+
 # Feedback Board
 
 A self-hosted, embeddable feedback widget for Laravel applications. Clients submit bug reports and feature requests inside their own session — your data stays on your infrastructure, processed by your own runner.
