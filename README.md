@@ -382,6 +382,10 @@ Planned for 1.1:
 
 See [CHANGELOG.md](CHANGELOG.md) for release notes.
 
+## Security
+
+Please report vulnerabilities privately, as the [security policy](https://github.com/yousef-aman/laravel-feedback-board/security/policy) describes, not in public issues.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
