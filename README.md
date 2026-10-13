@@ -4,6 +4,8 @@
 
 A self-hosted, embeddable feedback widget for Laravel applications. Clients submit bug reports and feature requests inside their own session — your data stays on your infrastructure, processed by your own runner.
 
+![Demo: a user reports a bug with a pasted screenshot, a developer drags the card on the Kanban board and replies, and the user reads the reply in My reports](https://raw.githubusercontent.com/yousef-aman/laravel-feedback-board/main/.github/demo.gif)
+
 ## Positioning
 
 Feedback Board is self-hosted by design. Reports are captured inside the authenticated client's session (no third-party script, no external SaaS), stored in your own database, and processed through your own notification and AI pipelines. You own the data, the hosting, and the runner. Optional destination drivers (webhook, Slack, GitHub Issues), AI triage and an AI runner contract plug into the same pipeline. All of them are off until you enable them, and each one you enable sends data to the service it names (AI triage sends only a report's title and description to the Anthropic API — see [AI Triage](#ai-triage-level-a)). A multi-tenant developer hub is planned — see the [Roadmap](#roadmap).
