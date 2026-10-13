@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-The first public release, to be tagged `1.0.0`.
+## [1.0.0] - 2026-10-13
+
+The first public release.
 
 ### Added
 
@@ -45,3 +47,6 @@ These notes apply only to apps that installed the package from its development b
 - **My reports in the panel.** "My reports" now appears for every user of every panel that registers the plugin. Call `->myReports(false)` on the plugin to turn it off for a panel.
 - **Panel colour.** Inside a panel the accent follows the panel's primary colour. Your `--fb-accent` properties still win, and the manual `--fb-accent: var(--primary-600)` setup is no longer needed.
 - **Standalone theme.** With `ui.theme` set to `class`, the standalone pages are now light, because no host page sets the `dark` class there. Set `FEEDBACK_BOARD_THEME=system` to follow the operating system as before.
+
+[Unreleased]: https://github.com/yousef-aman/laravel-feedback-board/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/yousef-aman/laravel-feedback-board/releases/tag/v1.0.0

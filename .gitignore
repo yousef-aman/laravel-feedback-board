@@ -7,3 +7,6 @@ composer.lock
 
 # SDD process scratch (implementer/review reports, ledger)
 .superpowers/
+
+# Local Claude Code skills and worktrees
+/.claude/
