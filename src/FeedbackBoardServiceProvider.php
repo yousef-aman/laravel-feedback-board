@@ -114,11 +114,13 @@ class FeedbackBoardServiceProvider extends PackageServiceProvider
         $command->line('       use YousefAman\\FeedbackBoard\\Facades\\FeedbackBoard;');
         $command->line('       FeedbackBoard::resolveDevelopersUsing(fn ($user) => $user->is_admin);');
         $command->line('       FeedbackBoard::notifyDevelopersUsing(fn () => \\App\\Models\\User::where(\'is_admin\', true)->get());');
-        $command->line('  3. Optional in-app notifications: run `php artisan make:notifications-table`, migrate,');
+        $command->line('  3. Reporters who sign in with another guard (a Filament client panel, for example)? List the');
+        $command->line('     guards in feedback-board.auth.guards and the developers\' in feedback-board.auth.developer_guards.');
+        $command->line('  4. Optional in-app notifications: run `php artisan make:notifications-table`, migrate,');
         $command->line('     and add \'database\' to feedback-board.notifications.channels.');
 
         if (class_exists(\Filament\Panel::class)) {
-            $command->line('  4. Register the Filament plugin in your panel provider:');
+            $command->line('  5. Register the Filament plugin in your panel provider:');
             $command->line('       ->plugin(\\YousefAman\\FeedbackBoard\\Filament\\FeedbackBoardPlugin::make())');
         }
 

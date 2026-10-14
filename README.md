@@ -70,7 +70,7 @@ Add the `<x-feedback-board::launcher/>` Blade component to your authenticated la
 </html>
 ```
 
-The launcher renders a floating button in the bottom corner of the page (bottom-right in left-to-right locales, bottom-left in right-to-left ones) that opens the report form in a panel sliding in from the side; reporters can add screenshots by picking, dropping or pasting them. It renders only for a signed-in user (the default auth guard) and outputs nothing for a guest, so a layout that also serves a login page needs no check of its own. Its styles load automatically — there is nothing to build, publish or link (see [Styling & theming](#styling--theming)).
+The launcher renders a floating button in the bottom corner of the page (bottom-right in left-to-right locales, bottom-left in right-to-left ones) that opens the report form in a panel sliding in from the side; reporters can add screenshots by picking, dropping or pasting them. It renders for a signed-in user who may report. A user who may not report but has earlier reports gets a "My reports" link in its place, and a guest gets nothing, so a layout that also serves a login page needs no check of its own. See [Choosing who can report](#choosing-who-can-report), and [Reporters on another guard](#reporters-on-another-guard) when reporters sign in with a guard other than the default. Its styles load automatically — there is nothing to build, publish or link (see [Styling & theming](#styling--theming)).
 
 ### 2. Tell the package who your developers are
 
@@ -135,6 +135,31 @@ Then add `'database'` to `notifications.channels` in `config/feedback-board.php`
 
 Notifications are sent, and destination deliveries (webhook, Slack, GitHub) queued, only after the report, reply or status change is saved. If sending or queueing fails (for example, the mail server is down, or a Slack outage on the `sync` queue), the failure is reported to your exception handler and the user's action is still kept.
 
+### Choosing who can report
+
+Every signed-in user may report until you say otherwise. Register a resolver in `AppServiceProvider::boot()`:
+
+```php
+FeedbackBoard::resolveReportersUsing(fn ($user) => $user->can_send_reports);
+```
+
+Or, in the config file, point `authorization.reporter_resolver` at a public static method (a closure there breaks `config:cache`):
+
+```php
+'reporter_resolver' => [\App\Support\ReporterCheck::class, 'handle'],
+```
+
+A user who may not report keeps their earlier reports:
+
+| | May report | May not report, has reports | May not report, no reports |
+|---|---|---|---|
+| Launcher | button that opens the report form | "My reports" link | nothing |
+| "My reports" (panel page and standalone page) | yes, with "New report" | yes, without "New report" | hidden, and 403 |
+| Sending a report | yes | 403 | 403 |
+| Opening their reports and replying, with images | yes | yes | — |
+
+`FeedbackBoard::canReport($user)` answers through the `feedback-board.report` gate, so `Gate::before()` hooks apply, and a guest is never a reporter. A `Gate::before()` hook that returns `false` for abilities it does not know therefore hides the launcher. A resolver that throws, or returns something other than a boolean, denies and is reported to your exception handler once; it never breaks the page. The same holds for the developer resolver.
+
 ## Filament Integration
 
 If you are using Filament, register the plugin in your Panel provider:
@@ -149,7 +174,7 @@ This adds three entries to the panel's navigation, in a translated **Feedback** 
 
 | Entry | Who sees it | Badge |
 |---|---|---|
-| **My reports** (`/admin/my-feedback`) | every signed-in panel user | reports with unread replies |
+| **My reports** (`/admin/my-feedback`) | every panel user who may report, or has reports | reports with unread replies |
 | **Feedback board** (`/admin/feedback-board-page`) | developers | open reports |
 | **All reports** (the feedback items resource) | developers | — |
 
@@ -160,8 +185,6 @@ $panel->plugin(FeedbackBoardPlugin::make()->myReports(false));
 ```
 
 **Colours.** Inside a panel the package follows the panel's primary colour, in light and dark mode, with readable text on it (white, or the colour's darkest shade for a light primary such as amber). Your own `--fb-accent` properties still win.
-
-**Limitation.** The package uses the application's default auth guard. Reporters who sign in to a panel with its own guard (`->authGuard(...)`) are not supported yet.
 
 ### Reporters who use a Filament panel
 
@@ -177,7 +200,28 @@ $panel->renderHook(
 );
 ```
 
-The hook also runs on the panel's login page, where the launcher stays hidden until the user signs in. The form's "My reports" link opens the panel's "My reports" page when the panel shows it.
+The hook also runs on the panel's login page, where the launcher stays hidden until the user signs in. The form's "My reports" link opens the panel's "My reports" page when the panel shows it. If that panel signs users in with its own guard (`->authGuard('client')`), list the guard in `auth.guards`; without it, the package's own routes (images, the standalone pages) do not recognise those users. See [Reporters on another guard](#reporters-on-another-guard).
+
+## Reporters on another guard
+
+By default the package sees the user of the guard in use: inside a Filament panel, the panel's guard; elsewhere, the app's default guard. If your reporters sign in with a guard of their own, for example clients on a client panel with `->authGuard('client')` while staff use `web`, list both guards and say which one your developers use:
+
+```php
+// config/feedback-board.php
+'auth' => [
+    'guards' => ['web', 'client'],
+    'developer_guards' => ['web'],
+],
+'route_middleware' => ['web', 'feedback-board.auth'],
+```
+
+- **Developers.** With more than one guard listed, `developer_guards` is required; without it nobody is a developer, and a warning is logged. Only a model of a developer guard's provider can ever be a developer, so a rule such as `fn ($user) => $user->id === 1` never matches a client, and your developer resolver never receives one. This holds even when your client model extends your staff model.
+- **Panels.** Inside a panel only that panel's guard counts. A panel whose guard is not listed recognises nobody, and a warning is logged. A report is therefore never filed as the staff member who happens to be signed in in the same browser.
+- **Two sessions in one browser.** On the package's own pages (the standalone "My reports" page and the board), the guard in use is tried first, normally the app default, then the list in order. Images open for whichever signed-in user may see them.
+- **A published config.** If your published `config/feedback-board.php` lists `'auth'` in `route_middleware`, replace it with `'feedback-board.auth'`. `'auth'` checks the default guard only and refuses clients before the package sees them. Middleware that needs the signed-in user, such as `'verified'`, goes after `'feedback-board.auth'`.
+- **Not signed in on a listed guard.** A user signed in only on a guard that is not listed is treated as a guest: no launcher, and the package's pages send them to your login page.
+- **The reporter model.** Reports store their reporter as a polymorphic relation, so no migration is needed. To receive e-mail, the model needs Laravel's `Notifiable` trait and an `email` attribute. If you enforce a morph map (`Relation::enforceMorphMap()`), add the model to it.
+- **`Gate::before()` hooks** run for every user of every listed guard, before the package's own checks. A hook keyed on an id or an e-mail must also check the model type, or it will match a client with the same id.
 
 ## i18n / RTL Support
 
@@ -236,14 +280,17 @@ Key configuration options in `config/feedback-board.php`:
 | Key | Type | Description |
 |-----|------|-------------|
 | `project` | string | Project name stamped on every new report (`FEEDBACK_BOARD_PROJECT`, default: `'default'`) |
+| `auth.guards` | array\|null | Guards whose users the package recognises (default: `null`, the guard in use) — see [Reporters on another guard](#reporters-on-another-guard) |
+| `auth.developer_guards` | array\|null | Guards whose users may be developers; required when `auth.guards` lists more than one guard |
 | `authorization.developer_resolver` | callable\|null | Public static method returning `bool`; prefer `FeedbackBoard::resolveDevelopersUsing()` (a closure here breaks `config:cache`) |
+| `authorization.reporter_resolver` | callable\|null | Public static method returning `bool`: who may send reports (default: `null`, every signed-in user); prefer `FeedbackBoard::resolveReportersUsing()` |
 | `attachments.disk` | string | Storage disk for uploaded attachments (`FEEDBACK_BOARD_DISK`, default: `'local'`, private) |
 | `attachments.directory` | string | Directory on that disk (default: `'feedback-board'`) |
 | `attachments.max_kb` | int | Maximum upload size in kilobytes (default: `10240`); the form shows the lower of this, PHP's `upload_max_filesize` and Livewire's upload limit |
 | `attachments.allowed_mimes` | array | Allowed file extensions (default: images, `pdf`, `txt`, `log`) |
 | `attachments.max_files` | int | Most files per report and per comment (default: `10`) |
 | `route_prefix` | string | URL prefix for package routes (default: `'feedback-board'`) |
-| `route_middleware` | array | Middleware applied to package routes (default: `['web', 'auth']`) |
+| `route_middleware` | array | Middleware applied to package routes (default: `['web', 'feedback-board.auth']`; `feedback-board.auth` is appended when missing) |
 | `ui.theme` | string | Dark-mode strategy (`FEEDBACK_BOARD_THEME`): `class` (default), `system`, `light` or `dark` — see [Styling & theming](#styling--theming) |
 | `notifications.developers` | array\|callable | Developer e-mail addresses (`FEEDBACK_BOARD_DEVELOPER_EMAIL`, comma-separated; invalid entries are skipped); for models prefer `FeedbackBoard::notifyDevelopersUsing()` |
 | `notifications.channels` | array | Notification channels (default: `['mail']`; add `'database'` after `make:notifications-table` and `migrate`) |
