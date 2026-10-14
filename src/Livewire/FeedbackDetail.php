@@ -10,6 +10,7 @@ use Livewire\Attributes\Locked;
 use Livewire\Component;
 use YousefAman\FeedbackBoard\Actions\{ApplyTriageSuggestion, AssignFeedback, DispatchToRunner, ReplyToFeedback, RequestTriage, SendItemToGithub, SetPriority, TransitionStatus};
 use YousefAman\FeedbackBoard\Enums\{ActivityAction, AuthorRole, FeedbackPriority, FeedbackStatus};
+use YousefAman\FeedbackBoard\Facades\FeedbackBoard;
 use YousefAman\FeedbackBoard\Livewire\Concerns\WithStagedUploads;
 use YousefAman\FeedbackBoard\Models\{FeedbackActivity, FeedbackComment, FeedbackItem};
 use YousefAman\FeedbackBoard\Policies\FeedbackItemPolicy;
@@ -33,13 +34,13 @@ class FeedbackDetail extends Component
 
     public function mount(FeedbackItem $item): void
     {
-        abort_unless(FeedbackItemPolicy::isDeveloper(auth()->user()), 403); // hard enforcement
+        abort_unless(FeedbackItemPolicy::isDeveloper(FeedbackBoard::user()), 403); // hard enforcement
         $this->item = $item;
     }
 
     protected function guard(): void
     {
-        abort_unless(FeedbackItemPolicy::isDeveloper(auth()->user()), 403);
+        abort_unless(FeedbackItemPolicy::isDeveloper(FeedbackBoard::user()), 403);
     }
 
     /** A reply the reporter sees and is notified about. */
@@ -57,14 +58,14 @@ class FeedbackDetail extends Component
     public function assignToMe(AssignFeedback $assign): void
     {
         $this->guard();
-        $assign->handle($this->item, auth()->user(), auth()->user());
+        $assign->handle($this->item, FeedbackBoard::user(), FeedbackBoard::user());
         $this->changed();
     }
 
     public function unassign(AssignFeedback $assign): void
     {
         $this->guard();
-        $assign->handle($this->item, null, auth()->user());
+        $assign->handle($this->item, null, FeedbackBoard::user());
         $this->changed();
     }
 
@@ -72,7 +73,7 @@ class FeedbackDetail extends Component
     {
         $this->guard();
         $p = $priority === '' ? null : (FeedbackPriority::tryFrom($priority) ?? abort(422));
-        $action->handle($this->item, $p, auth()->user());
+        $action->handle($this->item, $p, FeedbackBoard::user());
         $this->changed();
     }
 
@@ -80,14 +81,14 @@ class FeedbackDetail extends Component
     {
         $this->guard();
         $s = FeedbackStatus::tryFrom($status) ?? abort(422);
-        $transition->handle($this->item, $s, auth()->user());
+        $transition->handle($this->item, $s, FeedbackBoard::user());
         $this->changed();
     }
 
     public function sendToGithub(SendItemToGithub $action): void
     {
         $this->guard();
-        $action->handle($this->item, auth()->user());
+        $action->handle($this->item, FeedbackBoard::user());
         $this->githubQueued = true;
         $this->dispatch('feedback-sent-to-github'); // optimistic UI hook
     }
@@ -95,7 +96,7 @@ class FeedbackDetail extends Component
     public function requestTriage(RequestTriage $action): void
     {
         $this->guard();
-        $action->handle($this->item, auth()->user());
+        $action->handle($this->item, FeedbackBoard::user());
         $this->item->refresh();
         $this->dispatch('feedback-triage-requested');
     }
@@ -103,14 +104,14 @@ class FeedbackDetail extends Component
     public function applyTriage(string $field, ApplyTriageSuggestion $action): void
     {
         $this->guard();
-        $action->handle($this->item, auth()->user(), [$field]);
+        $action->handle($this->item, FeedbackBoard::user(), [$field]);
         $this->changed();
     }
 
     public function dispatchToRunner(DispatchToRunner $action): void
     {
         $this->guard();
-        $action->handle($this->item, auth()->user());
+        $action->handle($this->item, FeedbackBoard::user());
         $this->item->refresh();
         $this->dispatch('feedback-runner-dispatched');
     }
@@ -146,7 +147,7 @@ class FeedbackDetail extends Component
         $this->guard();
         $data = $this->validate($this->composerRules($storage), $this->composerMessages());
 
-        $comment = $reply->handle($this->item, (string) ($data['body'] ?? ''), auth()->user(), AuthorRole::Developer, isInternal: $internal);
+        $comment = $reply->handle($this->item, (string) ($data['body'] ?? ''), FeedbackBoard::user(), AuthorRole::Developer, isInternal: $internal);
         $this->imagesFailed = ! $this->storeStagedFiles($storage, $this->item, $comment);
         $this->reset('body');
         $this->changed();
@@ -209,7 +210,7 @@ class FeedbackDetail extends Component
     /** The resource action's conditions: configured, and no issue yet. */
     private function canSendToGithub(): bool
     {
-        return FeedbackItemPolicy::isDeveloper(auth()->user())
+        return FeedbackItemPolicy::isDeveloper(FeedbackBoard::user())
             && (bool) config('feedback-board.destinations.github.token')
             && (bool) config('feedback-board.destinations.github.repo')
             && ! isset(($this->item->external_refs ?? [])['github']);

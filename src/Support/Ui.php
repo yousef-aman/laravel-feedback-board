@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace YousefAman\FeedbackBoard\Support;
 
+use YousefAman\FeedbackBoard\FeedbackBoard;
+use YousefAman\FeedbackBoard\Models\FeedbackItem;
+
 final class Ui
 {
     /** @var list<string> */
@@ -73,6 +76,27 @@ final class Ui
         $scheme = parse_url($url, PHP_URL_SCHEME);
 
         return is_string($scheme) && in_array(strtolower($scheme), ['http', 'https'], true) ? $url : null;
+    }
+
+    /**
+     * What the current user may do as a reporter: 'form' (send reports and follow them), 'reports'
+     * (follow earlier reports only: may not report, but has reports) or null (nothing, a guest
+     * included). The launcher, "My reports" and its "New report" actions all read it.
+     */
+    public static function reporterAccess(): ?string
+    {
+        $board = app(FeedbackBoard::class);
+        $user = $board->user();
+
+        if ($user === null) {
+            return null;
+        }
+
+        if ($board->canReport($user)) {
+            return 'form';
+        }
+
+        return FeedbackItem::query()->ownedBy($user)->exists() ? 'reports' : null;
     }
 
     /** "My reports": the panel page inside a Filament panel that enables it, else the standalone page. */

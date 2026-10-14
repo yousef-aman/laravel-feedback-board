@@ -10,12 +10,16 @@ use Livewire\Attributes\{On, Url};
 use Livewire\Component;
 use YousefAman\FeedbackBoard\Actions\TransitionStatus;
 use YousefAman\FeedbackBoard\Enums\{FeedbackStatus, FeedbackType};
+use YousefAman\FeedbackBoard\Facades\FeedbackBoard;
 use YousefAman\FeedbackBoard\Models\{FeedbackAttachment, FeedbackItem};
 use YousefAman\FeedbackBoard\Policies\FeedbackItemPolicy;
+use YousefAman\FeedbackBoard\Support\Concerns\AuthorizesFeedbackUser;
 use YousefAman\FeedbackBoard\Support\Person;
 
 class FeedbackKanban extends Component
 {
+    use AuthorizesFeedbackUser;
+
     public ?int $selectedId = null;
 
     /**
@@ -29,7 +33,7 @@ class FeedbackKanban extends Component
     // Page access is enforced by the route's `can:viewAny` middleware (Step 4); each
     // write re-authorizes below. No mount() guard — that keeps the component mountable
     // in tests (Livewire re-throws auth exceptions raw on initial render) while the
-    // real gate lives on the route + the per-action authorize('transition').
+    // real gate lives on the route + the per-action authorizeFeedback('transition').
 
     public function mount(): void
     {
@@ -56,17 +60,17 @@ class FeedbackKanban extends Component
     public function moveTo(int $itemId, string $status, TransitionStatus $transition): void
     {
         $item = FeedbackItem::findOrFail($itemId);
-        $this->authorize('transition', $item);
+        $this->authorizeFeedback('transition', $item);
         $s = FeedbackStatus::tryFrom($status) ?? abort(422);
-        $transition->handle($item, $s, auth()->user());
+        $transition->handle($item, $s, FeedbackBoard::user());
     }
 
     public function render(): View
     {
         // Defense-in-depth: if a non-developer somehow mounts this component outside the
         // gated route, return empty columns so item data does not leak. The per-action
-        // authorize('transition') in moveTo() remains the primary write guard.
-        if (! FeedbackItemPolicy::isDeveloper(auth()->user())) {
+        // authorizeFeedback('transition') in moveTo() remains the primary write guard.
+        if (! FeedbackItemPolicy::isDeveloper(FeedbackBoard::user())) {
             return view('feedback-board::livewire.feedback-kanban', [
                 'columns' => collect(), 'filters' => [], 'counts' => [], 'cards' => [], 'selected' => null,
             ]);

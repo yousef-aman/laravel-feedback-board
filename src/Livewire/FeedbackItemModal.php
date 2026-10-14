@@ -11,12 +11,15 @@ use Livewire\Attributes\Locked;
 use Livewire\Component;
 use YousefAman\FeedbackBoard\Actions\ReplyToFeedback;
 use YousefAman\FeedbackBoard\Enums\{ActivityAction, AuthorRole, FeedbackStatus};
+use YousefAman\FeedbackBoard\Facades\FeedbackBoard;
 use YousefAman\FeedbackBoard\Livewire\Concerns\WithStagedUploads;
 use YousefAman\FeedbackBoard\Models\{FeedbackAttachment, FeedbackComment, FeedbackItem};
 use YousefAman\FeedbackBoard\Services\AttachmentStorage;
+use YousefAman\FeedbackBoard\Support\Concerns\AuthorizesFeedbackUser;
 
 class FeedbackItemModal extends Component
 {
+    use AuthorizesFeedbackUser;
     use WithStagedUploads;
 
     public FeedbackItem $item;
@@ -41,16 +44,17 @@ class FeedbackItemModal extends Component
 
     public function reply(ReplyToFeedback $reply, AttachmentStorage $storage): void
     {
-        $this->authorize('reply', $this->item);
+        $this->authorizeFeedback('reply', $this->item);
         $data = $this->validate($this->composerRules($storage), $this->composerMessages());
+        $user = FeedbackBoard::user();
 
-        $comment = $reply->handle($this->item, (string) ($data['body'] ?? ''), auth()->user(), AuthorRole::Reporter);
+        $comment = $reply->handle($this->item, (string) ($data['body'] ?? ''), $user, AuthorRole::Reporter);
         $this->imagesFailed = ! $this->storeStagedFiles($storage, $this->item, $comment);
         $this->reset('body');
 
         // Replies that arrived while the reporter was reading are read now; readBefore stays, so
         // the "new" tags already shown remain.
-        $this->item->markReadBy(auth()->user());
+        $this->item->markReadBy($user);
         $this->item->refresh();
     }
 
@@ -61,7 +65,7 @@ class FeedbackItemModal extends Component
 
     public function render(): View
     {
-        $user = auth()->user();
+        $user = FeedbackBoard::user();
         $readBefore = $this->readBefore !== null ? CarbonImmutable::parse($this->readBefore) : null;
         $own = $this->item->attachments()->whereNull('feedback_comment_id')->orderBy('id')->get();
         $terminal = in_array($this->item->status, [FeedbackStatus::Closed, FeedbackStatus::Declined], true);

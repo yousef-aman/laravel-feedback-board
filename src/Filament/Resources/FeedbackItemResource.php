@@ -13,6 +13,7 @@ use YousefAman\FeedbackBoard\Actions\DispatchToRunner;
 use YousefAman\FeedbackBoard\Actions\RequestTriage;
 use YousefAman\FeedbackBoard\Actions\SendItemToGithub;
 use YousefAman\FeedbackBoard\Enums\{FeedbackPriority, FeedbackStatus, FeedbackType};
+use YousefAman\FeedbackBoard\Facades\FeedbackBoard;
 use YousefAman\FeedbackBoard\Runner\Support\RunnerGate;
 use YousefAman\FeedbackBoard\Triage\Support\TriageGate;
 use YousefAman\FeedbackBoard\Filament\Resources\FeedbackItemResource\Pages\ListFeedbackItems;
@@ -25,7 +26,7 @@ class FeedbackItemResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return FeedbackItemPolicy::isDeveloper(auth()->user());
+        return FeedbackItemPolicy::isDeveloper(FeedbackBoard::user());
     }
 
     public static function getModelLabel(): string
@@ -79,45 +80,45 @@ class FeedbackItemResource extends Resource
             Action::make('sendToGithub')
                 ->label(__('feedback-board::feedback-board.detail.send_github'))
                 ->visible(fn (FeedbackItem $record): bool =>
-                    FeedbackItemPolicy::isDeveloper(auth()->user())
+                    FeedbackItemPolicy::isDeveloper(FeedbackBoard::user())
                     && (bool) config('feedback-board.destinations.github.token')
                     && (bool) config('feedback-board.destinations.github.repo')
                     && ! isset(($record->external_refs ?? [])['github']))
                 ->action(fn (FeedbackItem $record) =>
                     // Hard authorization lives inside SendItemToGithub::handle()
                     // (abort_unless) — UI visibility above is not the gate.
-                    app(SendItemToGithub::class)->handle($record, auth()->user())),
+                    app(SendItemToGithub::class)->handle($record, FeedbackBoard::user())),
 
             Action::make('triage')
                 ->label(__('feedback-board::feedback-board.triage.triage'))
-                ->visible(fn (): bool => FeedbackItemPolicy::isDeveloper(auth()->user()) && TriageGate::configured())
+                ->visible(fn (): bool => FeedbackItemPolicy::isDeveloper(FeedbackBoard::user()) && TriageGate::configured())
                 ->action(fn (FeedbackItem $record) =>
-                    app(RequestTriage::class)->handle($record, auth()->user())),
+                    app(RequestTriage::class)->handle($record, FeedbackBoard::user())),
 
             Action::make('applyType')
                 ->label(__('feedback-board::feedback-board.triage.apply_type'))
                 ->visible(fn (FeedbackItem $record): bool =>
-                    FeedbackItemPolicy::isDeveloper(auth()->user())
+                    FeedbackItemPolicy::isDeveloper(FeedbackBoard::user())
                     && ($record->ai_state['triage']['status'] ?? null) === 'completed'
                     && ($t = $record->ai_state['triage']['suggested_type'] ?? null) !== null
                     && $t !== $record->type?->value)
                 ->action(fn (FeedbackItem $record) =>
-                    app(ApplyTriageSuggestion::class)->handle($record, auth()->user(), ['type'])),
+                    app(ApplyTriageSuggestion::class)->handle($record, FeedbackBoard::user(), ['type'])),
 
             Action::make('applyPriority')
                 ->label(__('feedback-board::feedback-board.triage.apply_priority'))
                 ->visible(fn (FeedbackItem $record): bool =>
-                    FeedbackItemPolicy::isDeveloper(auth()->user())
+                    FeedbackItemPolicy::isDeveloper(FeedbackBoard::user())
                     && ($record->ai_state['triage']['status'] ?? null) === 'completed'
                     && ($p = $record->ai_state['triage']['suggested_priority'] ?? null) !== null
                     && $p !== $record->priority?->value)
                 ->action(fn (FeedbackItem $record) =>
-                    app(ApplyTriageSuggestion::class)->handle($record, auth()->user(), ['priority'])),
+                    app(ApplyTriageSuggestion::class)->handle($record, FeedbackBoard::user(), ['priority'])),
 
             Action::make('viewSuggestion')
                 ->label(__('feedback-board::feedback-board.triage.view_suggestion'))
                 ->visible(fn (FeedbackItem $record): bool =>
-                    FeedbackItemPolicy::isDeveloper(auth()->user())
+                    FeedbackItemPolicy::isDeveloper(FeedbackBoard::user())
                     && ($record->ai_state['triage']['status'] ?? null) === 'completed')
                 ->modalContent(fn (FeedbackItem $record) => view(
                     'feedback-board::filament.triage-suggestion',
@@ -128,18 +129,18 @@ class FeedbackItemResource extends Resource
             Action::make('sendToRunner')
                 ->label(__('feedback-board::feedback-board.runner.send'))
                 ->visible(fn (FeedbackItem $record): bool =>
-                    FeedbackItemPolicy::isDeveloper(auth()->user())
+                    FeedbackItemPolicy::isDeveloper(FeedbackBoard::user())
                     && RunnerGate::configured()
                     && (bool) config('feedback-board.ingest.enabled')
                     && ! in_array(($record->ai_state['runner']['status'] ?? null), ['dispatched', 'running'], true))
                 ->action(fn (FeedbackItem $record) =>
                     // Hard authorization lives inside DispatchToRunner::handle() (abort_unless).
-                    app(DispatchToRunner::class)->handle($record, auth()->user())),
+                    app(DispatchToRunner::class)->handle($record, FeedbackBoard::user())),
 
             Action::make('viewRunnerResult')
                 ->label(__('feedback-board::feedback-board.runner.view_result'))
                 ->visible(fn (FeedbackItem $record): bool =>
-                    FeedbackItemPolicy::isDeveloper(auth()->user())
+                    FeedbackItemPolicy::isDeveloper(FeedbackBoard::user())
                     && ($record->ai_state['runner']['status'] ?? null) !== null)
                 ->modalContent(fn (FeedbackItem $record) => view(
                     'feedback-board::filament.runner-result',

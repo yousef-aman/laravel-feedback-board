@@ -915,6 +915,7 @@
     font-size: 0.875rem;
     font-weight: 600;
     line-height: 1.25;
+    text-decoration: none;
     box-shadow: var(--_fb-shadow-lg);
     cursor: pointer;
     transition: background-color 0.15s ease, transform 0.15s ease;
@@ -922,7 +923,14 @@
 
 .fb-launcher:hover {
     background: var(--_fb-accent-hover);
+    color: var(--_fb-accent-contrast);
+    text-decoration: none;
     transform: translateY(-1px);
+}
+
+/* The "My reports" link a user who may not report gets: host link colours must not win. */
+.fb-launcher:visited {
+    color: var(--_fb-accent-contrast);
 }
 
 .fb-launcher__icon {

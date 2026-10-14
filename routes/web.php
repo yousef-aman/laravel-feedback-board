@@ -4,9 +4,11 @@ use Illuminate\Support\Facades\Route;
 use YousefAman\FeedbackBoard\Http\Controllers\AssetController;
 use YousefAman\FeedbackBoard\Http\Controllers\AttachmentController;
 use YousefAman\FeedbackBoard\Http\Controllers\IngestController;
+use YousefAman\FeedbackBoard\Http\Middleware\AuthenticateFeedbackUser;
 use YousefAman\FeedbackBoard\Http\Middleware\VerifyIngestSignature;
 
-Route::middleware(config('feedback-board.route_middleware', ['web', 'auth']))
+// Never left unauthenticated: feedback-board.auth is appended when a host's list lacks it.
+Route::middleware(AuthenticateFeedbackUser::ensureIn(config('feedback-board.route_middleware', ['web', AuthenticateFeedbackUser::ALIAS])))
     ->prefix(config('feedback-board.route_prefix', 'feedback-board'))
     ->name('feedback-board.')
     ->group(function () {

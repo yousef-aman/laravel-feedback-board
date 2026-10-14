@@ -1,6 +1,6 @@
 <div class="fb-scope fb-reports" data-fb-theme="{{ \YousefAman\FeedbackBoard\Support\Ui::theme() }}" dir="{{ __('feedback-board::feedback-board.dir') }}"
      x-data="{ formOpen: false }"
-     x-on:fb-open-report-form.window="formOpen = true; $dispatch('fb-launcher-opened')">
+     @if ($canReport) x-on:fb-open-report-form.window="formOpen = true; $dispatch('fb-launcher-opened')" @endif>
     @include('feedback-board::partials.assets')
 
     @unless ($inPanel)
@@ -9,9 +9,11 @@
                 <h1 class="fb-head__title">{{ __('feedback-board::feedback-board.board.my_reports') }}</h1>
                 <p class="fb-head__sub">{{ __('feedback-board::feedback-board.reports.subheading') }}</p>
             </div>
-            <button type="button" class="fb-btn fb-btn--primary" x-on:click="$dispatch('fb-open-report-form')">
-                <x-feedback-board::icon name="plus" />{{ __('feedback-board::feedback-board.board.new_report') }}
-            </button>
+            @if ($canReport)
+                <button type="button" class="fb-btn fb-btn--primary" x-on:click="$dispatch('fb-open-report-form')">
+                    <x-feedback-board::icon name="plus" />{{ __('feedback-board::feedback-board.board.new_report') }}
+                </button>
+            @endif
         </header>
     @endunless
 
@@ -56,9 +58,11 @@
         @endforelse
     </div>
 
-    <x-feedback-board::slide-over :id="$uid.'-form'" :labelledby="$uid.'-form-title'" show="formOpen" close="formOpen = false">
-        @include('feedback-board::partials.report-form-sheet', ['titleId' => $uid.'-form-title'])
-    </x-feedback-board::slide-over>
+    @if ($canReport)
+        <x-feedback-board::slide-over :id="$uid.'-form'" :labelledby="$uid.'-form-title'" show="formOpen" close="formOpen = false">
+            @include('feedback-board::partials.report-form-sheet', ['titleId' => $uid.'-form-title'])
+        </x-feedback-board::slide-over>
+    @endif
 
     @if ($selected)
         <x-feedback-board::slide-over :id="$uid.'-report'" :labelledby="$uid.'-report-title'" wide show="true" close="$wire.close()">

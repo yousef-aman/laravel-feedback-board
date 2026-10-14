@@ -8,10 +8,12 @@ use Filament\Actions\Action;
 use Filament\Pages\Page;
 use Illuminate\Support\Facades\Log;
 use Throwable;
+use YousefAman\FeedbackBoard\Facades\FeedbackBoard;
 use YousefAman\FeedbackBoard\Filament\FeedbackBoardPlugin;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
+use YousefAman\FeedbackBoard\Support\Ui;
 
-/** The reporter's "My reports" inside the panel, for every signed-in user unless the plugin turns it off. */
+/** The reporter's "My reports" inside the panel, for every user who may report or has reports, unless the plugin turns it off. */
 class MyFeedbackPage extends Page
 {
     protected string $view = 'feedback-board::filament.my-feedback-page';
@@ -53,7 +55,7 @@ class MyFeedbackPage extends Page
     /** Read at call time from the current panel's plugin, so two panels can differ. */
     public static function canAccess(): bool
     {
-        return auth()->check() && (FeedbackBoardPlugin::current()?->hasMyReports() ?? false);
+        return (FeedbackBoardPlugin::current()?->hasMyReports() ?? false) && Ui::reporterAccess() !== null;
     }
 
     /**
@@ -63,7 +65,7 @@ class MyFeedbackPage extends Page
     public static function getNavigationBadge(): ?string
     {
         return rescue(function (): ?string {
-            $count = FeedbackItem::query()->ownedBy(auth()->user())->hasUnread()->count();
+            $count = FeedbackItem::query()->ownedBy(FeedbackBoard::user())->hasUnread()->count();
 
             return $count > 0 ? (string) $count : null;
         }, function (Throwable $e): ?string {
@@ -93,7 +95,9 @@ class MyFeedbackPage extends Page
             Action::make('newReport')
                 ->label(__('feedback-board::feedback-board.board.new_report'))
                 ->icon('heroicon-o-plus')
-                // MyReportsBoard owns the form; only it listens to this browser event.
+                // For users who may report only: MyReportsBoard renders the form, and listens to this
+                // browser event, for them alone.
+                ->visible(fn (): bool => Ui::reporterAccess() === 'form')
                 ->alpineClickHandler("\$dispatch('fb-open-report-form')"),
         ];
     }

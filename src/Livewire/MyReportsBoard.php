@@ -8,7 +8,9 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Livewire\Attributes\{Locked, On, Url};
 use Livewire\Component;
+use YousefAman\FeedbackBoard\Facades\FeedbackBoard;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
+use YousefAman\FeedbackBoard\Support\Ui;
 
 class MyReportsBoard extends Component
 {
@@ -35,6 +37,9 @@ class MyReportsBoard extends Component
 
     public function mount(bool $inPanel = false): void
     {
+        // Nothing here for a guest, or for a user who may not report and has no reports.
+        abort_if(Ui::reporterAccess() === null, 403);
+
         $this->inPanel = $inPanel;
 
         if (($id = self::reportId($this->report)) !== null) {
@@ -59,7 +64,7 @@ class MyReportsBoard extends Component
         }
 
         $this->readBefore = $item->readMarker()?->toIso8601String();
-        $item->markReadBy(auth()->user());
+        $item->markReadBy(FeedbackBoard::user());
         $this->report = $item->id;
     }
 
@@ -87,6 +92,8 @@ class MyReportsBoard extends Component
 
         return view('feedback-board::livewire.my-reports-board', [
             'uid' => 'fb-'.$this->getId(),
+            // The "New report" button, the form and its open event are for users who may report only.
+            'canReport' => Ui::reporterAccess() === 'form',
             'counts' => ['all' => $items->count(), 'open' => $open->count(), 'done' => $items->count() - $open->count()],
             'items' => match ($this->filter) {
                 'open' => $open->values(),
@@ -105,7 +112,7 @@ class MyReportsBoard extends Component
     /** Scoped to the reporter: another user's id, or none, opens nothing. */
     private function ownItems(): Builder
     {
-        return FeedbackItem::query()->ownedBy(auth()->user());
+        return FeedbackItem::query()->ownedBy(FeedbackBoard::user());
     }
 
     /** ctype_digit() must never see an int: it reads -128..255 as ASCII codes. */

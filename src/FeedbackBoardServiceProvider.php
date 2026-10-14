@@ -51,10 +51,17 @@ class FeedbackBoardServiceProvider extends PackageServiceProvider
 
     public function packageBooted(): void
     {
-        // Untyped, non-nullable parameter: Gate denies guests before this runs.
+        // Untyped, non-nullable parameter: Gate denies guests before this runs. The type check comes
+        // first, so a developer rule written for staff never sees another guard's model.
+        \Illuminate\Support\Facades\Gate::define('feedback-board.manage', function ($user): bool {
+            $board = app(FeedbackBoard::class);
+
+            return $board->onDeveloperGuard($user) && $board->resolveDeveloper($user);
+        });
+
         \Illuminate\Support\Facades\Gate::define(
-            'feedback-board.manage',
-            fn ($user) => app(FeedbackBoard::class)->resolveDeveloper($user),
+            'feedback-board.report',
+            fn ($user): bool => app(FeedbackBoard::class)->resolveReporter($user),
         );
 
         \Illuminate\Support\Facades\Gate::policy(
@@ -65,6 +72,14 @@ class FeedbackBoardServiceProvider extends PackageServiceProvider
         \Illuminate\Support\Facades\Event::subscribe(\YousefAman\FeedbackBoard\Listeners\SendFeedbackNotifications::class);
         \Illuminate\Support\Facades\Event::subscribe(\YousefAman\FeedbackBoard\Listeners\DispatchToDestinations::class);
         \Illuminate\Support\Facades\Event::subscribe(\YousefAman\FeedbackBoard\Listeners\TriageNewFeedback::class);
+
+        // The package routes' `auth`, across feedback-board.auth.guards. Livewire matches persistent
+        // middleware by class, not alias, so component updates from package pages re-run it too.
+        $this->app['router']->aliasMiddleware(
+            \YousefAman\FeedbackBoard\Http\Middleware\AuthenticateFeedbackUser::ALIAS,
+            \YousefAman\FeedbackBoard\Http\Middleware\AuthenticateFeedbackUser::class,
+        );
+        \Livewire\Livewire::addPersistentMiddleware([\YousefAman\FeedbackBoard\Http\Middleware\AuthenticateFeedbackUser::class]);
 
         // Livewire 4 resolves "namespace::name" through registered class namespaces only;
         // Livewire 3 has no addNamespace() and resolves the explicit registrations below.
@@ -99,11 +114,13 @@ class FeedbackBoardServiceProvider extends PackageServiceProvider
         $command->line('       use YousefAman\\FeedbackBoard\\Facades\\FeedbackBoard;');
         $command->line('       FeedbackBoard::resolveDevelopersUsing(fn ($user) => $user->is_admin);');
         $command->line('       FeedbackBoard::notifyDevelopersUsing(fn () => \\App\\Models\\User::where(\'is_admin\', true)->get());');
-        $command->line('  3. Optional in-app notifications: run `php artisan make:notifications-table`, migrate,');
+        $command->line('  3. Reporters who sign in with another guard (a Filament client panel, for example)? List the');
+        $command->line('     guards in feedback-board.auth.guards and the developers\' in feedback-board.auth.developer_guards.');
+        $command->line('  4. Optional in-app notifications: run `php artisan make:notifications-table`, migrate,');
         $command->line('     and add \'database\' to feedback-board.notifications.channels.');
 
         if (class_exists(\Filament\Panel::class)) {
-            $command->line('  4. Register the Filament plugin in your panel provider:');
+            $command->line('  5. Register the Filament plugin in your panel provider:');
             $command->line('       ->plugin(\\YousefAman\\FeedbackBoard\\Filament\\FeedbackBoardPlugin::make())');
         }
 

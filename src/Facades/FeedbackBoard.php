@@ -8,8 +8,11 @@ use Illuminate\Support\Facades\Facade;
 
 /**
  * @method static void resolveDevelopersUsing(callable $callback)
+ * @method static void resolveReportersUsing(callable $callback)
  * @method static void notifyDevelopersUsing(callable $callback)
  * @method static bool isDeveloper(\Illuminate\Contracts\Auth\Authenticatable|null $user)
+ * @method static bool canReport(\Illuminate\Contracts\Auth\Authenticatable|null $user)
+ * @method static \Illuminate\Contracts\Auth\Authenticatable|null user()
  *
  * @see \YousefAman\FeedbackBoard\FeedbackBoard
  */

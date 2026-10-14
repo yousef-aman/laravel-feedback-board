@@ -61,3 +61,10 @@ it('is safe to re-run: keeps an edited config and does not duplicate migrations'
     expect(publishedFeedbackMigrations())->toHaveCount(5)
         ->and(File::get(config_path('feedback-board.php')))->toContain('// edited by the host app');
 });
+
+it('points apps whose reporters use another guard at auth.guards', function () {
+    $this->artisan('feedback-board:install')
+        ->expectsConfirmation('Would you like to run the migrations now?', 'no')
+        ->expectsOutputToContain('feedback-board.auth.guards')
+        ->assertSuccessful();
+});

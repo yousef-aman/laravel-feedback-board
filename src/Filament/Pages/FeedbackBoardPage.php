@@ -7,6 +7,7 @@ namespace YousefAman\FeedbackBoard\Filament\Pages;
 use Filament\Pages\Page;
 use Filament\Support\Enums\Width;
 use YousefAman\FeedbackBoard\Enums\FeedbackStatus;
+use YousefAman\FeedbackBoard\Facades\FeedbackBoard;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
 use YousefAman\FeedbackBoard\Policies\FeedbackItemPolicy;
 
@@ -64,11 +65,11 @@ class FeedbackBoardPage extends Page
 
     public static function canAccess(): bool
     {
-        return FeedbackItemPolicy::isDeveloper(auth()->user());
+        return FeedbackItemPolicy::isDeveloper(FeedbackBoard::user());
     }
 
     public function mount(): void
     {
-        abort_unless(FeedbackItemPolicy::isDeveloper(auth()->user()), 403);
+        abort_unless(FeedbackItemPolicy::isDeveloper(FeedbackBoard::user()), 403);
     }
 }

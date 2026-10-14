@@ -9,13 +9,16 @@ use Livewire\Attributes\Locked;
 use Livewire\Component;
 use YousefAman\FeedbackBoard\Actions\CreateFeedbackItem;
 use YousefAman\FeedbackBoard\Enums\FeedbackType;
+use YousefAman\FeedbackBoard\Facades\FeedbackBoard;
 use YousefAman\FeedbackBoard\Livewire\Concerns\WithStagedUploads;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
 use YousefAman\FeedbackBoard\Services\AttachmentStorage;
+use YousefAman\FeedbackBoard\Support\Concerns\AuthorizesFeedbackUser;
 use YousefAman\FeedbackBoard\Support\Ui;
 
 class FeedbackForm extends Component
 {
+    use AuthorizesFeedbackUser;
     use WithStagedUploads;
 
     public string $title = '';
@@ -51,7 +54,7 @@ class FeedbackForm extends Component
 
     public function submit(CreateFeedbackItem $create, AttachmentStorage $storage): void
     {
-        $this->authorize('create', FeedbackItem::class);
+        $this->authorizeFeedback('create', FeedbackItem::class);
         $this->sent = false;
 
         $data = $this->validate([
@@ -71,7 +74,7 @@ class FeedbackForm extends Component
                 'user_agent' => request()->userAgent(),
                 'locale' => app()->getLocale(),
             ],
-        ], auth()->user());
+        ], FeedbackBoard::user());
 
         $this->attachmentsFailed = ! $this->storeStagedFiles($storage, $item);
 
