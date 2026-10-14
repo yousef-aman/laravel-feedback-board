@@ -3,6 +3,17 @@
 return [
     'project' => env('FEEDBACK_BOARD_PROJECT', 'default'),
 
+    'auth' => [
+        // Guards whose users the package recognises, reporters and developers alike. null = the guard
+        // in use: a Filament panel's guard inside the panel, the app's default guard elsewhere.
+        // List every guard your reporters sign in with, e.g. ['web', 'client'].
+        'guards' => null,
+
+        // Guards whose users may be developers. Required when `guards` lists more than one guard;
+        // without it nobody is a developer. null with a single guard = that guard.
+        'developer_guards' => null, // e.g. ['web']
+    ],
+
     'authorization' => [
         // Who may manage (triage/resolve) feedback. Prefer registering a callback in
         // AppServiceProvider::boot(): FeedbackBoard::resolveDevelopersUsing(...); it takes

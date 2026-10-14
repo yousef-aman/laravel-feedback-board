@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace YousefAman\FeedbackBoard;
 
 use Closure;
+use Generator;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
@@ -17,9 +20,9 @@ use Throwable;
 use UnexpectedValueException;
 
 /**
- * Developer access and developer recipients, registered from the host app's
- * AppServiceProvider::boot(). Registered callbacks live in this container
- * singleton, never in config, so `php artisan config:cache` stays safe.
+ * The signed-in user, developer access and developer recipients. Callbacks are registered from the
+ * host app's AppServiceProvider::boot() and live in this container singleton, never in config, so
+ * `php artisan config:cache` stays safe.
  */
 class FeedbackBoard
 {
@@ -29,6 +32,9 @@ class FeedbackBoard
 
     /** @var array<string, true> problems already reported by this instance */
     private array $reported = [];
+
+    /** @var array<string, true> configuration warnings already logged by this instance */
+    private array $warned = [];
 
     /** @param  callable(Authenticatable): bool  $callback */
     public function resolveDevelopersUsing(callable $callback): void
@@ -40,6 +46,16 @@ class FeedbackBoard
     public function notifyDevelopersUsing(callable $callback): void
     {
         $this->developerRecipients = Closure::fromCallable($callback);
+    }
+
+    /**
+     * The signed-in user the package works with: the first user found on feedback-board.auth.guards
+     * (the guard in use when that is null). Not memoised: guards cache their own user, and the guard
+     * in use can change mid-request.
+     */
+    public function user(): ?Authenticatable
+    {
+        return $this->resolveUser()['user'] ?? null;
     }
 
     /**
@@ -79,6 +95,68 @@ class FeedbackBoard
         }
 
         return $this->normalise($resolver($user));
+    }
+
+    /**
+     * @internal The first recognised user and its guard: the single source for user() and the
+     * feedback-board.auth middleware.
+     *
+     * @return array{guard: string, user: Authenticatable&Model}|null
+     */
+    public function resolveUser(): ?array
+    {
+        foreach ($this->signedIn() as $entry) {
+            return $entry;
+        }
+
+        return null;
+    }
+
+    /**
+     * @internal Every recognised user signed in on this request, in resolution order. Attachments
+     * accept any of them: each is a session genuinely signed in in this browser.
+     *
+     * @return list<array{guard: string, user: Authenticatable&Model}>
+     */
+    public function recognisedUsers(): array
+    {
+        return iterator_to_array($this->signedIn(), false);
+    }
+
+    /**
+     * @internal The guards a user may be resolved from on this request, in order: inside a Filament
+     * panel the panel's guard alone; elsewhere the guard in use first, then the configured list.
+     *
+     * @return list<string>
+     */
+    public function candidateGuards(): array
+    {
+        $configured = $this->configuredGuards();
+        $panel = $this->currentPanel();
+
+        if ($panel !== null) {
+            if ($configured === null || in_array($panel['guard'], $configured, true)) {
+                return [$panel['guard']];
+            }
+
+            if ($configured !== []) {
+                $this->warnOnce('panel-guard-'.$panel['id'], 'Feedback Board recognises nobody in the "'.$panel['id'].'" Filament panel: '
+                    .'its guard "'.$panel['guard'].'" is not in feedback-board.auth.guards.');
+            }
+
+            // No fallback: a panel never shows or files a report as a user of another guard.
+            return [];
+        }
+
+        $inUse = Auth::getDefaultDriver();
+
+        if ($configured === null) {
+            return [$inUse];
+        }
+
+        return in_array($inUse, $configured, true)
+            ? [$inUse, ...array_values(array_diff($configured, [$inUse]))]
+            : $configured;
     }
 
     /**
@@ -143,5 +221,103 @@ class FeedbackBoard
 
         $this->reported[$key] = true;
         report($e);
+    }
+
+    /**
+     * Log each distinct configuration problem once per instance, like reportOnce().
+     *
+     * @param  array<string, mixed>  $context
+     */
+    protected function warnOnce(string $key, string $message, array $context = []): void
+    {
+        if (isset($this->warned[$key])) {
+            return;
+        }
+
+        $this->warned[$key] = true;
+        Log::warning($message, $context);
+    }
+
+    /** @return Generator<int, array{guard: string, user: Authenticatable&Model}> */
+    private function signedIn(): Generator
+    {
+        foreach ($this->candidateGuards() as $guard) {
+            $user = Auth::guard($guard)->user();
+
+            // A non-Eloquent user (a `database` provider's GenericUser) cannot own a report.
+            if ($user instanceof Model) {
+                yield ['guard' => $guard, 'user' => $user];
+            }
+        }
+    }
+
+    /**
+     * feedback-board.auth.guards: null in implicit mode (null or []); otherwise its entries that name a
+     * guard in config/auth.php, duplicates removed and order kept. Anything else fails closed.
+     *
+     * @return list<string>|null
+     */
+    private function configuredGuards(): ?array
+    {
+        $value = config('feedback-board.auth.guards');
+
+        if ($value === null || $value === []) {
+            return null;
+        }
+
+        if (! is_array($value)) {
+            $this->warnOnce('invalid-guards', 'Feedback Board recognises nobody: feedback-board.auth.guards must be null or an array of guard names.', [
+                'given' => get_debug_type($value),
+            ]);
+
+            return [];
+        }
+
+        [$guards, $skipped] = self::pick($value, array_keys((array) config('auth.guards', [])));
+
+        if ($skipped !== []) {
+            $this->warnOnce('unknown-guards', 'Feedback Board skipped entries in feedback-board.auth.guards that name no guard in config/auth.php.', [
+                'skipped' => $skipped,
+            ]);
+        }
+
+        return $guards;
+    }
+
+    /** @return array{id: string, guard: string}|null the current Filament panel; null outside one */
+    private function currentPanel(): ?array
+    {
+        // Filament may be installed but not booted (an app without panels): check the provider, not the class.
+        if (! app()->providerIsLoaded(\Filament\FilamentServiceProvider::class)) {
+            return null;
+        }
+
+        $panel = \Filament\Facades\Filament::getCurrentPanel();
+
+        return $panel === null ? null : ['id' => $panel->getId(), 'guard' => $panel->getAuthGuard()];
+    }
+
+    /**
+     * Splits a configured list into its entries found in $allowed (duplicates removed, order kept) and
+     * the rest, described for a warning.
+     *
+     * @param  array<mixed>  $entries
+     * @param  list<int|string>  $allowed
+     * @return array{0: list<string>, 1: list<string>}
+     */
+    private static function pick(array $entries, array $allowed): array
+    {
+        $kept = [];
+        $skipped = [];
+
+        foreach ($entries as $entry) {
+            if (is_string($entry) && in_array($entry, $allowed, true)) {
+                $kept[$entry] = $entry;
+            } else {
+                $skipped[] = is_string($entry) ? $entry : get_debug_type($entry);
+            }
+        }
+
+        return [array_values($kept), $skipped];
     }
 }
