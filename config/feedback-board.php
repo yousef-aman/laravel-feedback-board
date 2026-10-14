@@ -20,6 +20,11 @@ return [
         // precedence over this key. A closure here breaks `php artisan config:cache`; use
         // null or a public static method callable, e.g. [DeveloperCheck::class, 'handle'].
         'developer_resolver' => null,
+
+        // Who may send reports; null = every signed-in user the package recognises. Same rules as
+        // developer_resolver: FeedbackBoard::resolveReportersUsing(...) takes precedence, and a closure
+        // here breaks `php artisan config:cache`.
+        'reporter_resolver' => null,
     ],
 
     'attachments' => [

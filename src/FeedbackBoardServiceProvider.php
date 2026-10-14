@@ -59,6 +59,11 @@ class FeedbackBoardServiceProvider extends PackageServiceProvider
             return $board->onDeveloperGuard($user) && $board->resolveDeveloper($user);
         });
 
+        \Illuminate\Support\Facades\Gate::define(
+            'feedback-board.report',
+            fn ($user): bool => app(FeedbackBoard::class)->resolveReporter($user),
+        );
+
         \Illuminate\Support\Facades\Gate::policy(
             \YousefAman\FeedbackBoard\Models\FeedbackItem::class,
             \YousefAman\FeedbackBoard\Policies\FeedbackItemPolicy::class,

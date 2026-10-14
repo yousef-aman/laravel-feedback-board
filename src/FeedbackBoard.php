@@ -16,17 +16,20 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Validator;
 use InvalidArgumentException;
+use RuntimeException;
 use Throwable;
 use UnexpectedValueException;
 
 /**
- * The signed-in user, developer access and developer recipients. Callbacks are registered from the
+ * The signed-in user, developer and reporter access, and developer recipients. Callbacks are registered from the
  * host app's AppServiceProvider::boot() and live in this container singleton, never in config, so
  * `php artisan config:cache` stays safe.
  */
 class FeedbackBoard
 {
     protected ?Closure $developerResolver = null;
+
+    protected ?Closure $reporterResolver = null;
 
     protected ?Closure $developerRecipients = null;
 
@@ -40,6 +43,12 @@ class FeedbackBoard
     public function resolveDevelopersUsing(callable $callback): void
     {
         $this->developerResolver = Closure::fromCallable($callback);
+    }
+
+    /** @param  callable(Authenticatable): bool  $callback  who may send reports */
+    public function resolveReportersUsing(callable $callback): void
+    {
+        $this->reporterResolver = Closure::fromCallable($callback);
     }
 
     /** @param  callable(): iterable<object>  $callback  notifiables to receive developer notifications */
@@ -68,33 +77,28 @@ class FeedbackBoard
     }
 
     /**
+     * Answers through the feedback-board.report gate, so Gate::before/after hooks apply. A guest
+     * (null) is never a reporter.
+     */
+    public function canReport(?Authenticatable $user): bool
+    {
+        return $user !== null && Gate::forUser($user)->allows('feedback-board.report');
+    }
+
+    /**
      * @internal Raw precedence behind the feedback-board.manage gate. Call isDeveloper().
      */
     public function resolveDeveloper(Authenticatable $user): bool
     {
-        if ($this->developerResolver !== null) {
-            return $this->normalise(($this->developerResolver)($user));
-        }
+        return $this->decide('developer', $this->developerResolver, false, $user);
+    }
 
-        $resolver = config('feedback-board.authorization.developer_resolver');
-
-        if ($resolver === null) {
-            return false;
-        }
-
-        if (! is_callable($resolver)) {
-            // Deny, but loudly: throwing here would turn every page that checks access
-            // (Filament navigation included) into a 500 for every user.
-            $this->reportOnce('invalid-resolver', new InvalidArgumentException(
-                'feedback-board.authorization.developer_resolver must be null or a public static method callable '
-                .'such as [DeveloperCheck::class, \'handle\']. Register anything else with '
-                .'FeedbackBoard::resolveDevelopersUsing() in AppServiceProvider::boot().'
-            ));
-
-            return false;
-        }
-
-        return $this->normalise($resolver($user));
+    /**
+     * @internal Raw precedence behind the feedback-board.report gate. Call canReport().
+     */
+    public function resolveReporter(Authenticatable $user): bool
+    {
+        return $this->decide('reporter', $this->reporterResolver, true, $user);
     }
 
     /**
@@ -241,15 +245,15 @@ class FeedbackBoard
      * object or array (a Collection, an unexecuted query) is truthy in PHP but is not an
      * answer, so it denies. Scalars and null keep their usual meaning (1, '1', 0).
      */
-    protected function normalise(mixed $result): bool
+    protected function normalise(mixed $result, string $resolver = 'developer'): bool
     {
         if ($result instanceof Response) {
             return $result->allowed();
         }
 
         if (is_object($result) || is_array($result)) {
-            $this->reportOnce('unexpected-result', new UnexpectedValueException(
-                'A developer resolver returned '.get_debug_type($result).'; it must return a bool. Access was denied.'
+            $this->reportOnce('unexpected-result-'.$resolver, new UnexpectedValueException(
+                'A '.$resolver.' resolver returned '.get_debug_type($result).'; it must return a bool. Access was denied.'
             ));
 
             return false;
@@ -282,6 +286,44 @@ class FeedbackBoard
 
         $this->warned[$key] = true;
         Log::warning($message, $context);
+    }
+
+    /**
+     * The precedence both resolvers share: the registered callback, then the config key, where null
+     * answers $whenUnset. Anything else denies, but loudly: throwing here would turn every page that
+     * checks access (Filament navigation included) into a 500 for every user.
+     */
+    private function decide(string $kind, ?Closure $callback, bool $whenUnset, Authenticatable $user): bool
+    {
+        $key = 'feedback-board.authorization.'.$kind.'_resolver';
+        $resolver = $callback ?? config($key);
+
+        if ($resolver === null) {
+            return $whenUnset;
+        }
+
+        if (! is_callable($resolver)) {
+            $name = ucfirst($kind);
+
+            $this->reportOnce('invalid-resolver-'.$kind, new InvalidArgumentException(
+                $key.' must be null or a public static method callable such as ['.$name.'Check::class, \'handle\']. '
+                .'Register anything else with FeedbackBoard::resolve'.$name.'sUsing() in AppServiceProvider::boot().'
+            ));
+
+            return false;
+        }
+
+        try {
+            $result = $resolver($user);
+        } catch (Throwable $e) {
+            $this->reportOnce('resolver-threw-'.$kind, new RuntimeException(
+                'A '.$kind.' resolver threw '.$e::class.' ('.$e->getMessage().'); access was denied.', 0, $e
+            ));
+
+            return false;
+        }
+
+        return $this->normalise($result, $kind);
     }
 
     /** @return Generator<int, array{guard: string, user: Authenticatable&Model}> */

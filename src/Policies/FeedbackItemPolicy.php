@@ -21,9 +21,10 @@ class FeedbackItemPolicy
     }
 
     public function viewAny(?Model $user): bool { return self::isDeveloper($user); }
-    public function create(?Model $user): bool { return $user !== null; }
-    public function view(?Model $user, FeedbackItem $item): bool { return self::isDeveloper($user) || $this->owns($user, $item); }
-    public function reply(?Model $user, FeedbackItem $item): bool { return self::isDeveloper($user) || $this->owns($user, $item); }
+    public function create(?Model $user): bool { return $user !== null && Gate::forUser($user)->allows('feedback-board.report'); }
+    // Ownership first: an owner never reaches the host's developer resolver.
+    public function view(?Model $user, FeedbackItem $item): bool { return $this->owns($user, $item) || self::isDeveloper($user); }
+    public function reply(?Model $user, FeedbackItem $item): bool { return $this->owns($user, $item) || self::isDeveloper($user); }
     public function transition(?Model $user, FeedbackItem $item): bool { return self::isDeveloper($user); }
     public function assign(?Model $user, FeedbackItem $item): bool { return self::isDeveloper($user); }
     public function update(?Model $user, FeedbackItem $item): bool { return self::isDeveloper($user); }
