@@ -9,7 +9,8 @@ it('reads the signed-in user only through FeedbackBoard::user()', function () {
     $root = dirname(__DIR__, 2);
     $allowed = ['src/FeedbackBoard.php', 'src/Support/Concerns/AuthorizesFeedbackUser.php'];
     $patterns = [
-        'auth()' => '/(?<![\w:>$])auth\(\)/',
+        'auth(...)' => '/(?<![\w$>])auth\(/',
+        'Auth::guard(' => '/\bAuth::guard\(/',
         'Auth::user/check/id/guest' => '/\bAuth::(user|check|id|guest)\(/',
         '->authorize(' => '/->authorize\(/',
         'Gate:: without forUser' => '/\bGate::(allows|denies|check|any|none|authorize|inspect)\(/',

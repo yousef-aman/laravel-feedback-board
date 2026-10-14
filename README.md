@@ -200,7 +200,7 @@ $panel->renderHook(
 );
 ```
 
-The hook also runs on the panel's login page, where the launcher stays hidden until the user signs in. The form's "My reports" link opens the panel's "My reports" page when the panel shows it. If that panel signs users in with its own guard (`->authGuard('client')`), list the guard in `auth.guards`; without it, the package's own routes (images, the standalone pages) do not recognise those users. See [Reporters on another guard](#reporters-on-another-guard).
+The hook also runs on the panel's login page, where the launcher stays hidden until the user signs in. The form's "My reports" link opens the panel's "My reports" page when the panel shows it. If that panel signs users in with its own guard (`->authGuard('client')`), list the guard in `auth.guards`; without it, the package's own routes (images, the standalone pages) do not recognise those users. Until the guards are listed in `auth.guards`, there is no developer type check, so the developer resolver also receives that panel's users (for example a `Client`); a rule keyed on an id or an e-mail could match them. See [Reporters on another guard](#reporters-on-another-guard).
 
 ## Reporters on another guard
 
@@ -215,10 +215,10 @@ By default the package sees the user of the guard in use: inside a Filament pane
 'route_middleware' => ['web', 'feedback-board.auth'],
 ```
 
-- **Developers.** With more than one guard listed, `developer_guards` is required; without it nobody is a developer, and a warning is logged. Only a model of a developer guard's provider can ever be a developer, so a rule such as `fn ($user) => $user->id === 1` never matches a client, and your developer resolver never receives one. This holds even when your client model extends your staff model.
+- **Developers.** With more than one guard listed, `developer_guards` is required; without it nobody is a developer, and a warning is logged. Only a model of a developer guard's provider can be a developer, so a rule such as `fn ($user) => $user->id === 1` never matches a client, and your developer resolver never receives one. This holds even when your client model extends your staff model. Two exceptions: guards whose providers use the same model class cannot be told apart (same model, same person), and a `Gate::before()` hook runs first and can still grant developer access.
 - **Panels.** Inside a panel only that panel's guard counts. A panel whose guard is not listed recognises nobody, and a warning is logged. A report is therefore never filed as the staff member who happens to be signed in in the same browser.
 - **Two sessions in one browser.** On the package's own pages (the standalone "My reports" page and the board), the guard in use is tried first, normally the app default, then the list in order. Images open for whichever signed-in user may see them.
-- **A published config.** If your published `config/feedback-board.php` lists `'auth'` in `route_middleware`, replace it with `'feedback-board.auth'`. `'auth'` checks the default guard only and refuses clients before the package sees them. Middleware that needs the signed-in user, such as `'verified'`, goes after `'feedback-board.auth'`.
+- **A published config.** If your published `config/feedback-board.php` lists `'auth'` in `route_middleware`, replace it with `'feedback-board.auth'`. `'auth'` checks the default guard only and refuses clients before the package sees them. `feedback-board.auth` takes no guard parameters (`feedback-board.auth:client` does not restrict anything); `auth.guards` decides which guards count. Middleware that needs the signed-in user, such as `'verified'`, goes after `'feedback-board.auth'`.
 - **Not signed in on a listed guard.** A user signed in only on a guard that is not listed is treated as a guest: no launcher, and the package's pages send them to your login page.
 - **The reporter model.** Reports store their reporter as a polymorphic relation, so no migration is needed. To receive e-mail, the model needs Laravel's `Notifiable` trait and an `email` attribute. If you enforce a morph map (`Relation::enforceMorphMap()`), add the model to it.
 - **`Gate::before()` hooks** run for every user of every listed guard, before the package's own checks. A hook keyed on an id or an e-mail must also check the model type, or it will match a client with the same id.

@@ -78,7 +78,6 @@ final class Ui
         return is_string($scheme) && in_array(strtolower($scheme), ['http', 'https'], true) ? $url : null;
     }
 
-    /** "My reports": the panel page inside a Filament panel that enables it, else the standalone page. */
     /**
      * What the current user may do as a reporter: 'form' (send reports and follow them), 'reports'
      * (follow earlier reports only: may not report, but has reports) or null (nothing, a guest
@@ -100,6 +99,7 @@ final class Ui
         return FeedbackItem::query()->ownedBy($user)->exists() ? 'reports' : null;
     }
 
+    /** "My reports": the panel page inside a Filament panel that enables it, else the standalone page. */
     public static function reportsUrl(?int $reportId = null): string
     {
         $url = self::panelReportsUrl() ?? route('feedback-board.page');

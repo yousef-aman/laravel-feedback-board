@@ -33,7 +33,7 @@ class FeedbackKanban extends Component
     // Page access is enforced by the route's `can:viewAny` middleware (Step 4); each
     // write re-authorizes below. No mount() guard — that keeps the component mountable
     // in tests (Livewire re-throws auth exceptions raw on initial render) while the
-    // real gate lives on the route + the per-action authorize('transition').
+    // real gate lives on the route + the per-action authorizeFeedback('transition').
 
     public function mount(): void
     {
@@ -69,7 +69,7 @@ class FeedbackKanban extends Component
     {
         // Defense-in-depth: if a non-developer somehow mounts this component outside the
         // gated route, return empty columns so item data does not leak. The per-action
-        // authorize('transition') in moveTo() remains the primary write guard.
+        // authorizeFeedback('transition') in moveTo() remains the primary write guard.
         if (! FeedbackItemPolicy::isDeveloper(FeedbackBoard::user())) {
             return view('feedback-board::livewire.feedback-kanban', [
                 'columns' => collect(), 'filters' => [], 'counts' => [], 'cards' => [], 'selected' => null,
