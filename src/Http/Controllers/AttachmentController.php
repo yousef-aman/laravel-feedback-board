@@ -7,6 +7,7 @@ namespace YousefAman\FeedbackBoard\Http\Controllers;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use YousefAman\FeedbackBoard\FeedbackBoard;
 use YousefAman\FeedbackBoard\Models\FeedbackAttachment;
 use YousefAman\FeedbackBoard\Policies\FeedbackItemPolicy;
 
@@ -22,12 +23,15 @@ class AttachmentController
 
     public function show(FeedbackAttachment $attachment): StreamedResponse
     {
-        abort_unless(Gate::allows('view', $attachment->item), 403);
+        // Any session signed in in this browser may open what it is allowed to see: a client's own
+        // images must not 403 because the browser also holds a staff session. Internal notes are
+        // developer-only, and so are their images.
+        $internal = (bool) $attachment->comment?->is_internal;
 
-        // Internal notes are developer-only, and so are their images.
-        if ($attachment->comment?->is_internal) {
-            abort_unless(FeedbackItemPolicy::isDeveloper(auth()->user()), 403);
-        }
+        abort_unless(collect(app(FeedbackBoard::class)->recognisedUsers())->contains(
+            fn (array $entry): bool => Gate::forUser($entry['user'])->allows('view', $attachment->item)
+                && (! $internal || FeedbackItemPolicy::isDeveloper($entry['user'])),
+        ), 403);
 
         $disk = Storage::disk($attachment->disk);
         abort_unless($disk->exists($attachment->path), 404);

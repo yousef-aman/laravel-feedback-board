@@ -73,6 +73,14 @@ class FeedbackBoardServiceProvider extends PackageServiceProvider
         \Illuminate\Support\Facades\Event::subscribe(\YousefAman\FeedbackBoard\Listeners\DispatchToDestinations::class);
         \Illuminate\Support\Facades\Event::subscribe(\YousefAman\FeedbackBoard\Listeners\TriageNewFeedback::class);
 
+        // The package routes' `auth`, across feedback-board.auth.guards. Livewire matches persistent
+        // middleware by class, not alias, so component updates from package pages re-run it too.
+        $this->app['router']->aliasMiddleware(
+            \YousefAman\FeedbackBoard\Http\Middleware\AuthenticateFeedbackUser::ALIAS,
+            \YousefAman\FeedbackBoard\Http\Middleware\AuthenticateFeedbackUser::class,
+        );
+        \Livewire\Livewire::addPersistentMiddleware([\YousefAman\FeedbackBoard\Http\Middleware\AuthenticateFeedbackUser::class]);
+
         // Livewire 4 resolves "namespace::name" through registered class namespaces only;
         // Livewire 3 has no addNamespace() and resolves the explicit registrations below.
         if (method_exists(app('livewire'), 'addNamespace')) {

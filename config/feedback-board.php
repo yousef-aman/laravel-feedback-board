@@ -37,7 +37,9 @@ return [
     ],
 
     'route_prefix' => 'feedback-board',
-    'route_middleware' => ['web', 'auth'],
+    // feedback-board.auth signs the package routes in as a user of auth.guards. Middleware that needs
+    // the signed-in user (e.g. 'verified') goes after it; the package appends it when it is missing.
+    'route_middleware' => ['web', 'feedback-board.auth'],
 
     'ui' => [
         // Dark-mode strategy for the package's own screens:
