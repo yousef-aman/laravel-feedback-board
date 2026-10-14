@@ -8,6 +8,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Livewire\Attributes\{Locked, On, Url};
 use Livewire\Component;
+use YousefAman\FeedbackBoard\Facades\FeedbackBoard;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
 
 class MyReportsBoard extends Component
@@ -59,7 +60,7 @@ class MyReportsBoard extends Component
         }
 
         $this->readBefore = $item->readMarker()?->toIso8601String();
-        $item->markReadBy(auth()->user());
+        $item->markReadBy(FeedbackBoard::user());
         $this->report = $item->id;
     }
 
@@ -105,7 +106,7 @@ class MyReportsBoard extends Component
     /** Scoped to the reporter: another user's id, or none, opens nothing. */
     private function ownItems(): Builder
     {
-        return FeedbackItem::query()->ownedBy(auth()->user());
+        return FeedbackItem::query()->ownedBy(FeedbackBoard::user());
     }
 
     /** ctype_digit() must never see an int: it reads -128..255 as ASCII codes. */
