@@ -242,3 +242,12 @@ it('sizes the reply input to two rows', function () {
 it('keeps the focus ring of a list row inside the clipping container', function () {
     expect((string) file_get_contents(Ui::stylesheetPath()))->toContain(".fb-row:focus-visible {\n    outline-offset: -2px;\n}");
 });
+
+it('keeps the launcher unlined and in its own colours when it is a link', function () {
+    $rules = collect(fbCssRules(fbStylesheet()))->filter(fn (array $rule) => $rule['at'] === null);
+    $body = fn (string $selector): string => $rules->firstWhere('selector', $selector)['body'] ?? '';
+
+    expect($body('.fb-launcher'))->toMatch('/text-decoration:\s*none;/')
+        ->and($body('.fb-launcher:hover'))->toMatch('/color:\s*var\(--_fb-accent-contrast\);/')
+        ->and($body('.fb-launcher:visited'))->toMatch('/color:\s*var\(--_fb-accent-contrast\);/');
+});

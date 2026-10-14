@@ -10,6 +10,7 @@ use Livewire\Attributes\{Locked, On, Url};
 use Livewire\Component;
 use YousefAman\FeedbackBoard\Facades\FeedbackBoard;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
+use YousefAman\FeedbackBoard\Support\Ui;
 
 class MyReportsBoard extends Component
 {
@@ -36,6 +37,9 @@ class MyReportsBoard extends Component
 
     public function mount(bool $inPanel = false): void
     {
+        // Nothing here for a guest, or for a user who may not report and has no reports.
+        abort_if(Ui::reporterAccess() === null, 403);
+
         $this->inPanel = $inPanel;
 
         if (($id = self::reportId($this->report)) !== null) {
@@ -88,6 +92,8 @@ class MyReportsBoard extends Component
 
         return view('feedback-board::livewire.my-reports-board', [
             'uid' => 'fb-'.$this->getId(),
+            // The "New report" button, the form and its open event are for users who may report only.
+            'canReport' => Ui::reporterAccess() === 'form',
             'counts' => ['all' => $items->count(), 'open' => $open->count(), 'done' => $items->count() - $open->count()],
             'items' => match ($this->filter) {
                 'open' => $open->values(),
