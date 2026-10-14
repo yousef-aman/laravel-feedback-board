@@ -51,11 +51,13 @@ class FeedbackBoardServiceProvider extends PackageServiceProvider
 
     public function packageBooted(): void
     {
-        // Untyped, non-nullable parameter: Gate denies guests before this runs.
-        \Illuminate\Support\Facades\Gate::define(
-            'feedback-board.manage',
-            fn ($user) => app(FeedbackBoard::class)->resolveDeveloper($user),
-        );
+        // Untyped, non-nullable parameter: Gate denies guests before this runs. The type check comes
+        // first, so a developer rule written for staff never sees another guard's model.
+        \Illuminate\Support\Facades\Gate::define('feedback-board.manage', function ($user): bool {
+            $board = app(FeedbackBoard::class);
+
+            return $board->onDeveloperGuard($user) && $board->resolveDeveloper($user);
+        });
 
         \Illuminate\Support\Facades\Gate::policy(
             \YousefAman\FeedbackBoard\Models\FeedbackItem::class,

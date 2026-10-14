@@ -98,6 +98,52 @@ class FeedbackBoard
     }
 
     /**
+     * @internal Whether the user may be a developer at all, by type: an instance of a developer
+     * guard's provider model. Always true in implicit mode. It holds for any user passed in, not only
+     * the signed-in one.
+     */
+    public function onDeveloperGuard(Authenticatable $user): bool
+    {
+        $developerGuards = $this->developerGuards();
+
+        if ($developerGuards === null) {
+            return true;
+        }
+
+        // A listed non-developer guard whose model extends a developer model (class Client extends
+        // User) would pass instanceof; its users stay out.
+        $others = array_filter(array_map(
+            fn (string $guard): ?string => $this->guardModel($guard),
+            array_diff($this->configuredGuards() ?? [], $developerGuards),
+        ));
+
+        foreach ($developerGuards as $guard) {
+            $model = $this->guardModel($guard);
+
+            if ($model === null) {
+                $this->warnOnce('developer-guard-provider-'.$guard, 'Feedback Board cannot check developers on the "'.$guard.'" guard: '
+                    .'its user provider is not an eloquent provider with a model.');
+
+                continue;
+            }
+
+            if (! $user instanceof $model) {
+                continue;
+            }
+
+            foreach ($others as $other) {
+                if (is_subclass_of($other, $model) && $user instanceof $other) {
+                    continue 2;
+                }
+            }
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * @internal The first recognised user and its guard: the single source for user() and the
      * feedback-board.auth middleware.
      *
@@ -295,6 +341,64 @@ class FeedbackBoard
         $panel = \Filament\Facades\Filament::getCurrentPanel();
 
         return $panel === null ? null : ['id' => $panel->getId(), 'guard' => $panel->getAuthGuard()];
+    }
+
+    /**
+     * feedback-board.auth.developer_guards resolved against the valid guards; null = unrestricted
+     * (implicit mode). With one guard and no list, that guard; with several and no list, none.
+     *
+     * @return list<string>|null
+     */
+    private function developerGuards(): ?array
+    {
+        $guards = $this->configuredGuards();
+
+        if ($guards === null) {
+            return null;
+        }
+
+        $value = config('feedback-board.auth.developer_guards');
+
+        if ($value === null || $value === []) {
+            if (count($guards) > 1) {
+                $this->warnOnce('developer-guards-missing', 'Feedback Board has no developers: feedback-board.auth.guards lists several guards, '
+                    .'so set feedback-board.auth.developer_guards to the guards whose users may be developers.');
+
+                return [];
+            }
+
+            return $guards;
+        }
+
+        if (! is_array($value)) {
+            $this->warnOnce('invalid-developer-guards', 'Feedback Board has no developers: feedback-board.auth.developer_guards must be null or an array of guard names.', [
+                'given' => get_debug_type($value),
+            ]);
+
+            return [];
+        }
+
+        [$developerGuards, $skipped] = self::pick($value, $guards);
+
+        if ($skipped !== []) {
+            $this->warnOnce('unknown-developer-guards', 'Feedback Board skipped entries in feedback-board.auth.developer_guards that are not in feedback-board.auth.guards.', [
+                'skipped' => $skipped,
+            ]);
+        }
+
+        return $developerGuards;
+    }
+
+    /** The Eloquent model behind a guard's user provider; null when the provider is not `eloquent`. */
+    private function guardModel(string $guard): ?string
+    {
+        $provider = config('auth.guards')[$guard]['provider'] ?? null;
+        $settings = is_string($provider) ? (config('auth.providers')[$provider] ?? null) : null;
+
+        return is_array($settings) && ($settings['driver'] ?? null) === 'eloquent'
+            && is_string($settings['model'] ?? null) && $settings['model'] !== ''
+            ? $settings['model']
+            : null;
     }
 
     /**
