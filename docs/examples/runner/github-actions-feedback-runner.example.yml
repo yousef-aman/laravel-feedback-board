@@ -4,8 +4,10 @@
 #
 # The agent runs in a job that never references the ingest secret. The agent reads reporter-written
 # text, and a prompt-injected agent can read any secret its job's runner holds, or change files and
-# environment that later steps of the same job use. Only report-start and post-back, which run no agent
-# code, get the secret; post-back runs on a fresh machine with the script from the dispatched commit.
+# environment that later steps of the same job use. Only report-start and post-back get the secret, and
+# they run no agent code: each runs on a fresh machine and refuses a post-back.sh whose SHA-256 is not
+# POST_BACK_SHA256 below. The agent's token can push a changed script to an unprotected default branch,
+# but it can never change this workflow file.
 # Pass every value through env. Never write ${{ … }} inside a run: script (expression injection).
 name: Feedback Runner
 
@@ -17,6 +19,9 @@ env:
   ITEM_ID: ${{ github.event.client_payload.item.id }}
   TASK_ID: ${{ github.event.client_payload.task_id }}
   POST_BACK: .github/scripts/feedback-post-back.sh
+  # SHA-256 of docs/examples/runner/post-back.sh as shipped. If you change your copy, update it:
+  # sha256sum .github/scripts/feedback-post-back.sh
+  POST_BACK_SHA256: 725a130fe3fbaf1bd2d5b50bef7e84a3f206f3c80b6a0a564b64a63b9d997f1d
 
 jobs:
   report-start:
@@ -33,7 +38,7 @@ jobs:
         env:
           INGEST_URL: ${{ secrets.FEEDBACK_INGEST_URL }}
           INGEST_SECRET: ${{ secrets.FEEDBACK_BOARD_INGEST_SECRET }}
-        run: bash "$POST_BACK" status running
+        run: echo "$POST_BACK_SHA256  $POST_BACK" | sha256sum --check --quiet - && bash "$POST_BACK" status running
 
   run-agent:
     needs: report-start
@@ -82,6 +87,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         if: needs.run-agent.result == 'success'
+        continue-on-error: true # an agent that wrote no files leaves no artifact; post the result without them
         with:
           name: agent-output
           path: ${{ runner.temp }}/agent-output
@@ -92,18 +98,18 @@ jobs:
           INGEST_URL: ${{ secrets.FEEDBACK_INGEST_URL }}
           INGEST_SECRET: ${{ secrets.FEEDBACK_BOARD_INGEST_SECRET }}
           PR_URL: ${{ needs.run-agent.outputs.pr_url }}
-        run: bash "$POST_BACK" result "$RUNNER_TEMP/agent-output/analysis.md" "$RUNNER_TEMP/agent-output/diff.patch"
+        run: echo "$POST_BACK_SHA256  $POST_BACK" | sha256sum --check --quiet - && bash "$POST_BACK" result "$RUNNER_TEMP/agent-output/analysis.md" "$RUNNER_TEMP/agent-output/diff.patch"
 
       - name: Report completion
         if: needs.run-agent.result == 'success'
         env:
           INGEST_URL: ${{ secrets.FEEDBACK_INGEST_URL }}
           INGEST_SECRET: ${{ secrets.FEEDBACK_BOARD_INGEST_SECRET }}
-        run: bash "$POST_BACK" status completed
+        run: echo "$POST_BACK_SHA256  $POST_BACK" | sha256sum --check --quiet - && bash "$POST_BACK" status completed
 
       - name: Report failure
         if: failure() || cancelled() || needs.run-agent.result != 'success'
         env:
           INGEST_URL: ${{ secrets.FEEDBACK_INGEST_URL }}
           INGEST_SECRET: ${{ secrets.FEEDBACK_BOARD_INGEST_SECRET }}
-        run: bash "$POST_BACK" status failed agent_failed
+        run: echo "$POST_BACK_SHA256  $POST_BACK" | sha256sum --check --quiet - && bash "$POST_BACK" status failed agent_failed
