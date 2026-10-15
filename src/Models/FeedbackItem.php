@@ -145,7 +145,11 @@ class FeedbackItem extends Model
     protected static function booted(): void
     {
         // Covers factories and host code too: the reporter's "last update" starts at creation.
-        static::creating(fn (FeedbackItem $item) => $item->reporter_activity_at ??= $item->freshTimestamp());
+        // Returns nothing: Eloquent fires `creating` through until(), and a returned value would stop
+        // every listener registered after this one (host observers, Filament hooks).
+        static::creating(function (FeedbackItem $item): void {
+            $item->reporter_activity_at ??= $item->freshTimestamp();
+        });
     }
 
     protected static function newFactory(): FeedbackItemFactory { return FeedbackItemFactory::new(); }
