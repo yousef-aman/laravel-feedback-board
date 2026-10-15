@@ -109,7 +109,7 @@ return [
 
         'default' => env('FEEDBACK_BOARD_AI_DRIVER', 'anthropic'),
 
-        'queue' => env('FEEDBACK_BOARD_AI_QUEUE'), // null = default queue
+        'queue' => env('FEEDBACK_BOARD_AI_QUEUE'), // queue for triage jobs; null or '' = the connection's default queue
 
         // Cache store whose lock guards the per-item ai_state (triage and runner).
         // null = app default. Same rule as destinations.lock_store: with several

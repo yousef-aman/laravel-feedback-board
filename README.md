@@ -307,7 +307,7 @@ Key configuration options in `config/feedback-board.php`:
 | `ingest.tolerance` | int | Timestamp drift tolerance in seconds (default: `300`); rate limiting is handled by the route (`throttle:60,1`) |
 | `ai.enabled` | bool | Enable AI triage (`FEEDBACK_BOARD_AI_ENABLED`, default: `false`) — see [AI Triage](#ai-triage-level-a) |
 | `ai.default` | string | Triage driver (`FEEDBACK_BOARD_AI_DRIVER`, default: `'anthropic'`) |
-| `ai.queue` | string\|null | Queue for triage jobs (`FEEDBACK_BOARD_AI_QUEUE`; `null` = default queue) |
+| `ai.queue` | string\|null | Queue the triage jobs are pushed to (`FEEDBACK_BOARD_AI_QUEUE`; `null` or empty = the connection's default queue); run a worker for it, e.g. `php artisan queue:work --queue=ai` |
 | `ai.lock_store` | string\|null | Cache store for the per-item AI triage and runner lock (`FEEDBACK_BOARD_AI_LOCK_STORE`; `null` = app default). With several servers, use a shared store |
 | `ai.max_input_chars` | int | Combined title and description budget sent to the model (default: `4000`) |
 | `ai.anthropic.*` | array | `api_key` (`FEEDBACK_BOARD_ANTHROPIC_KEY`), `model` (`FEEDBACK_BOARD_ANTHROPIC_MODEL`, default: `'claude-haiku-4-5'`), `timeout` (`30`), `max_tokens` (`1024`) |
