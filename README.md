@@ -355,6 +355,21 @@ an attempt. On the `sync` queue it is not retried. A delivery that still fails i
 sanitized code in `external_refs.{driver}_last_error` (never the raw error, URL, or token).
 Internal notes are never forwarded to any destination.
 
+### Ingest endpoint (inbound)
+
+Off by default (`FEEDBACK_BOARD_INGEST_ENABLED`). External systems, such as CI or your agent runner, POST JSON to `/feedback-board/ingest` (under your `route_prefix`), signed like the webhook: `X-Feedback-Timestamp` and `X-Feedback-Signature`, HMAC-SHA256 over `"{timestamp}.{rawBody}"` with `FEEDBACK_BOARD_INGEST_SECRET`. Each signature is accepted once.
+
+| `action` | Fields | Effect |
+|---|---|---|
+| `comment` | `item_id`, `body` | Adds a public AI comment; the reporter is notified |
+| `status` | `item_id`, `status` | Changes the report's status |
+| `external_ref` | `item_id`, `ref.key`, `ref.value` | Stores `external_refs[key] = value` |
+| `runner_status`, `runner_result` | see [`docs/runner-contract.md`](docs/runner-contract.md) | Runner post-back |
+
+`ref.key` must match `^[a-z][a-z0-9_.-]{0,63}$`. `github`, `pr_url` and keys ending in `_last_error` are reserved for the package. `ref.value` is a string of at most 2048 characters.
+
+Every answer has its real status: `200 {"ok":true}`; 403 (missing or bad signature, stale timestamp, replay); 404 (ingest disabled, unknown report); 409 (runner task mismatch); 422 (validation, with `errors`); 429 (more than 60 requests a minute); 503 (busy). Bodies are JSON. A host rule set with `shouldRenderJsonWhen()` can still turn the body of a 404 for an unknown report, a 409, 429 or 503 into HTML; the status stays. Re-sign before retrying. String values are trimmed of leading and trailing whitespace.
+
 ## AI Triage (Level A)
 
 Optional, in-app AI triage that suggests a **type** and **priority** and a short

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace YousefAman\FeedbackBoard\Http\Middleware;
 
 use Closure;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use YousefAman\FeedbackBoard\Destinations\Support\SignsPayloads;
@@ -15,22 +16,42 @@ class VerifyIngestSignature
 
     public function handle(Request $request, Closure $next): mixed
     {
-        abort_unless(config('feedback-board.ingest.enabled'), 404);
+        if (! config('feedback-board.ingest.enabled')) {
+            return self::deny(404, 'Not Found');
+        }
 
         $secret = (string) config('feedback-board.ingest.secret');
         $ts = (string) $request->header('X-Feedback-Timestamp', '');
         $sig = (string) $request->header('X-Feedback-Signature', '');
-        abort_if($secret === '' || $ts === '' || $sig === '', 403);
+
+        if ($secret === '' || $ts === '' || $sig === '') {
+            return self::deny(403, 'Missing signature');
+        }
 
         $tolerance = (int) config('feedback-board.ingest.tolerance', 300);
-        abort_if(abs(now()->timestamp - (int) $ts) > $tolerance, 403, 'Stale timestamp');
+
+        if (abs(now()->timestamp - (int) $ts) > $tolerance) {
+            return self::deny(403, 'Stale timestamp');
+        }
 
         $expected = $this->sign($ts, $request->getContent(), $secret);
-        abort_unless($this->verifySignature($expected, $sig), 403, 'Bad signature');
+
+        if (! $this->verifySignature($expected, $sig)) {
+            return self::deny(403, 'Bad signature');
+        }
 
         $nonceKey = 'feedback-board:ingest:'.$sig;
-        abort_unless(Cache::add($nonceKey, true, $tolerance), 403, 'Replay');
+
+        if (! Cache::add($nonceKey, true, $tolerance)) {
+            return self::deny(403, 'Replay');
+        }
 
         return $next($request);
+    }
+
+    /** Answered here as JSON, so the host's exception rendering cannot change it. */
+    private static function deny(int $status, string $message): JsonResponse
+    {
+        return response()->json(['message' => $message], $status);
     }
 }

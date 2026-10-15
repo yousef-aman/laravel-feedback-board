@@ -137,7 +137,7 @@ After running the agent, your CI job posts results back to the package's signed 
 endpoint: `POST {ingest_url}`.
 
 **Prerequisite:** `ingest.enabled` must be `true` in `config/feedback-board.php`. Post-back
-calls are rejected with `403` if the ingest endpoint is disabled.
+calls get `404` while the ingest endpoint is disabled.
 
 ### 4.1 Signing post-back calls
 
@@ -152,6 +152,8 @@ Include the same three headers:
 - `X-Feedback-Timestamp: {unix_ts}`
 - `X-Feedback-Signature: {hex_hmac}`
 - `Content-Type: application/json`
+
+**Responses.** The endpoint answers with its real status and a JSON body: `200 {"ok":true}`; 403 (missing or bad signature, stale timestamp, replay); 404 (ingest disabled, unknown item); 409 (`task_id` mismatch); 422 (validation; the body lists `errors`); 429 (more than 60 requests a minute); 503 (busy, for example a lock held by a GitHub delivery). Retry 429, 503 and connection errors with a **fresh timestamp and signature**: a signature is accepted once. String values are trimmed of leading and trailing whitespace. [`examples/runner/post-back.sh`](examples/runner/post-back.sh) does all of this.
 
 ### 4.2 Action: `runner_status`
 
@@ -202,8 +204,8 @@ post a result, though doing so is harmless and recommended for clarity.
 | `action` | string | yes | Must be `"runner_result"` |
 | `item_id` | int | yes | The feedback item ID from the envelope |
 | `task_id` | string | yes | Echo the `task_id` from the dispatch envelope verbatim |
-| `analysis` | string | no | Free-text analysis from the agent |
-| `diff` | string | no | Unified diff produced by the agent |
+| `analysis` | string | no | Free-text analysis from the agent; at most `runner.max_analysis_chars` (10,000) characters. A longer one is rejected with 422, not truncated |
+| `diff` | string | no | Unified diff produced by the agent; at most `runner.max_diff_chars` (20,000) characters. A longer one is rejected with 422 |
 | `pr_url` | string | no | URL of an opened pull request |
 
 **`pr_url` security constraint:** If provided, `pr_url` MUST be an `https` URL with no
