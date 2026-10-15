@@ -14,3 +14,7 @@ it('ships the runner contract docs and reference recipe', function () {
 
     expect(file_get_contents($root.'/README.md'))->toContain('AI Runner Contract');
 });
+
+it('ships the reference post-back script', function () {
+    expect(file_exists(dirname(__DIR__, 3).'/docs/examples/runner/post-back.sh'))->toBeTrue();
+});

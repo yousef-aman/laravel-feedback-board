@@ -1,4 +1,8 @@
+# Reference GitHub Actions workflow for the Feedback Board agent runner (docs/runner-contract.md).
+# receiver.example.php turns the package's signed task into this repository_dispatch.
+# Copy post-back.sh into this repository as .github/scripts/feedback-post-back.sh.
 name: Feedback Runner
+
 on:
   repository_dispatch:
     types: [feedback_task]
@@ -9,37 +13,51 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    env:
+      # Pass every value through env. Never write ${{ … }} inside a run: script (expression injection).
+      # The ingest secret is given only to the post-back steps, never to the agent: the agent reads
+      # reporter-written text, and a prompt-injected agent holding the secret could sign any ingest call.
+      ITEM_ID: ${{ github.event.client_payload.item.id }}
+      TASK_ID: ${{ github.event.client_payload.task_id }}
+      POST_BACK: .github/scripts/feedback-post-back.sh
     steps:
       - uses: actions/checkout@v4
 
+      - name: Report that the agent started
+        env:
+          INGEST_URL: ${{ secrets.FEEDBACK_INGEST_URL }}
+          INGEST_SECRET: ${{ secrets.FEEDBACK_BOARD_INGEST_SECRET }}
+        run: bash "$POST_BACK" status running
+
       - name: Run the coding agent (Claude Code Action or your tool of choice)
         id: agent
+        timeout-minutes: 25 # below feedback-board.runner.stale_after (30 minutes by default)
         env:
           ITEM_TITLE: ${{ github.event.client_payload.item.title }}
           ITEM_DESC: ${{ github.event.client_payload.item.description }}
         run: |
-          # ... run your agent here; produce $GITHUB_OUTPUT: analysis, diff, pr_url ...
-          echo "analysis=Investigated; root cause in X." >> "$GITHUB_OUTPUT"
+          # Run your agent here. It writes:
+          #   - its analysis to "$RUNNER_TEMP/analysis.md" (at most 10,000 characters),
+          #   - an optional unified diff to "$RUNNER_TEMP/diff.patch" (at most 20,000 characters),
+          #   - the pull request link, if it opened one: echo "pr_url=https://…" >> "$GITHUB_OUTPUT"
+          echo "Replace this step with your agent." > "$RUNNER_TEMP/analysis.md"
 
-      - name: Post results back to the feedback board (signed ingest)
+      - name: Post the result
         env:
           INGEST_URL: ${{ secrets.FEEDBACK_INGEST_URL }}
           INGEST_SECRET: ${{ secrets.FEEDBACK_BOARD_INGEST_SECRET }}
-          ITEM_ID: ${{ github.event.client_payload.item.id }}
-          TASK_ID: ${{ github.event.client_payload.task_id }}
-          ANALYSIS: ${{ steps.agent.outputs.analysis }}
           PR_URL: ${{ steps.agent.outputs.pr_url }}
-        run: |
-          post() {
-            BODY="$1"
-            TS=$(date +%s)
-            SIG=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "$INGEST_SECRET" | awk '{print $2}')
-            curl -sS -X POST "$INGEST_URL" \
-              -H "Content-Type: application/json" \
-              -H "X-Feedback-Timestamp: $TS" \
-              -H "X-Feedback-Signature: $SIG" \
-              --data "$BODY"
-          }
-          post "{\"item_id\":$ITEM_ID,\"action\":\"runner_status\",\"task_id\":\"$TASK_ID\",\"status\":\"running\"}"
-          post "{\"item_id\":$ITEM_ID,\"action\":\"runner_result\",\"task_id\":\"$TASK_ID\",\"analysis\":\"$ANALYSIS\",\"pr_url\":\"$PR_URL\"}"
-          post "{\"item_id\":$ITEM_ID,\"action\":\"runner_status\",\"task_id\":\"$TASK_ID\",\"status\":\"completed\"}"
+        run: bash "$POST_BACK" result "$RUNNER_TEMP/analysis.md" "$RUNNER_TEMP/diff.patch"
+
+      - name: Report completion
+        env:
+          INGEST_URL: ${{ secrets.FEEDBACK_INGEST_URL }}
+          INGEST_SECRET: ${{ secrets.FEEDBACK_BOARD_INGEST_SECRET }}
+        run: bash "$POST_BACK" status completed
+
+      - name: Report failure
+        if: failure() || cancelled()
+        env:
+          INGEST_URL: ${{ secrets.FEEDBACK_INGEST_URL }}
+          INGEST_SECRET: ${{ secrets.FEEDBACK_BOARD_INGEST_SECRET }}
+        run: bash "$POST_BACK" status failed agent_failed

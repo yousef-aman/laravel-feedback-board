@@ -441,6 +441,7 @@ post-back actions, security requirements, and a worked end-to-end example) see
 Reference implementations:
 - [`docs/examples/runner/receiver.example.php`](docs/examples/runner/receiver.example.php) — minimal HMAC-verifying PHP receiver
 - [`docs/examples/runner/github-actions-feedback-runner.example.yml`](docs/examples/runner/github-actions-feedback-runner.example.yml) — GitHub Actions workflow
+- [`docs/examples/runner/post-back.sh`](docs/examples/runner/post-back.sh) — signed, retrying post-back sender the workflow calls
 
 ## Roadmap
 

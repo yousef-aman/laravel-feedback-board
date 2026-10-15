@@ -328,3 +328,4 @@ diff, and a link to PR #42. Developer reviews the PR, applies it if appropriate.
 
 - Reference receiver: [`docs/examples/runner/receiver.example.php`](examples/runner/receiver.example.php)
 - Reference workflow: [`docs/examples/runner/github-actions-feedback-runner.example.yml`](examples/runner/github-actions-feedback-runner.example.yml)
+- Reference post-back sender: [`docs/examples/runner/post-back.sh`](examples/runner/post-back.sh) (`jq`-built bodies, retries 429/503 with a fresh signature)
