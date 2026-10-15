@@ -41,8 +41,9 @@ curl_setopt_array($ch, [
         JSON_THROW_ON_ERROR,
     ),
     CURLOPT_RETURNTRANSFER => true,
-    // Below the package's runner.timeout (8 s): the package must never give up on a dispatch that
-    // GitHub then accepts, or its retry would start the agent twice.
+    // Below the package's runner.timeout (8 s), so the package never gives up first. If GitHub
+    // accepts the dispatch but answers after 6 s, this receiver answers 502 and the package's retry
+    // can start the agent a second time for the same task.
     CURLOPT_CONNECTTIMEOUT => 3,
     CURLOPT_TIMEOUT => 6,
 ]);

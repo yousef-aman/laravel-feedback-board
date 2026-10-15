@@ -1,27 +1,33 @@
 # Reference GitHub Actions workflow for the Feedback Board agent runner (docs/runner-contract.md).
 # receiver.example.php turns the package's signed task into this repository_dispatch.
 # Copy post-back.sh into this repository as .github/scripts/feedback-post-back.sh.
+#
+# The agent runs in a job that never references the ingest secret. The agent reads reporter-written
+# text, and a prompt-injected agent can read any secret its job's runner holds, or change files and
+# environment that later steps of the same job use. Only report-start and post-back, which run no agent
+# code, get the secret; post-back runs on a fresh machine with the script from the dispatched commit.
+# Pass every value through env. Never write ${{ … }} inside a run: script (expression injection).
 name: Feedback Runner
 
 on:
   repository_dispatch:
     types: [feedback_task]
 
+env:
+  ITEM_ID: ${{ github.event.client_payload.item.id }}
+  TASK_ID: ${{ github.event.client_payload.task_id }}
+  POST_BACK: .github/scripts/feedback-post-back.sh
+
 jobs:
-  run-agent:
+  report-start:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      pull-requests: write
-    env:
-      # Pass every value through env. Never write ${{ … }} inside a run: script (expression injection).
-      # The ingest secret is given only to the post-back steps, never to the agent: the agent reads
-      # reporter-written text, and a prompt-injected agent holding the secret could sign any ingest call.
-      ITEM_ID: ${{ github.event.client_payload.item.id }}
-      TASK_ID: ${{ github.event.client_payload.task_id }}
-      POST_BACK: .github/scripts/feedback-post-back.sh
+      contents: read
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          sparse-checkout: .github/scripts
 
       - name: Report that the agent started
         env:
@@ -29,34 +35,74 @@ jobs:
           INGEST_SECRET: ${{ secrets.FEEDBACK_BOARD_INGEST_SECRET }}
         run: bash "$POST_BACK" status running
 
+  run-agent:
+    needs: report-start
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      pr_url: ${{ steps.agent.outputs.pr_url }}
+    steps:
+      - uses: actions/checkout@v4
+
       - name: Run the coding agent (Claude Code Action or your tool of choice)
         id: agent
-        timeout-minutes: 25 # below feedback-board.runner.stale_after (30 minutes by default)
+        timeout-minutes: 20 # with the jobs' start-up time, below feedback-board.runner.stale_after (30 minutes by default)
         env:
           ITEM_TITLE: ${{ github.event.client_payload.item.title }}
           ITEM_DESC: ${{ github.event.client_payload.item.description }}
         run: |
+          mkdir -p "$RUNNER_TEMP/agent-output"
           # Run your agent here. It writes:
-          #   - its analysis to "$RUNNER_TEMP/analysis.md" (at most 10,000 characters),
-          #   - an optional unified diff to "$RUNNER_TEMP/diff.patch" (at most 20,000 characters),
+          #   - its analysis to "$RUNNER_TEMP/agent-output/analysis.md" (at most 10,000 characters),
+          #   - an optional unified diff to "$RUNNER_TEMP/agent-output/diff.patch" (at most 20,000 characters),
           #   - the pull request link, if it opened one: echo "pr_url=https://…" >> "$GITHUB_OUTPUT"
-          echo "Replace this step with your agent." > "$RUNNER_TEMP/analysis.md"
+          echo "Replace this step with your agent." > "$RUNNER_TEMP/agent-output/analysis.md"
+
+      - name: Hand the agent's output to the post-back job
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-output
+          path: ${{ runner.temp }}/agent-output/
+          retention-days: 1
+
+  post-back:
+    needs: run-agent
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        if: always()
+        with:
+          ref: ${{ github.sha }}
+          sparse-checkout: .github/scripts
+
+      - uses: actions/download-artifact@v4
+        if: needs.run-agent.result == 'success'
+        with:
+          name: agent-output
+          path: ${{ runner.temp }}/agent-output
 
       - name: Post the result
+        if: needs.run-agent.result == 'success'
         env:
           INGEST_URL: ${{ secrets.FEEDBACK_INGEST_URL }}
           INGEST_SECRET: ${{ secrets.FEEDBACK_BOARD_INGEST_SECRET }}
-          PR_URL: ${{ steps.agent.outputs.pr_url }}
-        run: bash "$POST_BACK" result "$RUNNER_TEMP/analysis.md" "$RUNNER_TEMP/diff.patch"
+          PR_URL: ${{ needs.run-agent.outputs.pr_url }}
+        run: bash "$POST_BACK" result "$RUNNER_TEMP/agent-output/analysis.md" "$RUNNER_TEMP/agent-output/diff.patch"
 
       - name: Report completion
+        if: needs.run-agent.result == 'success'
         env:
           INGEST_URL: ${{ secrets.FEEDBACK_INGEST_URL }}
           INGEST_SECRET: ${{ secrets.FEEDBACK_BOARD_INGEST_SECRET }}
         run: bash "$POST_BACK" status completed
 
       - name: Report failure
-        if: failure() || cancelled()
+        if: failure() || cancelled() || needs.run-agent.result != 'success'
         env:
           INGEST_URL: ${{ secrets.FEEDBACK_INGEST_URL }}
           INGEST_SECRET: ${{ secrets.FEEDBACK_BOARD_INGEST_SECRET }}
