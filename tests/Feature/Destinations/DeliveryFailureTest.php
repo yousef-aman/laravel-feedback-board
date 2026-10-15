@@ -87,3 +87,27 @@ it('retries a failing delivery after 30 s, 2 min and 5 min on a real queue, then
         ->and($failed)->toBe(1)
         ->and($item->fresh()->external_refs['webhook_last_error']['code'] ?? null)->toBe('http_5xx');
 });
+
+it('reports a raw Guzzle transfer error without its URL', function () {
+    config()->set('queue.default', 'sync');
+    config()->set('feedback-board.destinations.enabled', ['webhook']);
+    // Before Laravel 12.34 the HTTP client lets non-connect cURL errors out as raw Guzzle exceptions.
+    app(\YousefAman\FeedbackBoard\Destinations\DestinationManager::class)->extend('webhook', fn () => new class implements \YousefAman\FeedbackBoard\Destinations\Contracts\Destination
+    {
+        public function send(FeedbackItem $item, object $event, string $deliveryId): void
+        {
+            throw new \GuzzleHttp\Exception\RequestException(
+                'cURL error 56: Recv failure: Connection reset by peer for https://hooks.example.test/SECRETTOKEN',
+                new \GuzzleHttp\Psr7\Request('POST', 'https://hooks.example.test/SECRETTOKEN'),
+            );
+        }
+    });
+
+    app(CreateFeedbackItem::class)->handle(['title' => 'Kept', 'type' => FeedbackType::Bug], null);
+
+    $item = FeedbackItem::where('title', 'Kept')->first();
+    expect($item->external_refs['webhook_last_error']['code'] ?? null)->toBe('connection_error');
+    Exceptions::assertReportedCount(1);
+    Exceptions::assertReported(fn (DeliveryFailed $e) => $e->errorCode === 'connection_error'
+        && $e->getPrevious() === null && ! str_contains((string) $e, 'SECRETTOKEN'));
+});

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace YousefAman\FeedbackBoard\Jobs;
 
 use DateTimeInterface;
+use GuzzleHttp\Exception\TransferException;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -66,6 +67,9 @@ class DeliverToDestination implements ShouldQueue
             $this->release($e->seconds);
         } catch (ConnectionException) {
             // Its message ends with the URL: never let it reach a log or failed_jobs.
+            throw new DeliveryFailed($this->driver, 'connection_error');
+        } catch (TransferException) {
+            // Before Laravel 12.34 other cURL errors arrive raw from Guzzle, their message ending with the URL too.
             throw new DeliveryFailed($this->driver, 'connection_error');
         } catch (InvalidArgumentException) {
             // An unparsable configured URL (Guzzle's MalformedUriException) names the whole URL too.
