@@ -26,8 +26,8 @@ class DispatchToRunner
         try {
             RunnerState::lock($item->id, function (FeedbackItem $fresh) use (&$taskId) {
                 $runner = $fresh->ai_state['runner'] ?? [];
-                if (in_array($runner['status'] ?? null, ['dispatched', 'running'], true)) {
-                    return; // silent debounce — leaves $taskId null
+                if (! RunnerState::canDispatch($runner)) {
+                    return; // silent debounce while a fresh task is in flight — leaves $taskId null
                 }
                 $taskId = (string) Str::uuid();
                 RunnerState::merge($fresh, [

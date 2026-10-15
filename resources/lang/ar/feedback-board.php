@@ -102,6 +102,7 @@ return [
         'diff' => 'التعديل المقترح',
         'view_result' => 'عرض نتيجة الوكيل',
         'ingest_disabled' => 'الاستقبال (ingest) معطّل — سيفشل ردّ الوكيل. فعّل ingest في feedback-board.',
+        'stale' => 'لا تحديث منذ :time — ربما توقف الوكيل.',
     ],
     'reports' => [
         'subheading' => 'تابع بلاغاتك وردود فريق الدعم الفني',

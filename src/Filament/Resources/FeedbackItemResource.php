@@ -15,6 +15,7 @@ use YousefAman\FeedbackBoard\Actions\SendItemToGithub;
 use YousefAman\FeedbackBoard\Enums\{FeedbackPriority, FeedbackStatus, FeedbackType};
 use YousefAman\FeedbackBoard\Facades\FeedbackBoard;
 use YousefAman\FeedbackBoard\Runner\Support\RunnerGate;
+use YousefAman\FeedbackBoard\Runner\Support\RunnerState;
 use YousefAman\FeedbackBoard\Triage\Support\TriageGate;
 use YousefAman\FeedbackBoard\Filament\Resources\FeedbackItemResource\Pages\ListFeedbackItems;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
@@ -136,7 +137,7 @@ class FeedbackItemResource extends Resource
                     FeedbackItemPolicy::isDeveloper(FeedbackBoard::user())
                     && RunnerGate::configured()
                     && (bool) config('feedback-board.ingest.enabled')
-                    && ! in_array(($record->ai_state['runner']['status'] ?? null), ['dispatched', 'running'], true))
+                    && RunnerState::canDispatch($record->ai_state['runner'] ?? null))
                 ->action(fn (FeedbackItem $record) =>
                     // Hard authorization lives inside DispatchToRunner::handle() (abort_unless).
                     app(DispatchToRunner::class)->handle($record, FeedbackBoard::user())),
