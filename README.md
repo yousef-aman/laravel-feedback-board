@@ -135,6 +135,8 @@ Then add `'database'` to `notifications.channels` in `config/feedback-board.php`
 
 Notifications are sent, and destination deliveries (webhook, Slack, GitHub) queued, only after the report, reply or status change is saved. If sending or queueing fails (for example, the mail server is down, or a Slack outage on the `sync` queue), the failure is reported to your exception handler and the user's action is still kept.
 
+**Who is told what.** A new report and a reporter's reply notify your developers; the reply's notification names the report (`Reporter replied: {title}`, with its number). A developer's or the AI's public reply, and the Resolved status, notify the reporter. Text a reporter wrote is escaped in e-mails (Markdown), the Filament bell (HTML) and Slack (`<`, `>` and `&`); the webhook payload and GitHub issues and comments carry it unchanged. In the plain-text part of an e-mail, the escaping shows as a backslash before characters such as `[` or `*`. The new-report database notification's `feedback_title` key holds the raw report title.
+
 ### Choosing who can report
 
 Every signed-in user may report until you say otherwise. Register a resolver in `AppServiceProvider::boot()`:

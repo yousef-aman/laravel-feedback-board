@@ -8,6 +8,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use YousefAman\FeedbackBoard\Models\FeedbackComment;
+use YousefAman\FeedbackBoard\Support\MailText;
 
 class FeedbackRepliedNotification extends Notification
 {
@@ -30,7 +31,7 @@ class FeedbackRepliedNotification extends Notification
 
         return (new MailMessage)
             ->subject(__('feedback-board::feedback-board.mail.reply_subject'))
-            ->line($body !== '' ? $body : __('feedback-board::feedback-board.mail.reply_images'));
+            ->line($body !== '' ? MailText::escape($body) : __('feedback-board::feedback-board.mail.reply_images'));
     }
 
     public function toArray(object $notifiable): array

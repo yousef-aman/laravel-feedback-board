@@ -8,6 +8,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
+use YousefAman\FeedbackBoard\Support\MailText;
 
 class NewFeedbackNotification extends Notification
 {
@@ -29,17 +30,18 @@ class NewFeedbackNotification extends Notification
         return (new MailMessage)
             ->subject(__('feedback-board::feedback-board.mail.new_subject', ['title' => $this->item->title]))
             ->line(__('feedback-board::feedback-board.mail.new_line'))
-            ->line($this->item->title);
+            ->line(MailText::escape($this->item->title));
     }
 
     public function toArray(object $notifiable): array
     {
-        $payload = ['feedback_item_id' => $this->item->id, 'title' => $this->item->title, 'kind' => 'new'];
+        // `feedback_title`, not `title`: Filament's own `title` wins in `getDatabaseMessage() + $payload`.
+        $payload = ['feedback_item_id' => $this->item->id, 'feedback_title' => $this->item->title, 'kind' => 'new'];
 
         // Filament's bell only renders rows carrying format:'filament' (see Global Constraints).
         if (class_exists(\Filament\Notifications\Notification::class)) {
             return \Filament\Notifications\Notification::make()
-                ->title(__('feedback-board::feedback-board.mail.new_subject', ['title' => $this->item->title]))
+                ->title(__('feedback-board::feedback-board.mail.new_subject', ['title' => e($this->item->title)]))
                 ->getDatabaseMessage() + $payload;
         }
 
