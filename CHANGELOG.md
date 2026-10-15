@@ -54,6 +54,7 @@ These notes apply only to apps that installed the package from its development b
 - **Standalone theme.** With `ui.theme` set to `class`, the standalone pages are now light, because no host page sets the `dark` class there. Set `FEEDBACK_BOARD_THEME=system` to follow the operating system as before.
 - **Resolver results.** A resolver result other than `true`/`false`, `1`/`0`, `'1'`/`'0'`, `null` or a gate `Response` now denies and is reported. Strings such as `''` or `'0.0'` used to grant or deny silently, and a count now denies from 2, so return `->exists()`.
 - **Developer guards on a custom driver.** A developer guard whose provider uses a custom driver (such as `eloquent-webauthn`) and names an Eloquent model class now has developers; before, it had none and logged a warning.
+- **Comment attachments.** The `feedback_attachments.feedback_comment_id` foreign key is now `cascadeOnDelete` (it was `nullOnDelete`). Change the key in your database, or re-create the table, so that deleting a comment can never move its images onto the report.
 
 [Unreleased]: https://github.com/yousef-aman/laravel-feedback-board/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/yousef-aman/laravel-feedback-board/releases/tag/v1.0.0

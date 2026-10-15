@@ -28,8 +28,7 @@ class FeedbackComment extends Model
 
     protected static function booted(): void
     {
-        // Without this the nullOnDelete foreign key would turn a deleted (possibly internal)
-        // comment's images into report-level attachments.
+        // The foreign key deletes a comment's attachment rows; only this hook deletes their files.
         static::deleting(function (FeedbackComment $comment) {
             $comment->removedFiles = $comment->attachments()->get(['id', 'disk', 'path'])
                 ->map(fn (FeedbackAttachment $attachment) => [$attachment->disk, $attachment->path])

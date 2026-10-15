@@ -316,7 +316,7 @@ Key configuration options in `config/feedback-board.php`:
 | `runner.callback_url` | string\|null | Optional ingest URL placed in the task envelope (`FEEDBACK_RUNNER_CALLBACK_URL`) |
 | `runner.stale_after` | int | Seconds before the UI marks a running task as possibly stale (default: `1800`) |
 
-**Attachments and images.** Reports and comments can both carry files. Comments (from reporters and developers, internal notes included) take images only: JPEG, PNG, GIF and WebP, within `allowed_mimes`. Those images show inline and in a preview; every other file, SVG included, downloads. An internal note's images are served to developers only. Deleting a comment deletes its files. Deleting a whole report removes its rows through the database cascade, which runs no model events, so its files stay on the disk under `attachments.directory/{report id}`; delete that directory yourself.
+**Attachments and images.** Reports and comments can both carry files. Comments (from reporters and developers, internal notes included) take images only: JPEG, PNG, GIF and WebP, within `allowed_mimes`. Those images show inline and in a preview; every other file, SVG included, downloads. An internal note's images are served to developers only. Deleting a comment through its model (`$comment->delete()`) deletes its attachment rows and files. A delete that skips model events (`->delete()` on a query, `DB::table()` or raw SQL) still removes the rows through the foreign key, but leaves the files on the disk, like a deleted report. Deleting a whole report removes its rows through the database cascade, which runs no model events, so its files stay on the disk under `attachments.directory/{report id}`; delete that directory yourself.
 
 ## Destinations (outbound)
 

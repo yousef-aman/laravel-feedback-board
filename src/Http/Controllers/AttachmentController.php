@@ -26,7 +26,9 @@ class AttachmentController
         // Any session signed in in this browser may open what it is allowed to see: a client's own
         // images must not 403 because the browser also holds a staff session. Internal notes are
         // developer-only, and so are their images.
-        $internal = (bool) $attachment->comment?->is_internal;
+        // An attachment whose comment can no longer be loaded is treated as internal: fail closed.
+        $internal = $attachment->feedback_comment_id !== null
+            && ($attachment->comment?->is_internal ?? true);
 
         abort_unless(collect(app(FeedbackBoard::class)->recognisedUsers())->contains(
             fn (array $entry): bool => Gate::forUser($entry['user'])->allows('view', $attachment->item)
