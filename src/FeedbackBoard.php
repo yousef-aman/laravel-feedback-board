@@ -241,9 +241,11 @@ class FeedbackBoard
     }
 
     /**
-     * Strict boolean from whatever a resolver returned. A Response is honoured; any other
-     * object or array (a Collection, an unexecuted query) is truthy in PHP but is not an
-     * answer, so it denies. Scalars and null keep their usual meaning (1, '1', 0).
+     * Strict boolean from whatever a resolver returned:
+     * - true, 1 and '1' allow; false, 0, '0' and null deny;
+     * - a gate Response answers through allowed();
+     * - anything else (another string such as 'N' or 'false', another number, an object, an array)
+     *   is not an answer: it denies and is reported once. The report names the type, never the value.
      */
     protected function normalise(mixed $result, string $resolver = 'developer'): bool
     {
@@ -251,15 +253,19 @@ class FeedbackBoard
             return $result->allowed();
         }
 
-        if (is_object($result) || is_array($result)) {
-            $this->reportOnce('unexpected-result-'.$resolver, new UnexpectedValueException(
-                'A '.$resolver.' resolver returned '.get_debug_type($result).'; it must return a bool. Access was denied.'
-            ));
+        if ($result === true || $result === 1 || $result === '1') {
+            return true;
+        }
 
+        if ($result === false || $result === 0 || $result === '0' || $result === null) {
             return false;
         }
 
-        return (bool) $result;
+        $this->reportOnce('unexpected-result-'.$resolver, new UnexpectedValueException(
+            'A '.$resolver.' resolver returned '.get_debug_type($result).'; it must return a bool. Access was denied.'
+        ));
+
+        return false;
     }
 
     /** Report each distinct problem once per instance, so a bad config cannot flood the error tracker. */

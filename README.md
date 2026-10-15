@@ -158,7 +158,7 @@ A user who may not report keeps their earlier reports:
 | Sending a report | yes | 403 | 403 |
 | Opening their reports and replying, with images | yes | yes | — |
 
-`FeedbackBoard::canReport($user)` answers through the `feedback-board.report` gate, so `Gate::before()` hooks apply, and a guest is never a reporter. A `Gate::before()` hook that returns `false` for abilities it does not know therefore hides the launcher. A resolver that throws, or returns something other than a boolean, denies and is reported to your exception handler once; it never breaks the page. The same holds for the developer resolver.
+`FeedbackBoard::canReport($user)` answers through the `feedback-board.report` gate, so `Gate::before()` hooks apply, and a guest is never a reporter. A `Gate::before()` hook that returns `false` for abilities it does not know therefore hides the launcher. A resolver returns a boolean; `1` and `'1'` also allow, and `0`, `'0'` and `null` also deny. Any other value (another string such as `'N'` or `'false'`, another number, an object or an array) denies and is reported to your exception handler once, and so does a resolver that throws; it never breaks the page. A count is not a boolean: return `->exists()`, not `->count()`. The same holds for the developer resolver.
 
 ## Filament Integration
 
