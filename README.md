@@ -231,7 +231,7 @@ By default the package sees the user of the guard in use: inside a Filament pane
 
 The package ships with English (`en`) and Arabic (`ar`) translations. The Arabic locale sets `dir` to `rtl`. Pass the direction value to your layout's `<html>` tag as shown in the usage example above.
 
-Supported locales: `en`, `ar`. Add more by publishing translations and creating your own locale directory under `resources/lang/vendor/feedback-board/`.
+Supported locales: `en`, `ar`. Add more by publishing translations (`php artisan vendor:publish --tag=feedback-board-translations`) and creating your own locale directory under `lang/vendor/feedback-board/`, for example `lang/vendor/feedback-board/fr/feedback-board.php`. Do not create `resources/lang`: once that directory exists, Laravel loads all of your app's translations from it instead of `lang/`.
 
 ## Styling & theming
 
