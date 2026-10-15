@@ -24,6 +24,10 @@ class FeedbackItemResource extends Resource
 {
     protected static ?string $model = FeedbackItem::class;
 
+    // Reports belong to the app, not to a tenant. FeedbackItem has no ownership relationship, so
+    // Filament's tenancy scope would throw on every query in a panel with ->tenant(...).
+    protected static bool $isScopedToTenant = false;
+
     public static function canViewAny(): bool
     {
         return FeedbackItemPolicy::isDeveloper(FeedbackBoard::user());

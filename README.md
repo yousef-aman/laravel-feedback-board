@@ -186,6 +186,8 @@ $panel->plugin(FeedbackBoardPlugin::make()->myReports(false));
 
 **Colours.** Inside a panel the package follows the panel's primary colour, in light and dark mode, with readable text on it (white, or the colour's darkest shade for a light primary such as amber). Your own `--fb-accent` properties still win.
 
+**Tenant panels.** On a panel with `->tenant(...)`, the package's pages live under `/{panel}/{tenant}/…`, and reports are not scoped to a tenant: developers see every report whatever the tenant, while each reporter still sees only their own. Developer access is app-wide too, so a developer resolver that grants per-tenant admins lets them read the reports of every tenant. On a page of the panel that has no tenant (the profile page, tenant registration), the launcher links the standalone "My reports" page.
+
 ### Reporters who use a Filament panel
 
 If your reporters work inside a Filament panel rather than a custom layout, render the launcher through a render hook in that panel's provider:
