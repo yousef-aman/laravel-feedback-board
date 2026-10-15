@@ -79,7 +79,8 @@ it('keeps the report when a destination delivery fails on the sync queue', funct
     $item = FeedbackItem::where('title', 'Kept')->first();
     expect($item)->not->toBeNull()
         ->and($item->external_refs['slack_last_error']['code'] ?? null)->toBe('connection_error');
-    Exceptions::assertReported(\Illuminate\Http\Client\ConnectionException::class);
+    // Reported as the URL-free DeliveryFailed, never as the raw ConnectionException.
+    Exceptions::assertReported(\YousefAman\FeedbackBoard\Destinations\Exceptions\DeliveryFailed::class);
 });
 
 it('keeps the report when AI triage fails on the sync queue', function () {

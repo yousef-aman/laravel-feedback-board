@@ -8,10 +8,13 @@ use DateTimeInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\Cache;
+use InvalidArgumentException;
 use Throwable;
 use YousefAman\FeedbackBoard\Destinations\DestinationManager;
+use YousefAman\FeedbackBoard\Destinations\Exceptions\DeliveryFailed;
 use YousefAman\FeedbackBoard\Destinations\Exceptions\RetryAfter;
 use YousefAman\FeedbackBoard\Destinations\Support\DeliveryError;
 use YousefAman\FeedbackBoard\Destinations\Support\DestinationEvent;
@@ -35,6 +38,18 @@ class DeliverToDestination implements ShouldQueue
         return now()->addMinutes(15);
     }
 
+    /**
+     * Seconds before attempts 2, 3 and 4 (the last value repeats). Picked by attempt number, so a
+     * RetryAfter release uses one up; with $maxExceptions = 4 a failing delivery gives up after its
+     * 4th error. The job's backoff() overrides `queue:work --backoff`.
+     *
+     * @return array<int, int>
+     */
+    public function backoff(): array
+    {
+        return [30, 120, 300];
+    }
+
     public function handle(DestinationManager $manager): void
     {
         $item = DestinationEvent::item($this->event);
@@ -42,10 +57,19 @@ class DeliverToDestination implements ShouldQueue
             return; // item/comment deleted between enqueue and processing — no-op, no retry
         }
 
+        // Resolved outside the try: an unknown driver name is a configuration error, not invalid_url.
+        $driver = $manager->driver($this->driver);
+
         try {
-            $manager->driver($this->driver)->send($item, $this->event, $this->deliveryId);
+            $driver->send($item, $this->event, $this->deliveryId);
         } catch (RetryAfter $e) {
             $this->release($e->seconds);
+        } catch (ConnectionException) {
+            // Its message ends with the URL: never let it reach a log or failed_jobs.
+            throw new DeliveryFailed($this->driver, 'connection_error');
+        } catch (InvalidArgumentException) {
+            // An unparsable configured URL (Guzzle's MalformedUriException) names the whole URL too.
+            throw new DeliveryFailed($this->driver, 'invalid_url');
         }
     }
 

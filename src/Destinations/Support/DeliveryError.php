@@ -7,6 +7,7 @@ namespace YousefAman\FeedbackBoard\Destinations\Support;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Throwable;
+use YousefAman\FeedbackBoard\Destinations\Exceptions\DeliveryFailed;
 
 final class DeliveryError
 {
@@ -17,6 +18,10 @@ final class DeliveryError
      */
     public static function code(Throwable $e): string
     {
+        if ($e instanceof DeliveryFailed) {
+            return $e->errorCode; // connection_error or invalid_url, set by DeliverToDestination
+        }
+
         if ($e instanceof ConnectionException) {
             return 'connection_error';
         }

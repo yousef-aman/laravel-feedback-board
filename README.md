@@ -333,7 +333,7 @@ the signature against the **raw request body** before trusting it. A reply that 
 
 ### Slack
 Create an Incoming Webhook, set `FEEDBACK_SLACK_WEBHOOK_URL`, add `'slack'` to
-`destinations.enabled`. The webhook URL is a secret — it is never logged or stored in error state.
+`destinations.enabled`. The webhook URL is a secret: the package never puts it in its exceptions, its error state or failed jobs. A connection error is reported as `connection_error`, and an unparsable URL as `invalid_url`. Laravel's own HTTP client events still carry the request, so a tool that records them (Telescope, Nightwatch) can store the URL.
 
 ### GitHub Issues
 Set `FEEDBACK_GITHUB_TOKEN` (a **fine-grained PAT** scoped to a single repo with
@@ -349,9 +349,11 @@ must be shared by every worker that can deliver: `file` only coordinates workers
 so with several servers use `redis`, `memcached`, `dynamodb` or `database`. The `array` store
 is process-local (no cross-worker protection).
 
-Delivery failures are isolated per destination, retried with backoff for up to 15 minutes,
-and recorded as a sanitized code in `external_refs.{driver}_last_error` (never the raw error,
-URL, or token). Internal notes are never forwarded to any destination.
+Delivery failures are isolated per destination. On a real queue, a failed delivery is retried
+after 30 seconds, 2 minutes and 5 minutes, within 15 minutes; a GitHub rate-limit wait counts as
+an attempt. On the `sync` queue it is not retried. A delivery that still fails is recorded as a
+sanitized code in `external_refs.{driver}_last_error` (never the raw error, URL, or token).
+Internal notes are never forwarded to any destination.
 
 ## AI Triage (Level A)
 
