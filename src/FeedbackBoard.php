@@ -114,23 +114,30 @@ class FeedbackBoard
             return true;
         }
 
-        // A listed non-developer guard whose model extends a developer model (class Client extends
-        // User) would pass instanceof; its users stay out.
-        $others = array_filter(array_map(
-            fn (string $guard): ?string => $this->guardModel($guard),
-            array_diff($this->configuredGuards() ?? [], $developerGuards),
-        ));
+        $models = [];
 
         foreach ($developerGuards as $guard) {
-            $model = $this->guardModel($guard);
+            $model = $this->providerModel($guard);
 
             if ($model === null) {
                 $this->warnOnce('developer-guard-provider-'.$guard, 'Feedback Board cannot check developers on the "'.$guard.'" guard: '
-                    .'its user provider is not an eloquent provider with a model.');
+                    .'its user provider names no Eloquent model class.');
 
                 continue;
             }
 
+            $models[] = $model;
+        }
+
+        if ($models === []) {
+            return false;
+        }
+
+        // A listed non-developer guard whose model extends a developer model (class Client extends
+        // User) would pass instanceof; its users stay out.
+        $others = $this->otherGuardModels($developerGuards);
+
+        foreach ($models as $model) {
             if (! $user instanceof $model) {
                 continue;
             }
@@ -437,16 +444,60 @@ class FeedbackBoard
         return $developerGuards;
     }
 
-    /** The Eloquent model behind a guard's user provider; null when the provider is not `eloquent`. */
-    private function guardModel(string $guard): ?string
+    /**
+     * The models of the listed guards that are not developer guards. A guard whose model cannot be
+     * determined is reported once, because its users cannot be told apart from developers by type.
+     * The database driver is exempt: it returns GenericUser, never an instance of an Eloquent model.
+     *
+     * @param  list<string>  $developerGuards
+     * @return list<class-string<Model>>
+     */
+    private function otherGuardModels(array $developerGuards): array
+    {
+        $models = [];
+
+        foreach (array_diff($this->configuredGuards() ?? [], $developerGuards) as $guard) {
+            $model = $this->providerModel($guard);
+
+            if ($model !== null) {
+                $models[] = $model;
+            } elseif ($this->providerDriver($guard) !== 'database') {
+                $this->warnOnce('guard-model-unknown-'.$guard, 'Feedback Board cannot tell users of the "'.$guard.'" guard from developers by type: '
+                    .'its user provider names no Eloquent model class.');
+            }
+        }
+
+        return $models;
+    }
+
+    /**
+     * The Eloquent model class behind a guard's user provider, whatever its driver (eloquent, or a
+     * custom one such as eloquent-webauthn); null when the provider names none (the database driver,
+     * LdapRecord's own model classes, a missing class).
+     *
+     * @return class-string<Model>|null
+     */
+    private function providerModel(string $guard): ?string
+    {
+        $model = $this->providerSettings($guard)['model'] ?? null;
+
+        return is_string($model) && $model !== '' && is_subclass_of($model, Model::class) ? $model : null;
+    }
+
+    private function providerDriver(string $guard): ?string
+    {
+        $driver = $this->providerSettings($guard)['driver'] ?? null;
+
+        return is_string($driver) ? $driver : null;
+    }
+
+    /** @return array<string, mixed> the guard's user provider settings from config/auth.php; [] when it has none */
+    private function providerSettings(string $guard): array
     {
         $provider = config('auth.guards')[$guard]['provider'] ?? null;
         $settings = is_string($provider) ? (config('auth.providers')[$provider] ?? null) : null;
 
-        return is_array($settings) && ($settings['driver'] ?? null) === 'eloquent'
-            && is_string($settings['model'] ?? null) && $settings['model'] !== ''
-            ? $settings['model']
-            : null;
+        return is_array($settings) ? $settings : [];
     }
 
     /**
