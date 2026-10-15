@@ -341,7 +341,7 @@ Set `FEEDBACK_GITHUB_TOKEN` (a **fine-grained PAT** scoped to a single repo with
 broader access, avoid it) and `FEEDBACK_GITHUB_REPO` (`owner/name`). GitHub is **not**
 added to `destinations.enabled`: the first issue is created by the developer's manual
 "Send to GitHub" action; later replies and status changes auto-comment on it.
-Set `feedback-board.destinations.github.close_on_resolved` to close the issue on resolve.
+Set `feedback-board.destinations.github.close_on_resolved` to close the issue on resolve. Comments and closing always go to the repo where the issue was opened, even after `FEEDBACK_GITHUB_REPO` changes; if the token can no longer reach that repo, the delivery fails with `not_found_404`.
 
 GitHub idempotency, delivery-failure records and the runner's PR link are guarded by a cache
 lock from `FEEDBACK_DESTINATIONS_LOCK_STORE` (unset = your app's default cache store). The lock
