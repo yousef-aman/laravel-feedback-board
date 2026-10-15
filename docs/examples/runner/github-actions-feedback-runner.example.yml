@@ -5,9 +5,12 @@
 # The agent runs in a job that never references the ingest secret. The agent reads reporter-written
 # text, and a prompt-injected agent can read any secret its job's runner holds, or change files and
 # environment that later steps of the same job use. Only report-start and post-back get the secret, and
-# they run no agent code: each runs on a fresh machine and refuses a post-back.sh whose SHA-256 is not
-# POST_BACK_SHA256 below. The agent's token can push a changed script to an unprotected default branch,
-# but it can never change this workflow file.
+# they run no agent code: each refuses a post-back.sh whose SHA-256 is not POST_BACK_SHA256 below. The
+# agent's GITHUB_TOKEN can push a changed script to an unprotected default branch, but it can never
+# change this workflow file. This holds only:
+#   - on GitHub-hosted (or other single-use) runners, so that no job reuses a machine the agent ran on;
+#   - while the agent has no token with the `workflows` permission. Never give it a personal access
+#     token or app token that has it: it could rewrite this file and take the secret.
 # Pass every value through env. Never write ${{ … }} inside a run: script (expression injection).
 name: Feedback Runner
 

@@ -153,7 +153,7 @@ Include the same three headers:
 - `X-Feedback-Signature: {hex_hmac}`
 - `Content-Type: application/json`
 
-**Responses.** The endpoint answers with its real status and a JSON body: `200 {"ok":true}`; 403 (missing or bad signature, stale timestamp, replay); 404 (ingest disabled, unknown item); 409 (`task_id` mismatch); 422 (validation; the body lists `errors`); 429 (more than 60 requests a minute); 503 (busy, for example a lock held by a GitHub delivery). Retry 429, 503 and connection errors with a **fresh timestamp and signature**: a signature is accepted once. String values are trimmed of leading and trailing whitespace. [`examples/runner/post-back.sh`](examples/runner/post-back.sh) does all of this.
+**Responses.** The endpoint answers with its real status and, for its own answers, a JSON body: `200 {"ok":true}`; 403 (missing or bad signature, stale timestamp, replay); 404 (ingest disabled, unknown item); 409 (`task_id` mismatch); 422 (validation; the body lists `errors`); 429 (more than 60 requests a minute); 503 (busy, for example a lock held by a GitHub delivery). Answers given before the route runs (maintenance mode's 503, 413, 405) follow the host app's error rendering; send `Accept: application/json` to get JSON there too. Retry 429, 503 and connection errors with a **fresh timestamp and signature**: a signature is accepted once. String values are trimmed of leading and trailing whitespace. [`examples/runner/post-back.sh`](examples/runner/post-back.sh) does all of this.
 
 ### 4.2 Action: `runner_status`
 
@@ -181,6 +181,8 @@ completion or failure.
 Once a task reaches a terminal status, subsequent `runner_status` posts for the same
 `task_id` are accepted (idempotent) but do not change the stored status. Your runner SHOULD
 retry the terminal `runner_status` POST to ensure delivery (e.g. on network failure).
+
+**Stale tasks.** A task with no status change and no result for `runner.stale_after` seconds (30 minutes by default) is shown as possibly stopped, and a developer can re-send it. The re-send starts a new task with a new `task_id`; later posts for the replaced task get 409. Repeating `running` does not count as activity, so keep your job's timeout below `stale_after`.
 
 ### 4.3 Action: `runner_result`
 

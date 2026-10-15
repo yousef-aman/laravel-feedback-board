@@ -307,7 +307,7 @@ Key configuration options in `config/feedback-board.php`:
 | `ingest.tolerance` | int | Timestamp drift tolerance in seconds (default: `300`); rate limiting is handled by the route (`throttle:60,1`) |
 | `ai.enabled` | bool | Enable AI triage (`FEEDBACK_BOARD_AI_ENABLED`, default: `false`) — see [AI Triage](#ai-triage-level-a) |
 | `ai.default` | string | Triage driver (`FEEDBACK_BOARD_AI_DRIVER`, default: `'anthropic'`) |
-| `ai.queue` | string\|null | Queue the triage jobs are pushed to (`FEEDBACK_BOARD_AI_QUEUE`; `null` or empty = the connection's default queue); run a worker for it, e.g. `php artisan queue:work --queue=ai` |
+| `ai.queue` | string\|null | Queue the triage jobs are pushed to (`FEEDBACK_BOARD_AI_QUEUE`; `null` or empty = the connection's default queue); make sure a worker listens on it, e.g. `php artisan queue:work --queue=ai,default` |
 | `ai.lock_store` | string\|null | Cache store for the per-item AI triage and runner lock (`FEEDBACK_BOARD_AI_LOCK_STORE`; `null` = app default). With several servers, use a shared store |
 | `ai.max_input_chars` | int | Combined title and description budget sent to the model (default: `4000`) |
 | `ai.anthropic.*` | array | `api_key` (`FEEDBACK_BOARD_ANTHROPIC_KEY`), `model` (`FEEDBACK_BOARD_ANTHROPIC_MODEL`, default: `'claude-haiku-4-5'`), `timeout` (`30`), `max_tokens` (`1024`) |
@@ -341,7 +341,7 @@ Set `FEEDBACK_GITHUB_TOKEN` (a **fine-grained PAT** scoped to a single repo with
 broader access, avoid it) and `FEEDBACK_GITHUB_REPO` (`owner/name`). GitHub is **not**
 added to `destinations.enabled`: the first issue is created by the developer's manual
 "Send to GitHub" action; later replies and status changes auto-comment on it.
-Set `feedback-board.destinations.github.close_on_resolved` to close the issue on resolve. Comments and closing always go to the repo where the issue was opened, even after `FEEDBACK_GITHUB_REPO` changes; if the token can no longer reach that repo, the delivery fails with `not_found_404`.
+Set `feedback-board.destinations.github.close_on_resolved` to close the issue on resolve. Comments and closing always go to the repo where the issue was opened, even after `FEEDBACK_GITHUB_REPO` changes; if the token can no longer reach that repo, the delivery fails with `not_found_404` or `auth_401`.
 
 GitHub idempotency, delivery-failure records and the runner's PR link are guarded by a cache
 lock from `FEEDBACK_DESTINATIONS_LOCK_STORE` (unset = your app's default cache store). The lock
@@ -368,7 +368,7 @@ Off by default (`FEEDBACK_BOARD_INGEST_ENABLED`). External systems, such as CI o
 
 `ref.key` must match `^[a-z][a-z0-9_.-]{0,63}$`. `github`, `pr_url` and keys ending in `_last_error` are reserved for the package. `ref.value` is a string of at most 2048 characters.
 
-Every answer has its real status: `200 {"ok":true}`; 403 (missing or bad signature, stale timestamp, replay); 404 (ingest disabled, unknown report); 409 (runner task mismatch); 422 (validation, with `errors`); 429 (more than 60 requests a minute); 503 (busy). Bodies are JSON. A host rule set with `shouldRenderJsonWhen()` can still turn the body of a 404 for an unknown report, a 409, 429 or 503 into HTML; the status stays. Re-sign before retrying. String values are trimmed of leading and trailing whitespace.
+Every answer has its real status: `200 {"ok":true}`; 403 (missing or bad signature, stale timestamp, replay); 404 (ingest disabled, unknown report); 409 (runner task mismatch); 422 (validation, with `errors`); 429 (more than 60 requests a minute); 503 (busy). The package's own answers have JSON bodies. Answers given before the route runs (maintenance mode's 503, 413 for an oversized body, 405) follow your app's error rendering: JSON when the sender asks for it with `Accept: application/json`, as `post-back.sh` does. A host rule set with `shouldRenderJsonWhen()` can still turn the body of a 404 for an unknown report, a 409, 429 or 503 into HTML; the status stays. Re-sign before retrying. String values are trimmed of leading and trailing whitespace.
 
 ## AI Triage (Level A)
 
