@@ -37,7 +37,7 @@ class FeedbackResolvedNotification extends Notification
 
         if (class_exists(\Filament\Notifications\Notification::class)) {
             return \Filament\Notifications\Notification::make()
-                ->title(__('feedback-board::feedback-board.mail.resolved_subject', ['title' => $this->item->title]))
+                ->title(__('feedback-board::feedback-board.mail.resolved_subject', ['title' => e($this->item->title)]))
                 ->getDatabaseMessage() + $payload;
         }
 

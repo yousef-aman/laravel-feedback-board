@@ -114,9 +114,17 @@ final class Ui
             return null;
         }
 
-        return \YousefAman\FeedbackBoard\Filament\FeedbackBoardPlugin::current()?->hasMyReports()
-            ? \YousefAman\FeedbackBoard\Filament\Pages\MyFeedbackPage::getUrl()
-            : null;
+        if (! \YousefAman\FeedbackBoard\Filament\FeedbackBoardPlugin::current()?->hasMyReports()) {
+            return null;
+        }
+
+        // A tenant panel's pages without a tenant (profile, tenant registration, e-mail verification)
+        // cannot build the panel URL, which needs {tenant}.
+        if (\Filament\Facades\Filament::getCurrentPanel()?->hasTenancy() && \Filament\Facades\Filament::getTenant() === null) {
+            return null;
+        }
+
+        return \YousefAman\FeedbackBoard\Filament\Pages\MyFeedbackPage::getUrl();
     }
 
     /** Appends the deep-link query that opens one report. */

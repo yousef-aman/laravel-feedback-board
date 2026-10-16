@@ -14,7 +14,8 @@ class MailDriver implements Destination
      *
      * Mail delivery is handled by the notification layer
      * (NewFeedbackNotification / FeedbackRepliedNotification /
-     * FeedbackResolvedNotification dispatched via SendFeedbackNotifications).
+     * FeedbackResolvedNotification / ReporterRepliedNotification
+     * dispatched via SendFeedbackNotifications).
      * This driver exists for contract parity with the other destination drivers
      * resolved through the DestinationManager.
      */

@@ -14,3 +14,14 @@ it('ships the runner contract docs and reference recipe', function () {
 
     expect(file_get_contents($root.'/README.md'))->toContain('AI Runner Contract');
 });
+
+it('ships the reference post-back script', function () {
+    expect(file_exists(dirname(__DIR__, 3).'/docs/examples/runner/post-back.sh'))->toBeTrue();
+});
+
+it('pins the post-back script in the reference workflow by its SHA-256', function () {
+    $root = dirname(__DIR__, 3);
+    $workflow = file_get_contents($root.'/docs/examples/runner/github-actions-feedback-runner.example.yml');
+
+    expect($workflow)->toContain('POST_BACK_SHA256: '.hash_file('sha256', $root.'/docs/examples/runner/post-back.sh'));
+});

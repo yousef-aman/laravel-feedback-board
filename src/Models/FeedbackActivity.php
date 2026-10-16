@@ -120,6 +120,9 @@ class FeedbackActivity extends Model
 
     protected static function booted(): void
     {
-        static::creating(fn ($a) => $a->created_at ??= now());
+        // Returns nothing, so later `creating` listeners still run (see FeedbackItem::booted()).
+        static::creating(function (FeedbackActivity $activity): void {
+            $activity->created_at ??= now();
+        });
     }
 }

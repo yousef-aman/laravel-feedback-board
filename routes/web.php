@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use YousefAman\FeedbackBoard\Http\Controllers\AssetController;
 use YousefAman\FeedbackBoard\Http\Controllers\AttachmentController;
 use YousefAman\FeedbackBoard\Http\Controllers\IngestController;
+use YousefAman\FeedbackBoard\Http\Middleware\AcceptJson;
 use YousefAman\FeedbackBoard\Http\Middleware\AuthenticateFeedbackUser;
 use YousefAman\FeedbackBoard\Http\Middleware\VerifyIngestSignature;
 
@@ -19,7 +20,7 @@ Route::middleware(AuthenticateFeedbackUser::ensureIn(config('feedback-board.rout
             ->name('board.page');
     });
 
-Route::middleware(['throttle:60,1', VerifyIngestSignature::class])
+Route::middleware([AcceptJson::class, 'throttle:60,1', VerifyIngestSignature::class])
     ->prefix(config('feedback-board.route_prefix', 'feedback-board'))
     ->name('feedback-board.')
     ->post('ingest', IngestController::class)->name('ingest');

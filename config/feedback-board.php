@@ -109,7 +109,7 @@ return [
 
         'default' => env('FEEDBACK_BOARD_AI_DRIVER', 'anthropic'),
 
-        'queue' => env('FEEDBACK_BOARD_AI_QUEUE'), // null = default queue
+        'queue' => env('FEEDBACK_BOARD_AI_QUEUE'), // queue for triage jobs; null or '' = the connection's default queue
 
         // Cache store whose lock guards the per-item ai_state (triage and runner).
         // null = app default. Same rule as destinations.lock_store: with several
@@ -145,7 +145,9 @@ return [
         // the envelope omits it (the runner is pre-configured with its ingest URL).
         'callback_url' => env('FEEDBACK_RUNNER_CALLBACK_URL'),
 
-        // UI-only "may be stale" hint after this many seconds. No background reaper.
+        // Seconds without an update after which an in-flight task counts as stale: the card dialog
+        // says so and offers to re-send it (a new task_id; the old task's results get 409).
+        // 0 = never. No background reaper.
         'stale_after' => 1800,
 
         // NOTE: all ai_state.runner writes reuse feedback-board.ai.lock_store (shared

@@ -11,7 +11,7 @@ use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Notification as NotificationFacade;
 use YousefAman\FeedbackBoard\Enums\{AuthorRole, FeedbackStatus};
 use YousefAman\FeedbackBoard\Events\{FeedbackItemCreated, FeedbackReplied, FeedbackStatusChanged};
-use YousefAman\FeedbackBoard\Notifications\{FeedbackRepliedNotification, FeedbackResolvedNotification, NewFeedbackNotification};
+use YousefAman\FeedbackBoard\Notifications\{FeedbackRepliedNotification, FeedbackResolvedNotification, NewFeedbackNotification, ReporterRepliedNotification};
 use YousefAman\FeedbackBoard\Support\DeveloperRecipients;
 
 class SendFeedbackNotifications
@@ -32,10 +32,10 @@ class SendFeedbackNotifications
             return;
         }
 
-        // developer reply -> notify reporter; reporter reply -> notify developers
+        // developer reply -> notify reporter; reporter reply -> notify developers, naming the report
         if ($comment->author_role === AuthorRole::Reporter) {
             $this->sendAfterCommit(function () use ($comment) {
-                $this->notifyEach($this->recipients->resolve(), new FeedbackRepliedNotification($comment));
+                $this->notifyEach($this->recipients->resolve(), new ReporterRepliedNotification($comment));
             });
 
             return;

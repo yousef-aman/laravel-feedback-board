@@ -46,6 +46,8 @@ return [
         'new_subject' => 'ملاحظة جديدة: :title', 'new_line' => 'تم رفع ملاحظة جديدة.',
         'reply_subject' => 'رد جديد على ملاحظتك',
         'reply_images' => 'أُضيف رد يحتوي على صور.',
+        'reporter_reply_subject' => 'ردّ المُبلِّغ على: :title',
+        'reporter_reply_line' => 'ردّ المُبلِّغ على البلاغ رقم :id.',
         'resolved_subject' => 'تم الحل: :title', 'resolved_line' => 'تم حل ملاحظتك.',
     ],
     'board' => [
@@ -100,6 +102,7 @@ return [
         'diff' => 'التعديل المقترح',
         'view_result' => 'عرض نتيجة الوكيل',
         'ingest_disabled' => 'الاستقبال (ingest) معطّل — سيفشل ردّ الوكيل. فعّل ingest في feedback-board.',
+        'stale' => 'لا تحديث منذ :time — ربما توقف الوكيل.',
     ],
     'reports' => [
         'subheading' => 'تابع بلاغاتك وردود فريق الدعم الفني',

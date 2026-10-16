@@ -170,6 +170,9 @@
                     @else
                         @if (in_array($runner['status'], ['dispatched','running'], true))
                             <p class="fb-muted">{{ __('feedback-board::feedback-board.runner.'.$runner['status']) }} — {{ $runner['dispatched_at'] ?? '' }}</p>
+                            @if (\YousefAman\FeedbackBoard\Runner\Support\RunnerState::isStale($runner))
+                                <p class="fb-notice fb-notice--warning">{{ __('feedback-board::feedback-board.runner.stale', ['time' => $runner['updated_at'] ?? $runner['dispatched_at'] ?? '']) }}</p>
+                            @endif
                         @elseif ($runner['status'] === 'failed')
                             <p class="fb-notice fb-notice--danger">{{ __('feedback-board::feedback-board.runner.failed') }}: {{ $runner['error_code'] ?? '' }}</p>
                         @elseif ($runner['status'] === 'completed')
@@ -183,7 +186,7 @@
                             <a class="fb-link" href="{{ $runner['pr_url'] }}" target="_blank" rel="noopener noreferrer" dir="ltr">{{ $runner['pr_url'] }}</a>
                         @endif
 
-                        @if (! in_array($runner['status'], ['dispatched','running'], true))
+                        @if (\YousefAman\FeedbackBoard\Runner\Support\RunnerState::canDispatch($runner))
                             <div class="fb-actions">
                                 <button type="button" class="fb-btn fb-btn--sm" wire:click="dispatchToRunner">{{ __('feedback-board::feedback-board.runner.resend') }}</button>
                             </div>

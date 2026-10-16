@@ -135,6 +135,8 @@ Then add `'database'` to `notifications.channels` in `config/feedback-board.php`
 
 Notifications are sent, and destination deliveries (webhook, Slack, GitHub) queued, only after the report, reply or status change is saved. If sending or queueing fails (for example, the mail server is down, or a Slack outage on the `sync` queue), the failure is reported to your exception handler and the user's action is still kept.
 
+**Who is told what.** A new report and a reporter's reply notify your developers; the reply's notification names the report (`Reporter replied: {title}`, with its number). A developer's or the AI's public reply, and the Resolved status, notify the reporter. Text a reporter wrote is escaped in e-mails (Markdown), the Filament bell (HTML) and Slack (`<`, `>` and `&`); the webhook payload and GitHub issues and comments carry it unchanged. In the plain-text part of an e-mail, the escaping shows as a backslash before characters such as `[` or `*`. The new-report database notification's `feedback_title` key holds the raw report title.
+
 ### Choosing who can report
 
 Every signed-in user may report until you say otherwise. Register a resolver in `AppServiceProvider::boot()`:
@@ -158,7 +160,7 @@ A user who may not report keeps their earlier reports:
 | Sending a report | yes | 403 | 403 |
 | Opening their reports and replying, with images | yes | yes | — |
 
-`FeedbackBoard::canReport($user)` answers through the `feedback-board.report` gate, so `Gate::before()` hooks apply, and a guest is never a reporter. A `Gate::before()` hook that returns `false` for abilities it does not know therefore hides the launcher. A resolver that throws, or returns something other than a boolean, denies and is reported to your exception handler once; it never breaks the page. The same holds for the developer resolver.
+`FeedbackBoard::canReport($user)` answers through the `feedback-board.report` gate, so `Gate::before()` hooks apply, and a guest is never a reporter. A `Gate::before()` hook that returns `false` for abilities it does not know therefore hides the launcher. A resolver returns a boolean; `1` and `'1'` also allow, and `0`, `'0'` and `null` also deny. Any other value (another string such as `'N'` or `'false'`, another number, an object or an array) denies and is reported to your exception handler once, and so does a resolver that throws; it never breaks the page. A count is not a boolean: return `->exists()`, not `->count()`. The same holds for the developer resolver.
 
 ## Filament Integration
 
@@ -185,6 +187,8 @@ $panel->plugin(FeedbackBoardPlugin::make()->myReports(false));
 ```
 
 **Colours.** Inside a panel the package follows the panel's primary colour, in light and dark mode, with readable text on it (white, or the colour's darkest shade for a light primary such as amber). Your own `--fb-accent` properties still win.
+
+**Tenant panels.** On a panel with `->tenant(...)`, the package's pages live under `/{panel}/{tenant}/…`, and reports are not scoped to a tenant: developers see every report whatever the tenant, while each reporter still sees only their own. Developer access is app-wide too, so a developer resolver that grants per-tenant admins lets them read the reports of every tenant. On a page of the panel that has no tenant (the profile page, tenant registration), the launcher links the standalone "My reports" page.
 
 ### Reporters who use a Filament panel
 
@@ -215,7 +219,7 @@ By default the package sees the user of the guard in use: inside a Filament pane
 'route_middleware' => ['web', 'feedback-board.auth'],
 ```
 
-- **Developers.** With more than one guard listed, `developer_guards` is required; without it nobody is a developer, and a warning is logged. Only a model of a developer guard's provider can be a developer, so a rule such as `fn ($user) => $user->id === 1` never matches a client, and your developer resolver never receives one. This holds even when your client model extends your staff model. Two exceptions: guards whose providers use the same model class cannot be told apart (same model, same person), and a `Gate::before()` hook runs first and can still grant developer access.
+- **Developers.** With more than one guard listed, `developer_guards` is required; without it nobody is a developer, and a warning is logged. Only a model of a developer guard's provider can be a developer, so a rule such as `fn ($user) => $user->id === 1` never matches a client, and your developer resolver never receives one. This holds even when your client model extends your staff model. Two exceptions: guards whose providers use the same model class cannot be told apart (same model, same person), and a `Gate::before()` hook runs first and can still grant developer access. The package reads each guard's model from its user provider's `model` setting, whatever the driver (`eloquent`, or a custom one such as `eloquent-webauthn`), as long as it names an Eloquent model class. A developer guard whose provider names none (the `database` driver, for example) has no developers, and a warning is logged. A listed client guard whose provider names none also logs a warning, because its users cannot be told apart from developers by type; the `database` driver is exempt.
 - **Panels.** Inside a panel only that panel's guard counts. A panel whose guard is not listed recognises nobody, and a warning is logged. A report is therefore never filed as the staff member who happens to be signed in in the same browser.
 - **Two sessions in one browser.** On the package's own pages (the standalone "My reports" page and the board), the guard in use is tried first, normally the app default, then the list in order. Images open for whichever signed-in user may see them.
 - **A published config.** If your published `config/feedback-board.php` lists `'auth'` in `route_middleware`, replace it with `'feedback-board.auth'`. `'auth'` checks the default guard only and refuses clients before the package sees them. `feedback-board.auth` takes no guard parameters (`feedback-board.auth:client` does not restrict anything); `auth.guards` decides which guards count. Middleware that needs the signed-in user, such as `'verified'`, goes after `'feedback-board.auth'`.
@@ -227,7 +231,7 @@ By default the package sees the user of the guard in use: inside a Filament pane
 
 The package ships with English (`en`) and Arabic (`ar`) translations. The Arabic locale sets `dir` to `rtl`. Pass the direction value to your layout's `<html>` tag as shown in the usage example above.
 
-Supported locales: `en`, `ar`. Add more by publishing translations and creating your own locale directory under `resources/lang/vendor/feedback-board/`.
+Supported locales: `en`, `ar`. Add more by publishing translations (`php artisan vendor:publish --tag=feedback-board-translations`) and creating your own locale directory under `lang/vendor/feedback-board/`, for example `lang/vendor/feedback-board/fr/feedback-board.php`. Do not create `resources/lang`: once that directory exists, Laravel loads all of your app's translations from it instead of `lang/`.
 
 ## Styling & theming
 
@@ -303,7 +307,7 @@ Key configuration options in `config/feedback-board.php`:
 | `ingest.tolerance` | int | Timestamp drift tolerance in seconds (default: `300`); rate limiting is handled by the route (`throttle:60,1`) |
 | `ai.enabled` | bool | Enable AI triage (`FEEDBACK_BOARD_AI_ENABLED`, default: `false`) — see [AI Triage](#ai-triage-level-a) |
 | `ai.default` | string | Triage driver (`FEEDBACK_BOARD_AI_DRIVER`, default: `'anthropic'`) |
-| `ai.queue` | string\|null | Queue for triage jobs (`FEEDBACK_BOARD_AI_QUEUE`; `null` = default queue) |
+| `ai.queue` | string\|null | Queue the triage jobs are pushed to (`FEEDBACK_BOARD_AI_QUEUE`; `null` or empty = the connection's default queue); make sure a worker listens on it, e.g. `php artisan queue:work --queue=ai,default` |
 | `ai.lock_store` | string\|null | Cache store for the per-item AI triage and runner lock (`FEEDBACK_BOARD_AI_LOCK_STORE`; `null` = app default). With several servers, use a shared store |
 | `ai.max_input_chars` | int | Combined title and description budget sent to the model (default: `4000`) |
 | `ai.anthropic.*` | array | `api_key` (`FEEDBACK_BOARD_ANTHROPIC_KEY`), `model` (`FEEDBACK_BOARD_ANTHROPIC_MODEL`, default: `'claude-haiku-4-5'`), `timeout` (`30`), `max_tokens` (`1024`) |
@@ -312,9 +316,9 @@ Key configuration options in `config/feedback-board.php`:
 | `runner.timeout` / `runner.connect_timeout` | int | Dispatch HTTP timeouts in seconds (defaults: `8`, `4`) |
 | `runner.max_analysis_chars` / `runner.max_diff_chars` | int | Longest analysis and suggested diff accepted from the runner (defaults: `10000`, `20000`); a longer `runner_result` is rejected with a validation error, not truncated |
 | `runner.callback_url` | string\|null | Optional ingest URL placed in the task envelope (`FEEDBACK_RUNNER_CALLBACK_URL`) |
-| `runner.stale_after` | int | Seconds before the UI marks a running task as possibly stale (default: `1800`) |
+| `runner.stale_after` | int | Seconds without an update after which an in-flight task counts as stale (default: `1800`; `0` = never). The card dialog says so and offers to re-send it, and the Filament action comes back; a late result from the replaced task gets 409 |
 
-**Attachments and images.** Reports and comments can both carry files. Comments (from reporters and developers, internal notes included) take images only: JPEG, PNG, GIF and WebP, within `allowed_mimes`. Those images show inline and in a preview; every other file, SVG included, downloads. An internal note's images are served to developers only. Deleting a comment deletes its files. Deleting a whole report removes its rows through the database cascade, which runs no model events, so its files stay on the disk under `attachments.directory/{report id}`; delete that directory yourself.
+**Attachments and images.** Reports and comments can both carry files. Comments (from reporters and developers, internal notes included) take images only: JPEG, PNG, GIF and WebP, within `allowed_mimes`. Those images show inline and in a preview; every other file, SVG included, downloads. An internal note's images are served to developers only. Deleting a comment through its model (`$comment->delete()`) deletes its attachment rows and files. A delete that skips model events (`->delete()` on a query, `DB::table()` or raw SQL) still removes the rows through the foreign key, but leaves the files on the disk, like a deleted report. Deleting a whole report removes its rows through the database cascade, which runs no model events, so its files stay on the disk under `attachments.directory/{report id}`; delete that directory yourself.
 
 ## Destinations (outbound)
 
@@ -329,7 +333,7 @@ the signature against the **raw request body** before trusting it. A reply that 
 
 ### Slack
 Create an Incoming Webhook, set `FEEDBACK_SLACK_WEBHOOK_URL`, add `'slack'` to
-`destinations.enabled`. The webhook URL is a secret — it is never logged or stored in error state.
+`destinations.enabled`. The webhook URL is a secret: the package never puts it in its exceptions, its error state or failed jobs. A connection error is reported as `connection_error`, and an unparsable URL as `invalid_url`. Laravel's own HTTP client events still carry the request, so a tool that records them (Telescope, Nightwatch) can store the URL.
 
 ### GitHub Issues
 Set `FEEDBACK_GITHUB_TOKEN` (a **fine-grained PAT** scoped to a single repo with
@@ -337,7 +341,7 @@ Set `FEEDBACK_GITHUB_TOKEN` (a **fine-grained PAT** scoped to a single repo with
 broader access, avoid it) and `FEEDBACK_GITHUB_REPO` (`owner/name`). GitHub is **not**
 added to `destinations.enabled`: the first issue is created by the developer's manual
 "Send to GitHub" action; later replies and status changes auto-comment on it.
-Set `feedback-board.destinations.github.close_on_resolved` to close the issue on resolve.
+Set `feedback-board.destinations.github.close_on_resolved` to close the issue on resolve. Comments and closing always go to the repo where the issue was opened, even after `FEEDBACK_GITHUB_REPO` changes; if the token can no longer reach that repo, the delivery fails with `not_found_404` or `auth_401`.
 
 GitHub idempotency, delivery-failure records and the runner's PR link are guarded by a cache
 lock from `FEEDBACK_DESTINATIONS_LOCK_STORE` (unset = your app's default cache store). The lock
@@ -345,9 +349,26 @@ must be shared by every worker that can deliver: `file` only coordinates workers
 so with several servers use `redis`, `memcached`, `dynamodb` or `database`. The `array` store
 is process-local (no cross-worker protection).
 
-Delivery failures are isolated per destination, retried with backoff for up to 15 minutes,
-and recorded as a sanitized code in `external_refs.{driver}_last_error` (never the raw error,
-URL, or token). Internal notes are never forwarded to any destination.
+Delivery failures are isolated per destination. On a real queue, a failed delivery is retried
+after 30 seconds, 2 minutes and 5 minutes, within 15 minutes; a GitHub rate-limit wait counts as
+an attempt. On the `sync` queue it is not retried. A delivery that still fails is recorded as a
+sanitized code in `external_refs.{driver}_last_error` (never the raw error, URL, or token).
+Internal notes are never forwarded to any destination.
+
+### Ingest endpoint (inbound)
+
+Off by default (`FEEDBACK_BOARD_INGEST_ENABLED`). External systems, such as CI or your agent runner, POST JSON to `/feedback-board/ingest` (under your `route_prefix`), signed like the webhook: `X-Feedback-Timestamp` and `X-Feedback-Signature`, HMAC-SHA256 over `"{timestamp}.{rawBody}"` with `FEEDBACK_BOARD_INGEST_SECRET`. Each signature is accepted once.
+
+| `action` | Fields | Effect |
+|---|---|---|
+| `comment` | `item_id`, `body` | Adds a public AI comment; the reporter is notified |
+| `status` | `item_id`, `status` | Changes the report's status |
+| `external_ref` | `item_id`, `ref.key`, `ref.value` | Stores `external_refs[key] = value` |
+| `runner_status`, `runner_result` | see [`docs/runner-contract.md`](docs/runner-contract.md) | Runner post-back |
+
+`ref.key` must match `^[a-z][a-z0-9_.-]{0,63}$`. `github`, `pr_url` and keys ending in `_last_error` are reserved for the package. `ref.value` is a string of at most 2048 characters.
+
+Every answer has its real status: `200 {"ok":true}`; 403 (missing or bad signature, stale timestamp, replay); 404 (ingest disabled, unknown report); 409 (runner task mismatch); 422 (validation, with `errors`); 429 (more than 60 requests a minute); 503 (busy). The package's own answers have JSON bodies. Answers given before the route runs (maintenance mode's 503, 413 for an oversized body, 405) follow your app's error rendering: JSON when the sender asks for it with `Accept: application/json`, as `post-back.sh` does. A host rule set with `shouldRenderJsonWhen()` can still turn the body of a 404 for an unknown report, a 409, 429 or 503 into HTML; the status stays. Re-sign before retrying. String values are trimmed of leading and trailing whitespace.
 
 ## AI Triage (Level A)
 
@@ -420,6 +441,7 @@ post-back actions, security requirements, and a worked end-to-end example) see
 Reference implementations:
 - [`docs/examples/runner/receiver.example.php`](docs/examples/runner/receiver.example.php) — minimal HMAC-verifying PHP receiver
 - [`docs/examples/runner/github-actions-feedback-runner.example.yml`](docs/examples/runner/github-actions-feedback-runner.example.yml) — GitHub Actions workflow
+- [`docs/examples/runner/post-back.sh`](docs/examples/runner/post-back.sh) — signed, retrying post-back sender the workflow calls
 
 ## Roadmap
 

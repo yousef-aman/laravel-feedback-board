@@ -11,6 +11,7 @@ use YousefAman\FeedbackBoard\Destinations\Contracts\Destination;
 use YousefAman\FeedbackBoard\Destinations\Support\DestinationEvent;
 use YousefAman\FeedbackBoard\Destinations\Support\TransientRetry;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
+use YousefAman\FeedbackBoard\Support\SlackText;
 
 class SlackDriver implements Destination
 {
@@ -23,7 +24,7 @@ class SlackDriver implements Destination
         }
 
         $name = DestinationEvent::name($event);
-        $fallback = "[{$name}] {$item->title}";
+        $fallback = "[{$name}] ".SlackText::escape($item->title);
 
         $response = Http::asJson()->timeout(8)->connectTimeout(4)
             ->retry(2, 200, TransientRetry::when(), throw: false)
@@ -33,10 +34,10 @@ class SlackDriver implements Destination
                     ['type' => 'header', 'text' => ['type' => 'plain_text', 'text' => mb_strimwidth($item->title, 0, 150, '…')]],
                     ['type' => 'section', 'fields' => [
                         ['type' => 'mrkdwn', 'text' => "*Event:*\n{$name}"],
-                        ['type' => 'mrkdwn', 'text' => '*Type:*\n'.($item->type?->value ?? '—')],
-                        ['type' => 'mrkdwn', 'text' => '*Priority:*\n'.($item->priority?->value ?? '—')],
-                        ['type' => 'mrkdwn', 'text' => '*Status:*\n'.($item->status?->value ?? '—')],
-                        ['type' => 'mrkdwn', 'text' => '*Reporter:*\n'.($item->reporter_name ?? '—')],
+                        ['type' => 'mrkdwn', 'text' => "*Type:*\n".($item->type?->value ?? '—')],
+                        ['type' => 'mrkdwn', 'text' => "*Priority:*\n".($item->priority?->value ?? '—')],
+                        ['type' => 'mrkdwn', 'text' => "*Status:*\n".($item->status?->value ?? '—')],
+                        ['type' => 'mrkdwn', 'text' => "*Reporter:*\n".SlackText::escape($item->reporter_name ?? '—')],
                     ]],
                 ],
             ]);

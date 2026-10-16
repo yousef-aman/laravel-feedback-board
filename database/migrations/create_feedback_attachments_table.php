@@ -11,7 +11,7 @@ return new class extends Migration {
         Schema::create('feedback_attachments', function (Blueprint $t) {
             $t->id();
             $t->foreignId('feedback_item_id')->constrained('feedback_items')->cascadeOnDelete();
-            $t->foreignId('feedback_comment_id')->nullable()->constrained('feedback_comments')->nullOnDelete();
+            $t->foreignId('feedback_comment_id')->nullable()->constrained('feedback_comments')->cascadeOnDelete();
             $t->string('disk');
             $t->string('path');
             $t->string('original_name');

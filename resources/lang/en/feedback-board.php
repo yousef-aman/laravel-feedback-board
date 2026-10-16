@@ -46,6 +46,8 @@ return [
         'new_subject' => 'New feedback: :title', 'new_line' => 'A new report was submitted.',
         'reply_subject' => 'New reply on your feedback',
         'reply_images' => 'A reply with images was added.',
+        'reporter_reply_subject' => 'Reporter replied: :title',
+        'reporter_reply_line' => 'The reporter replied on report #:id.',
         'resolved_subject' => 'Resolved: :title', 'resolved_line' => 'Your report was resolved.',
     ],
     'board' => [
@@ -100,6 +102,7 @@ return [
         'diff' => 'Suggested diff',
         'view_result' => 'View agent result',
         'ingest_disabled' => 'Ingest is disabled — agent post-back will fail. Enable feedback-board ingest.',
+        'stale' => 'No update since :time — the agent may have stopped.',
     ],
     'reports' => [
         'subheading' => "Follow your reports and the support team's replies",

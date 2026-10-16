@@ -81,9 +81,11 @@ class GithubIssueDriver implements Destination
                 }
 
                 $number = $ref['issue_number'];
+                // The issue lives where it was opened; FEEDBACK_GITHUB_REPO may have changed since.
+                $issueRepo = is_string($ref['repo'] ?? null) && $ref['repo'] !== '' ? $ref['repo'] : $repo;
                 $posted = $ref['posted'] ?? [];
                 if (! in_array($deliveryId, $posted, true)) {
-                    $resp = $this->client($token)->post($this->base($repo)."/issues/{$number}/comments", [
+                    $resp = $this->client($token)->post($this->base($issueRepo)."/issues/{$number}/comments", [
                         'body' => $this->commentBody($event),
                     ]);
                     $this->guardResponse($resp);
@@ -97,7 +99,7 @@ class GithubIssueDriver implements Destination
                 if ($event instanceof FeedbackStatusChanged
                     && $event->to === FeedbackStatus::Resolved
                     && config('feedback-board.destinations.github.close_on_resolved')) {
-                    $resp = $this->client($token)->patch($this->base($repo)."/issues/{$number}", ['state' => 'closed']);
+                    $resp = $this->client($token)->patch($this->base($issueRepo)."/issues/{$number}", ['state' => 'closed']);
                     $this->guardResponse($resp);
                 }
             });

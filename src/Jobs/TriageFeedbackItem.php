@@ -26,6 +26,9 @@ class TriageFeedbackItem implements ShouldQueue
     {
         /** Never run against an uncommitted/rolled-back row. */
         $this->afterCommit = true;
+
+        // Both dispatch paths (the listener and RequestTriage) build the job here.
+        $this->onQueue(config('feedback-board.ai.queue') ?: null);
     }
 
     /** @return array<int, int> */

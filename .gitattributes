@@ -5,3 +5,6 @@
 /.gitignore         export-ignore
 /phpunit.xml.dist   export-ignore
 /tests              export-ignore
+
+# Shell scripts keep LF endings: the reference workflow pins post-back.sh by its SHA-256.
+*.sh text eol=lf

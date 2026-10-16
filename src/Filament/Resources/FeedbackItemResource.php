@@ -15,6 +15,7 @@ use YousefAman\FeedbackBoard\Actions\SendItemToGithub;
 use YousefAman\FeedbackBoard\Enums\{FeedbackPriority, FeedbackStatus, FeedbackType};
 use YousefAman\FeedbackBoard\Facades\FeedbackBoard;
 use YousefAman\FeedbackBoard\Runner\Support\RunnerGate;
+use YousefAman\FeedbackBoard\Runner\Support\RunnerState;
 use YousefAman\FeedbackBoard\Triage\Support\TriageGate;
 use YousefAman\FeedbackBoard\Filament\Resources\FeedbackItemResource\Pages\ListFeedbackItems;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
@@ -23,6 +24,10 @@ use YousefAman\FeedbackBoard\Policies\FeedbackItemPolicy;
 class FeedbackItemResource extends Resource
 {
     protected static ?string $model = FeedbackItem::class;
+
+    // Reports belong to the app, not to a tenant. FeedbackItem has no ownership relationship, so
+    // Filament's tenancy scope would throw on every query in a panel with ->tenant(...).
+    protected static bool $isScopedToTenant = false;
 
     public static function canViewAny(): bool
     {
@@ -132,7 +137,7 @@ class FeedbackItemResource extends Resource
                     FeedbackItemPolicy::isDeveloper(FeedbackBoard::user())
                     && RunnerGate::configured()
                     && (bool) config('feedback-board.ingest.enabled')
-                    && ! in_array(($record->ai_state['runner']['status'] ?? null), ['dispatched', 'running'], true))
+                    && RunnerState::canDispatch($record->ai_state['runner'] ?? null))
                 ->action(fn (FeedbackItem $record) =>
                     // Hard authorization lives inside DispatchToRunner::handle() (abort_unless).
                     app(DispatchToRunner::class)->handle($record, FeedbackBoard::user())),
