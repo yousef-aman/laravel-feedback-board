@@ -139,13 +139,23 @@ it('reports a connection error without leaking the key', function () {
     }
 });
 
-it('is not configured without a key or a model', function (string $key, ?string $value) {
+it('is not configured without a key', function (string $key, ?string $value) {
     config()->set("feedback-board.ai.openai.{$key}", $value);
     Http::fake();
 
     expect(fn () => (new OpenAiDriver)->triage('t', 'd'))->toThrow(TriageException::class, 'not_configured');
     Http::assertNothingSent();
-})->with([['api_key', null], ['api_key', ''], ['model', '']]);
+})->with([['api_key', null], ['api_key', '']]);
+
+it('uses the default model when the model is empty or missing', function (?string $model) {
+    config()->set('feedback-board.ai.openai.model', $model);
+    Http::fake(['api.openai.com/*' => Http::response(openAiAnswer('{"summary":"x"}'))]);
+
+    $result = (new OpenAiDriver)->triage('t', null);
+
+    expect($result->model)->toBe('gpt-6-luna');
+    Http::assertSent(fn ($request) => str_contains($request->url().json_encode($request->data()), 'gpt-6-luna'));
+})->with(['empty' => [''], 'missing' => [null]]);
 
 it('tries a quick transient failure once more', function () {
     $calls = 0;
@@ -158,4 +168,14 @@ it('tries a quick transient failure once more', function () {
 
     expect(fn () => (new OpenAiDriver)->triage('Login broken', null))->toThrow(TriageException::class, 'http_429');
     expect($calls)->toBe(2);
+});
+
+it('reads arguments given as an object, as some compatible APIs send them', function () {
+    $answer = openAiAnswer('{}');
+    $answer['choices'][0]['message']['tool_calls'][0]['function']['arguments'] = ['type' => 'bug', 'summary' => 'x'];
+    Http::fake(['api.openai.com/*' => Http::response($answer)]);
+
+    $result = (new OpenAiDriver)->triage('t', null);
+
+    expect($result->type)->toBe(FeedbackType::Bug)->and($result->summary)->toBe('x');
 });

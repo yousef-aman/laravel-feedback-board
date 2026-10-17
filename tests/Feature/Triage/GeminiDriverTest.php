@@ -125,13 +125,23 @@ it('reports a connection error without leaking the key', function () {
     }
 });
 
-it('is not configured without a key or a model', function (string $key, ?string $value) {
+it('is not configured without a key', function (string $key, ?string $value) {
     config()->set("feedback-board.ai.gemini.{$key}", $value);
     Http::fake();
 
     expect(fn () => (new GeminiDriver)->triage('t', 'd'))->toThrow(TriageException::class, 'not_configured');
     Http::assertNothingSent();
-})->with([['api_key', null], ['api_key', ''], ['model', '']]);
+})->with([['api_key', null], ['api_key', '']]);
+
+it('uses the default model when the model is empty or missing', function (?string $model) {
+    config()->set('feedback-board.ai.gemini.model', $model);
+    Http::fake(['generativelanguage.googleapis.com/*' => Http::response(geminiAnswer('{"summary":"x"}'))]);
+
+    $result = (new GeminiDriver)->triage('t', null);
+
+    expect($result->model)->toBe('gemini-3.5-flash-lite');
+    Http::assertSent(fn ($request) => str_contains($request->url().json_encode($request->data()), 'gemini-3.5-flash-lite'));
+})->with(['empty' => [''], 'missing' => [null]]);
 
 it('tries a quick transient failure once more', function () {
     $calls = 0;
@@ -144,4 +154,27 @@ it('tries a quick transient failure once more', function () {
 
     expect(fn () => (new GeminiDriver)->triage('Login broken', null))->toThrow(TriageException::class, 'http_5xx');
     expect($calls)->toBe(2);
+});
+
+it('accepts a model given as its resource name', function () {
+    config()->set('feedback-board.ai.gemini.model', 'models/gemini-3.5-flash-lite');
+    Http::fake(['generativelanguage.googleapis.com/*' => Http::response(geminiAnswer('{"summary":"x"}'))]);
+
+    (new GeminiDriver)->triage('t', null);
+
+    Http::assertSent(fn ($request) => $request->url() === 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent');
+});
+
+it('keeps another refused request as unknown', function () {
+    Http::fake(['generativelanguage.googleapis.com/*' => Http::response(['error' => ['code' => 400, 'status' => 'INVALID_ARGUMENT', 'message' => 'Bad schema']], 400)]);
+
+    expect(fn () => (new GeminiDriver)->triage('t', null))->toThrow(TriageException::class, 'unknown');
+});
+
+it('shortens a runaway summary', function () {
+    Http::fake(['generativelanguage.googleapis.com/*' => Http::response(geminiAnswer(json_encode(['summary' => str_repeat('a', 5000)])))]);
+
+    $summary = (new GeminiDriver)->triage('t', null)->summary;
+
+    expect(mb_strlen($summary))->toBeLessThanOrEqual(1003)->and($summary)->toStartWith('aaaa');
 });

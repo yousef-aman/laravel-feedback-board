@@ -7,6 +7,7 @@ namespace YousefAman\FeedbackBoard\Triage\Drivers;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Throwable;
 use YousefAman\FeedbackBoard\Destinations\Support\TransientRetry;
 use YousefAman\FeedbackBoard\Enums\FeedbackPriority;
@@ -31,10 +32,13 @@ abstract class HttpTriageDriver implements ChecksConfiguration, TriageDriver
      */
     public const TIME_BUDGET = 40;
 
+    /** Characters kept from a summary, so an answer that runs on cannot fill the card. */
+    private const SUMMARY_CAP = 1000;
+
     /** The key under feedback-board.ai that holds this provider's settings. */
     abstract protected function provider(): string;
 
-    /** The model used when the settings have no model key at all (an older published config). */
+    /** The model used when the settings leave it empty or out (an empty env variable, an older published config). */
     abstract protected function defaultModel(): string;
 
     /** Send one triage request through $http, which carries the timeout and the retry. */
@@ -55,7 +59,7 @@ abstract class HttpTriageDriver implements ChecksConfiguration, TriageDriver
 
     public function configured(): bool
     {
-        return $this->setting('api_key') !== '' && $this->model() !== '';
+        return $this->setting('api_key') !== '';
     }
 
     public function triage(string $title, ?string $description): TriageResult
@@ -65,7 +69,7 @@ abstract class HttpTriageDriver implements ChecksConfiguration, TriageDriver
         }
 
         $model = $this->model();
-        $timeout = min(max(1, (int) config($this->key('timeout'), 30)), self::TIME_BUDGET);
+        $timeout = min($this->positiveInt('timeout') ?? 30, self::TIME_BUDGET);
         $deadline = now()->addSeconds(self::TIME_BUDGET);
         $transient = TransientRetry::when();
 
@@ -113,7 +117,9 @@ abstract class HttpTriageDriver implements ChecksConfiguration, TriageDriver
 
     private function model(): string
     {
-        return config($this->key('model')) === null ? $this->defaultModel() : $this->setting('model');
+        $model = $this->setting('model');
+
+        return $model !== '' ? $model : $this->defaultModel();
     }
 
     private function key(string $name): string
@@ -135,7 +141,7 @@ abstract class HttpTriageDriver implements ChecksConfiguration, TriageDriver
         return new TriageResult(
             is_string($type) ? FeedbackType::tryFrom($type) : null,
             is_string($priority) ? FeedbackPriority::tryFrom($priority) : null,
-            $summary,
+            Str::limit(trim($summary), self::SUMMARY_CAP),
             $model,
         );
     }

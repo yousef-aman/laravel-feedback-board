@@ -33,7 +33,7 @@ it('is false for an unknown/typo driver name (fail closed)', function () {
     expect(TriageGate::configured())->toBeFalse();
 });
 
-it('needs a key and a model for each built-in provider', function (string $provider, array $settings, bool $configured) {
+it('needs a key for each built-in provider', function (string $provider, array $settings, bool $configured) {
     config()->set('feedback-board.ai.enabled', true);
     config()->set('feedback-board.ai.default', $provider);
     foreach ($settings as $key => $value) {
@@ -44,10 +44,10 @@ it('needs a key and a model for each built-in provider', function (string $provi
 })->with([
     'gemini with a key' => ['gemini', ['api_key' => 'gm-key'], true],
     'gemini without a key' => ['gemini', ['api_key' => null], false],
-    'gemini with an empty model' => ['gemini', ['api_key' => 'gm-key', 'model' => ''], false],
+    'gemini with an empty model, which falls back to the default' => ['gemini', ['api_key' => 'gm-key', 'model' => ''], true],
     'openai with a key' => ['openai', ['api_key' => 'sk-key'], true],
     'openai without a key' => ['openai', ['api_key' => ''], false],
-    'anthropic with an empty model' => ['anthropic', ['api_key' => 'sk-ant', 'model' => ''], false],
+    'anthropic with an empty model, which falls back to the default' => ['anthropic', ['api_key' => 'sk-ant', 'model' => ''], true],
 ]);
 
 it('accepts a provider the app adds', function () {
@@ -96,3 +96,45 @@ it('fails closed, and reports it, when a provider the app adds cannot be built',
     expect(TriageGate::configured())->toBeFalse();
     \Illuminate\Support\Facades\Exceptions::assertReported(RuntimeException::class);
 });
+
+it('reports a provider whose factory rejects its settings', function () {
+    config()->set('feedback-board.ai.enabled', true);
+    config()->set('feedback-board.ai.default', 'strict');
+    \YousefAman\FeedbackBoard\Facades\FeedbackBoard::extendTriage('strict', fn () => throw new InvalidArgumentException('The strict driver needs a key.'));
+    \Illuminate\Support\Facades\Exceptions::fake();
+
+    expect(TriageGate::configured())->toBeFalse();
+    \Illuminate\Support\Facades\Exceptions::assertReported(InvalidArgumentException::class);
+});
+
+it('reports a broken provider once, however often triage is checked', function () {
+    config()->set('feedback-board.ai.enabled', true);
+    config()->set('feedback-board.ai.default', 'broken');
+    \YousefAman\FeedbackBoard\Facades\FeedbackBoard::extendTriage('broken', fn () => throw new RuntimeException('missing SDK'));
+    \Illuminate\Support\Facades\Exceptions::fake();
+
+    TriageGate::configured();
+    TriageGate::configured();
+    TriageGate::configured();
+
+    \Illuminate\Support\Facades\Exceptions::assertReportedCount(1);
+});
+
+it('is not configured, and says why, when a factory returns something other than a driver', function () {
+    config()->set('feedback-board.ai.enabled', true);
+    config()->set('feedback-board.ai.default', 'nothing');
+    \YousefAman\FeedbackBoard\Facades\FeedbackBoard::extendTriage('nothing', fn () => null);
+    \Illuminate\Support\Facades\Exceptions::fake();
+
+    expect(TriageGate::configured())->toBeFalse();
+    \Illuminate\Support\Facades\Exceptions::assertReported(fn (UnexpectedValueException $e) => str_contains($e->getMessage(), '[nothing]'));
+});
+
+it('is not configured, without a report, for an unknown or empty driver name', function (string $name) {
+    config()->set('feedback-board.ai.enabled', true);
+    config()->set('feedback-board.ai.default', $name);
+    \Illuminate\Support\Facades\Exceptions::fake();
+
+    expect(TriageGate::configured())->toBeFalse();
+    \Illuminate\Support\Facades\Exceptions::assertNothingReported();
+})->with(['unknown' => ['nope'], 'empty' => ['']]);

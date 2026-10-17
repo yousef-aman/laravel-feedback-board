@@ -419,9 +419,9 @@ FEEDBACK_BOARD_AI_QUEUE=
 FEEDBACK_BOARD_AI_LOCK_STORE=redis
 ```
 
-Only the selected provider's key is needed. When AI is enabled but its provider is unconfigured
-(no API key, an empty model, or an unknown driver name), triage stays inert — nothing is
-dispatched and the manual button returns 422.
+Only the selected provider's key is needed, and an empty model setting uses the provider's
+default model. When AI is enabled but its provider is unconfigured (no API key, or an unknown
+driver name), triage stays inert — nothing is dispatched and the manual button returns 422.
 
 **Providers.**
 
@@ -432,7 +432,9 @@ dispatched and the manual button returns 422.
   sent as `none` by default, because OpenAI's reasoning models call functions in Chat Completions
   only with reasoning off. `FEEDBACK_BOARD_OPENAI_BASE_URL` points it at any API that speaks the same
   protocol, such as DeepSeek, Mistral, OpenRouter or a local Ollama. Set
-  `FEEDBACK_BOARD_OPENAI_REASONING_EFFORT=` (empty) for one that rejects that field.
+  `FEEDBACK_BOARD_OPENAI_REASONING_EFFORT=` (empty) for a provider or model that rejects that
+  field. A provider that needs no key, such as a local Ollama, still needs a non-empty key setting:
+  any placeholder will do.
 
 **Another provider.** Register a driver in `AppServiceProvider::boot()` and select it by name. The
 factory receives the settings under `feedback-board.ai.{name}`:
@@ -446,14 +448,21 @@ FeedbackBoard::extendTriage('mistral', fn (array $config) => new \App\Triage\Mis
 The driver implements `YousefAman\FeedbackBoard\Triage\Contracts\TriageDriver`: it receives the title
 and description and returns a `TriageResult`. If it also implements `ChecksConfiguration`, its
 `configured()` decides whether triage runs; otherwise it counts as configured. A driver that fails
-to build turns triage off and is reported once. Throw `TriageException` with a short code on
-failure, and keep keys out of its message.
+to build, or returns something other than a `TriageDriver`, turns triage off and is reported once
+per request or worker. On failure, throw `TriageException` with a short code and keep keys out of
+its message: `http_429`, `http_5xx` and `connection_error` are retried (three tries in all), and any
+other code fails the triage at once. Any other exception fails it as `unknown`, without a retry and
+without a report.
 
 **What leaves your app.** Only the report's **title and description** are sent to
 the model, jointly truncated to `ai.max_input_chars` (default 4000) to bound cost.
 Reporter identity, email, attachments, and all internal fields are never sent. The
-API key is read from the environment, never logged, and never stored; failures
-record only a short sanitized error code. Each provider has its own data terms; for example,
+API key is read from the environment, never logged by the package, and never stored; failures
+record only a short sanitized error code. Laravel's own HTTP client events still carry the request,
+so a tool that records outgoing requests can store the key unless it hides the key's header
+(`Authorization` for OpenAI, `x-api-key` for Anthropic, `x-goog-api-key` for Gemini); with
+Telescope, add the last two through `Telescope::hideRequestHeaders()`. A summary is kept to 1,000
+characters. Each provider has its own data terms; for example,
 Google's terms for the Gemini API's free tier allow it to use what you send to improve its
 products. Check your provider's terms before you send your users' reports to it.
 

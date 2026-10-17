@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace YousefAman\FeedbackBoard\Triage;
 
 use Illuminate\Support\Manager;
-use InvalidArgumentException;
+use Illuminate\Support\Str;
 use Throwable;
+use UnexpectedValueException;
 use YousefAman\FeedbackBoard\Triage\Contracts\ChecksConfiguration;
 use YousefAman\FeedbackBoard\Triage\Contracts\TriageDriver;
 use YousefAman\FeedbackBoard\Triage\Drivers\AnthropicDriver;
@@ -26,30 +27,46 @@ class TriageManager extends Manager
 
     /**
      * Whether the selected driver can triage: it exists (built in or added by the app) and, when it can
-     * tell, its settings are complete. An unknown name, or a driver that fails to build, is not
-     * configured; the failure is reported once.
+     * tell, its settings are complete. An unknown name is not configured; neither is a driver that fails
+     * to build or is not a TriageDriver, which is reported once per manager (per request or worker).
      */
     public function configured(): bool
     {
         $name = $this->getDefaultDriver();
-        if ($name === '') {
-            return false;
+        if (! $this->knows($name)) {
+            return false; // empty, unknown or misspelt driver name
         }
 
         try {
             $driver = $this->driver($name);
-        } catch (InvalidArgumentException) {
-            return false; // unknown or misspelt driver name
         } catch (Throwable $e) {
-            if (! $this->reportedBrokenDriver) {
-                $this->reportedBrokenDriver = true;
-                report($e);
-            }
+            $this->reportBrokenDriver($e);
+
+            return false;
+        }
+
+        if (! $driver instanceof TriageDriver) {
+            $this->reportBrokenDriver(new UnexpectedValueException("The triage driver [{$name}] is not a ".TriageDriver::class.'.'));
 
             return false;
         }
 
         return ! $driver instanceof ChecksConfiguration || $driver->configured();
+    }
+
+    /** A driver this manager can build: one of its own, or one an app added with extend(). */
+    private function knows(string $name): bool
+    {
+        return $name !== ''
+            && (isset($this->customCreators[$name]) || method_exists($this, 'create'.Str::studly($name).'Driver'));
+    }
+
+    private function reportBrokenDriver(Throwable $e): void
+    {
+        if (! $this->reportedBrokenDriver) {
+            $this->reportedBrokenDriver = true;
+            report($e);
+        }
     }
 
     protected function createFakeDriver(): TriageDriver

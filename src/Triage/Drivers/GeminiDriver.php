@@ -38,6 +38,9 @@ final class GeminiDriver extends HttpTriageDriver
             $config['maxOutputTokens'] = $cap;
         }
 
+        // A model given as its resource name (models/gemini-...) is the same model.
+        $model = (string) preg_replace('#^models/#', '', $model);
+
         return $http->withHeaders(['x-goog-api-key' => $key])
             ->post('https://generativelanguage.googleapis.com/v1beta/models/'.rawurlencode($model).':generateContent', [
                 'systemInstruction' => ['parts' => [['text' => TriagePrompt::system(viaTool: false)]]],
