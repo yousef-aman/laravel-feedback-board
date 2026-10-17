@@ -27,7 +27,7 @@ class FeedbackResolvedNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        return MailLayout::message($this->item, 'reporter')
+        return MailLayout::message($this->item, 'reporter', $notifiable)
             ->subject(__('feedback-board::feedback-board.mail.resolved_subject', ['title' => $this->item->title]))
             ->line(__('feedback-board::feedback-board.mail.resolved_line'));
     }
@@ -39,6 +39,7 @@ class FeedbackResolvedNotification extends Notification
             $this->item,
             'reporter',
             ['feedback_item_id' => $this->item->id, 'kind' => 'resolved'],
+            $notifiable,
         );
     }
 }

@@ -36,3 +36,12 @@ it('leaves the link out and reports the error once when the app link builder thr
         ->and(FeedbackBoard::reportUrl($item, 'developer'))->toBeNull();
     Exceptions::assertReportedCount(1);
 });
+
+it('gives the app link builder the recipient too', function () {
+    $item = FeedbackItem::factory()->create();
+    $recipient = TestUser::create(['name' => 'Dev']);
+    FeedbackBoard::linkReportsUsing(fn (FeedbackItem $report, string $audience, ?object $to) => 'https://app.test/'.($to?->name ?? 'nobody'));
+
+    expect(FeedbackBoard::reportUrl($item, 'developer', $recipient))->toBe('https://app.test/Dev')
+        ->and(FeedbackBoard::reportUrl($item, 'developer'))->toBe('https://app.test/nobody');
+});

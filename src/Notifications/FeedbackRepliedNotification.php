@@ -30,7 +30,7 @@ class FeedbackRepliedNotification extends Notification
         $item = $this->comment->item;
         $body = trim((string) $this->comment->body);
 
-        return MailLayout::message($item, 'reporter')
+        return MailLayout::message($item, 'reporter', $notifiable)
             ->subject(__('feedback-board::feedback-board.mail.reply_subject', ['title' => $item->title]))
             ->line(__('feedback-board::feedback-board.mail.reply_line', ['id' => $item->id]))
             ->line($body !== '' ? MailText::line($body) : __('feedback-board::feedback-board.mail.reply_images'));
@@ -46,6 +46,7 @@ class FeedbackRepliedNotification extends Notification
             $item,
             'reporter',
             ['feedback_item_id' => $item->id, 'kind' => 'reply'],
+            $notifiable,
         );
     }
 }

@@ -30,7 +30,7 @@ class FeedbackClosedNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        return MailLayout::message($this->item, 'reporter')
+        return MailLayout::message($this->item, 'reporter', $notifiable)
             ->subject(__('feedback-board::feedback-board.mail.'.$this->kind().'_subject', ['title' => $this->item->title]))
             ->line(__('feedback-board::feedback-board.mail.'.$this->kind().'_line'));
     }
@@ -42,6 +42,7 @@ class FeedbackClosedNotification extends Notification
             $this->item,
             'reporter',
             ['feedback_item_id' => $this->item->id, 'kind' => $this->kind()],
+            $notifiable,
         );
     }
 

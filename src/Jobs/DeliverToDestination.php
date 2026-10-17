@@ -21,6 +21,7 @@ use YousefAman\FeedbackBoard\Destinations\Exceptions\RetryAfter;
 use YousefAman\FeedbackBoard\Destinations\Support\DeliveryError;
 use YousefAman\FeedbackBoard\Destinations\Support\DestinationEvent;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
+use YousefAman\FeedbackBoard\Support\MailLayout;
 
 class DeliverToDestination implements ShouldQueue
 {
@@ -129,21 +130,23 @@ class DeliverToDestination implements ShouldQueue
                 return; // email-only recipients have no database notification target
             }
 
-            $url = app(\YousefAman\FeedbackBoard\FeedbackBoard::class)->reportUrl($item, 'developer');
-
-            \Filament\Notifications\Notification::make()
-                ->title(__('feedback-board::feedback-board.destinations.failed_title', ['destination' => DeliveryError::destination($this->driver)]))
-                ->body(Str::ucfirst(DeliveryError::reason($code)))
-                ->danger()
-                ->actions($url === null ? [] : [
-                    \Filament\Actions\Action::make('view')
-                        ->label(__('feedback-board::feedback-board.mail.view_report'))
-                        ->url($url)
-                        ->markAsRead(),
-                ])
-                ->sendToDatabase($notifiables);
         } catch (Throwable) {
-            // best-effort: a notification failure must not mask the delivery failure
+            return; // best-effort: a notification failure must not mask the delivery failure
+        }
+
+        // One entry per developer, each with the link to the board they can open; one failing
+        // recipient does not stop the others.
+        foreach ($notifiables as $notifiable) {
+            try {
+                \Filament\Notifications\Notification::make()
+                    ->title(__('feedback-board::feedback-board.destinations.failed_title', ['destination' => DeliveryError::destination($this->driver)]))
+                    ->body(Str::ucfirst(DeliveryError::reason($code)))
+                    ->danger()
+                    ->actions(MailLayout::bellButton(app(\YousefAman\FeedbackBoard\FeedbackBoard::class)->reportUrl($item, 'developer', $notifiable)))
+                    ->sendToDatabase($notifiable);
+            } catch (Throwable) {
+                // best-effort, as above
+            }
         }
     }
 }

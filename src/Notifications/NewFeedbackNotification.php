@@ -27,7 +27,7 @@ class NewFeedbackNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        return MailLayout::message($this->item, 'developer')
+        return MailLayout::message($this->item, 'developer', $notifiable)
             ->subject(__('feedback-board::feedback-board.mail.new_subject', ['title' => $this->item->title]))
             ->line(__('feedback-board::feedback-board.mail.new_line'))
             ->line(MailText::line($this->item->title));
@@ -42,6 +42,7 @@ class NewFeedbackNotification extends Notification
             $this->item,
             'developer',
             ['feedback_item_id' => $this->item->id, 'feedback_title' => $this->item->title, 'kind' => 'new'],
+            $notifiable,
         );
     }
 }

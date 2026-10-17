@@ -63,8 +63,9 @@ class FeedbackBoard
     }
 
     /**
-     * @param  callable(FeedbackItem, string): ?string  $callback  the link a notification gives for a report:
-     *   its audience is 'reporter' or 'developer'; null leaves the link out
+     * @param  callable(FeedbackItem, string, ?object): ?string  $callback  the link a notification gives for a
+     *   report: its audience is 'reporter' or 'developer', and the recipient is the notified model (null for
+     *   an e-mail-only recipient); null leaves the link out
      */
     public function linkReportsUsing(callable $callback): void
     {
@@ -73,19 +74,23 @@ class FeedbackBoard
 
     /**
      * The link that opens a report for its reporter ('reporter': My reports) or for developers
-     * ('developer': the board), as notifications give it; null when there is none.
+     * ('developer': the board), as notifications give it to $recipient (the notified model; null or an
+     * on-demand notifiable for an e-mail address); null when there is none.
      *
-     * The app's linkReportsUsing() callback decides when it is set; only an http(s) URL is kept, and
-     * a callback that throws is reported once and gives no link. Otherwise the page is in the first
-     * Filament panel, the default panel first, that has the plugin and no tenancy and recognises the
-     * audience: for the reporter, a panel on a guard whose model is the reporter's, with My reports
-     * on; for developers, a panel on a developer guard. Without one, the standalone page.
+     * The app's linkReportsUsing() callback decides when it is set; only an absolute http(s) URL is
+     * kept, and a callback that throws is reported once and gives no link. Otherwise the page is in the
+     * first Filament panel, the default panel first, that has the plugin and no tenancy and recognises
+     * the audience: for the reporter, a panel on a guard whose model is the reporter's, with My reports
+     * on; for developers, a panel on a developer guard. A recipient model must also be its guard's
+     * model and, as a FilamentUser, allowed into the panel. Without such a panel, the standalone page.
      */
-    public function reportUrl(FeedbackItem $item, string $audience): ?string
+    public function reportUrl(FeedbackItem $item, string $audience, ?object $recipient = null): ?string
     {
+        $recipient = $recipient instanceof Model ? $recipient : null;
+
         if ($this->reportLinks !== null) {
             try {
-                return Ui::safeUrl(($this->reportLinks)($item, $audience));
+                return Ui::safeUrl(($this->reportLinks)($item, $audience, $recipient));
             } catch (Throwable $e) {
                 $this->reportOnce('report-links', $e);
 
@@ -96,7 +101,7 @@ class FeedbackBoard
         $developer = $audience === 'developer';
 
         try {
-            $url = $this->panelReportUrl($item, $developer);
+            $url = $this->panelReportUrl($item, $developer, $recipient);
         } catch (Throwable $e) {
             // A panel whose URLs cannot be built here: the standalone page still opens the report.
             $this->reportOnce('report-links-panel', $e);
@@ -435,7 +440,7 @@ class FeedbackBoard
     }
 
     /** The report's page in the first Filament panel that suits the audience (see reportUrl()); null when none does. */
-    private function panelReportUrl(FeedbackItem $item, bool $developer): ?string
+    private function panelReportUrl(FeedbackItem $item, bool $developer, ?Model $recipient): ?string
     {
         // Filament may be installed but not booted (an app without panels): check the provider, not the class.
         if (! app()->providerIsLoaded(\Filament\FilamentServiceProvider::class)) {
@@ -468,6 +473,12 @@ class FeedbackBoard
 
             if (! $plugin instanceof Filament\FeedbackBoardPlugin || $panel->hasTenancy()
                 || ($configured !== null && ! in_array($guard, $configured, true))) {
+                continue;
+            }
+
+            // The recipient signs in on this guard, and the panel lets them in.
+            if ($recipient !== null && ($this->providerModel($guard) !== $recipient::class
+                || ($recipient instanceof \Filament\Models\Contracts\FilamentUser && ! $recipient->canAccessPanel($panel)))) {
                 continue;
             }
 

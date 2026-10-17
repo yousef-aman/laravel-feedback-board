@@ -11,13 +11,13 @@ use YousefAman\FeedbackBoard\Models\FeedbackItem;
  * The start of every package e-mail: the package's Markdown template (feedback-board::mail.notification)
  * inside the app's mail layout, the app's mail theme with right-to-left alignment added
  * (feedback-board::mail.theme), and a button that opens the report for the e-mail's audience
- * ('reporter' or 'developer', see FeedbackBoard::reportUrl()) when there is a link.
+ * ('reporter' or 'developer') and recipient, see FeedbackBoard::reportUrl(), when there is a link.
  */
 final class MailLayout
 {
-    public static function message(FeedbackItem $item, string $audience): ReportMailMessage
+    public static function message(FeedbackItem $item, string $audience, ?object $recipient = null): ReportMailMessage
     {
-        return (new ReportMailMessage(app(FeedbackBoard::class)->reportUrl($item, $audience)))
+        return (new ReportMailMessage(app(FeedbackBoard::class)->reportUrl($item, $audience, $recipient)))
             ->markdown('feedback-board::mail.notification')
             ->theme('feedback-board::mail.theme');
     }
@@ -30,27 +30,37 @@ final class MailLayout
      * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      */
-    public static function database(string $title, FeedbackItem $item, string $audience, array $payload): array
+    public static function database(string $title, FeedbackItem $item, string $audience, array $payload, ?object $recipient = null): array
     {
-        $url = app(FeedbackBoard::class)->reportUrl($item, $audience);
+        $url = app(FeedbackBoard::class)->reportUrl($item, $audience, $recipient);
         $payload['feedback_url'] = $url;
 
         if (! class_exists(\Filament\Notifications\Notification::class)) {
             return $payload;
         }
 
-        $notification = \Filament\Notifications\Notification::make()->title($title);
+        // Filament's bell only renders rows carrying format:'filament'; its own keys win over the payload's.
+        return \Filament\Notifications\Notification::make()->title($title)->actions(self::bellButton($url))
+            ->getDatabaseMessage() + $payload;
+    }
 
-        if ($url !== null) {
-            $notification->actions([
-                \Filament\Actions\Action::make('view')
-                    ->label(__('feedback-board::feedback-board.mail.view_report'))
-                    ->url($url)
-                    ->markAsRead(),
-            ]);
+    /**
+     * The bell entry's "View report" button, marking the entry read; none without a link, or on a
+     * Filament older than 4, whose notification actions are another class.
+     *
+     * @return list<\Filament\Actions\Action>
+     */
+    public static function bellButton(?string $url): array
+    {
+        if ($url === null || ! method_exists(\Filament\Actions\Action::class, 'markAsRead')) {
+            return [];
         }
 
-        // Filament's bell only renders rows carrying format:'filament'; its own keys win over the payload's.
-        return $notification->getDatabaseMessage() + $payload;
+        return [
+            \Filament\Actions\Action::make('view')
+                ->label(__('feedback-board::feedback-board.mail.view_report'))
+                ->url($url)
+                ->markAsRead(),
+        ];
     }
 }

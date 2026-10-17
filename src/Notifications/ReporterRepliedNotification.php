@@ -31,7 +31,7 @@ class ReporterRepliedNotification extends Notification
         $item = $this->comment->item;
         $body = trim((string) $this->comment->body);
 
-        return MailLayout::message($item, 'developer')
+        return MailLayout::message($item, 'developer', $notifiable)
             ->subject(__('feedback-board::feedback-board.mail.reporter_reply_subject', ['title' => $item->title]))
             ->line(__('feedback-board::feedback-board.mail.reporter_reply_line', ['id' => $item->id]))
             ->line($body !== '' ? MailText::line($body) : __('feedback-board::feedback-board.mail.reply_images'));
@@ -47,6 +47,7 @@ class ReporterRepliedNotification extends Notification
             $item,
             'developer',
             ['feedback_item_id' => $item->id, 'kind' => 'reporter_reply'],
+            $notifiable,
         );
     }
 }

@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static void resolveReportersUsing(callable $callback)
  * @method static void notifyDevelopersUsing(callable $callback)
  * @method static void linkReportsUsing(callable $callback)
- * @method static string|null reportUrl(\YousefAman\FeedbackBoard\Models\FeedbackItem $item, string $audience)
+ * @method static string|null reportUrl(\YousefAman\FeedbackBoard\Models\FeedbackItem $item, string $audience, object|null $recipient = null)
  * @method static bool isDeveloper(\Illuminate\Contracts\Auth\Authenticatable|null $user)
  * @method static bool canReport(\Illuminate\Contracts\Auth\Authenticatable|null $user)
  * @method static \Illuminate\Contracts\Auth\Authenticatable|null user()

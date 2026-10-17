@@ -265,3 +265,22 @@ it("gives a reporter's or developer's own text its own direction inside the e-ma
     expect(hBody($html)['text'])->toContain("\u{2068}Deployed a fix (Ctrl+F5).\u{2069}")
         ->and(hBody($html)['text'])->toContain('وصل رد جديد على البلاغ رقم '.$item->id.'.');
 });
+
+it('shows the report button on the built message, after every line', function () {
+    $item = FeedbackItem::factory()->create();
+
+    $mail = YousefAman\FeedbackBoard\Support\MailLayout::message($item, 'developer')->line('One')->lines(['Two', 'Three']);
+
+    expect($mail->actionUrl)->toBe('http://localhost/feedback-board/feedback/board?report='.$item->id)
+        ->and($mail->introLines)->toBe(['One', 'Two', 'Three'])
+        ->and($mail->outroLines)->toBe([]);
+});
+
+it("lets a notification's own button replace the report button, with later lines after it", function () {
+    $mail = YousefAman\FeedbackBoard\Support\MailLayout::message(FeedbackItem::factory()->create(), 'developer')
+        ->line('Before')->action('Open the order', 'https://app.test/orders/5')->line('After');
+
+    expect([$mail->actionText, $mail->actionUrl])->toBe(['Open the order', 'https://app.test/orders/5'])
+        ->and($mail->introLines)->toBe(['Before'])
+        ->and($mail->outroLines)->toBe(['After']);
+});
