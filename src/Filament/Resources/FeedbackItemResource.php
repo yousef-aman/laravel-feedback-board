@@ -20,6 +20,7 @@ use YousefAman\FeedbackBoard\Triage\Support\TriageGate;
 use YousefAman\FeedbackBoard\Filament\Resources\FeedbackItemResource\Pages\ListFeedbackItems;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
 use YousefAman\FeedbackBoard\Policies\FeedbackItemPolicy;
+use YousefAman\FeedbackBoard\Support\Ui;
 
 class FeedbackItemResource extends Resource
 {
@@ -64,6 +65,12 @@ class FeedbackItemResource extends Resource
         return 3;
     }
 
+    /** The report's GitHub issue address, when it is http(s). */
+    private static function githubIssueUrl(FeedbackItem $record): ?string
+    {
+        return Ui::safeUrl(($record->external_refs ?? [])['github']['html_url'] ?? null);
+    }
+
     public static function table(Table $table): Table
     {
         return $table->columns([
@@ -82,6 +89,14 @@ class FeedbackItemResource extends Resource
             TextColumn::make('created_at')->label(__('feedback-board::feedback-board.resource.columns.created_at'))
                 ->since()->dateTimeTooltip()->sortable(),
         ])->recordActions([
+            Action::make('openGithubIssue')
+                ->label(fn (FeedbackItem $record): string => __('feedback-board::feedback-board.destinations.github_issue', [
+                    'number' => ($record->external_refs ?? [])['github']['issue_number'] ?? '',
+                ]))
+                ->visible(fn (FeedbackItem $record): bool => self::githubIssueUrl($record) !== null)
+                ->url(fn (FeedbackItem $record): ?string => self::githubIssueUrl($record))
+                ->openUrlInNewTab(),
+
             Action::make('sendToGithub')
                 ->label(__('feedback-board::feedback-board.detail.send_github'))
                 ->visible(fn (FeedbackItem $record): bool =>

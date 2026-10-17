@@ -206,15 +206,24 @@
                 </div>
             @endif
 
-            @if ($githubQueued)
-                <p class="fb-notice">{{ __('feedback-board::feedback-board.detail.github_queued') }}</p>
-            @elseif ($canGithub)
-                <div class="fb-actions">
-                    <button type="button" class="fb-btn fb-btn--sm" wire:click="sendToGithub" wire:loading.attr="disabled" wire:target="sendToGithub">
-                        <x-feedback-board::icon name="code-bracket" />{{ __('feedback-board::feedback-board.detail.send_github') }}
-                    </button>
-                </div>
-            @endif
+            {{-- The GitHub issue, failing deliveries, and "Send to GitHub". It polls while a send waits for its issue or failure. --}}
+            <div wire:key="deliveries-{{ $item->id }}" @if ($githubPending) wire:poll.5s @endif>
+                @if ($githubIssue)
+                    <p><a class="fb-link" href="{{ $githubIssue['url'] }}" target="_blank" rel="noopener noreferrer"><x-feedback-board::icon name="code-bracket" />{{ __('feedback-board::feedback-board.destinations.github_issue', ['number' => $githubIssue['number']]) }}</a></p>
+                @endif
+                @foreach ($deliveryProblems as $problem)
+                    <p class="fb-notice fb-notice--warning" @if ($problem['at']) title="{{ $problem['at'] }}" @endif>{{ $problem['text'] }} <span class="fb-muted">({{ $problem['when'] }})</span></p>
+                @endforeach
+                @if ($githubPending)
+                    <p class="fb-notice">{{ __('feedback-board::feedback-board.detail.github_queued') }}</p>
+                @elseif ($canGithub)
+                    <div class="fb-actions">
+                        <button type="button" class="fb-btn fb-btn--sm" wire:click="sendToGithub" wire:loading.attr="disabled" wire:target="sendToGithub">
+                            <x-feedback-board::icon name="code-bracket" />{{ __('feedback-board::feedback-board.detail.send_github') }}
+                        </button>
+                    </div>
+                @endif
+            </div>
         </div>
 
         <aside class="fb-dialog__side" aria-labelledby="{{ $uid }}-side-title">

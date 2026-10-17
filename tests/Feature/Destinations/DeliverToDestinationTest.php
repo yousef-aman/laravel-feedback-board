@@ -103,3 +103,27 @@ it('DeliveryError maps throwables to a fixed vocabulary', function () {
     expect(DeliveryError::code(new \Illuminate\Http\Client\ConnectionException('x')))->toBe('connection_error')
         ->and(DeliveryError::code(new RuntimeException('boom')))->toBe('unknown');
 });
+
+it("clears this destination's recorded failure once a delivery succeeds, and leaves the others", function () {
+    $failure = ['code' => 'connection_error', 'event' => 'feedback.created', 'at' => '2026-10-17T10:00:00+00:00'];
+    $item = FeedbackItem::factory()->create(['external_refs' => [
+        'spy_last_error' => $failure,
+        'slack_last_error' => $failure,
+        'github' => ['issue_number' => 7],
+    ]]);
+    app(DestinationManager::class)->extend('spy', fn () => fakeDriver(fn () => null));
+
+    (new DeliverToDestination(new FeedbackItemCreated($item), 'spy', 'dlv-ok'))->handle(app(DestinationManager::class));
+
+    expect($item->refresh()->external_refs)->toBe(['slack_last_error' => $failure, 'github' => ['issue_number' => 7]]);
+});
+
+it('keeps the recorded failure when the delivery fails again', function () {
+    $failure = ['code' => 'connection_error', 'event' => 'feedback.created', 'at' => '2026-10-17T10:00:00+00:00'];
+    $item = FeedbackItem::factory()->create(['external_refs' => ['spy_last_error' => $failure]]);
+    app(DestinationManager::class)->extend('spy', fn () => fakeDriver(fn () => throw new RuntimeException('down')));
+
+    expect(fn () => (new DeliverToDestination(new FeedbackItemCreated($item), 'spy', 'dlv-x'))->handle(app(DestinationManager::class)))
+        ->toThrow(RuntimeException::class);
+    expect($item->refresh()->external_refs)->toBe(['spy_last_error' => $failure]);
+});

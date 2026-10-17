@@ -83,7 +83,21 @@ return [
         ],
     ],
     'destinations' => [
-        'delivery_failed' => 'فشل إرسال الملاحظة',
+        'failed_title' => 'تعذّر الإرسال إلى :destination',
+        'failed' => 'تعذّر الإرسال إلى :destination: :reason',
+        'failed_when' => ':event، :time',
+        'github_issue' => 'الـ issue رقم :number على GitHub',
+        'events' => ['created' => 'بلاغ جديد', 'replied' => 'رد', 'status_changed' => 'تغيير الحالة'],
+        'reasons' => [
+            'connection_error' => 'تعذّر الاتصال.',
+            'invalid_url' => 'الرابط المضبوط غير صالح.',
+            'auth_401' => 'رُفض الوصول؛ تحقّق من التوكن وصلاحياته.',
+            'not_found_404' => 'غير موجود؛ تحقّق من المستودع أو الرابط.',
+            'validation_422' => 'رفضت الخدمة الطلب.',
+            'http_429' => 'طلبات كثيرة جدًا.',
+            'http_5xx' => 'حدث خطأ في الخدمة.',
+            'unknown' => 'خطأ غير معروف.',
+        ],
     ],
     'triage' => [
         'analyzing' => 'يحلّل الذكاء الاصطناعي…',

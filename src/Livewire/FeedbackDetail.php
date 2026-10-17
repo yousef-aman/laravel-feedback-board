@@ -9,13 +9,14 @@ use Illuminate\Support\Collection;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
 use YousefAman\FeedbackBoard\Actions\{ApplyTriageSuggestion, AssignFeedback, DispatchToRunner, ReplyToFeedback, RequestTriage, SendItemToGithub, SetPriority, TransitionStatus};
+use YousefAman\FeedbackBoard\Destinations\Support\DeliveryError;
 use YousefAman\FeedbackBoard\Enums\{ActivityAction, AuthorRole, FeedbackPriority, FeedbackStatus};
 use YousefAman\FeedbackBoard\Facades\FeedbackBoard;
 use YousefAman\FeedbackBoard\Livewire\Concerns\WithStagedUploads;
 use YousefAman\FeedbackBoard\Models\{FeedbackActivity, FeedbackComment, FeedbackItem};
 use YousefAman\FeedbackBoard\Policies\FeedbackItemPolicy;
 use YousefAman\FeedbackBoard\Services\AttachmentStorage;
-use YousefAman\FeedbackBoard\Support\{Person, Ui};
+use YousefAman\FeedbackBoard\Support\{Person, Time, Ui};
 
 class FeedbackDetail extends Component
 {
@@ -29,8 +30,9 @@ class FeedbackDetail extends Component
     #[Locked]
     public bool $imagesFailed = false;
 
+    /** When "Send to GitHub" was pressed here: the board waits for the issue, or a newer failure. */
     #[Locked]
-    public bool $githubQueued = false;
+    public ?string $githubQueuedAt = null;
 
     public function mount(FeedbackItem $item): void
     {
@@ -89,7 +91,7 @@ class FeedbackDetail extends Component
     {
         $this->guard();
         $action->handle($this->item, FeedbackBoard::user());
-        $this->githubQueued = true;
+        $this->githubQueuedAt = now()->toIso8601String();
         $this->dispatch('feedback-sent-to-github'); // optimistic UI hook
     }
 
@@ -139,6 +141,9 @@ class FeedbackDetail extends Component
             'context' => $this->context(),
             'canAttach' => app(AttachmentStorage::class)->imageMimes() !== [],
             'canGithub' => $this->canSendToGithub(),
+            'githubIssue' => $this->githubIssue(),
+            'githubPending' => $pending = $this->githubPending(),
+            'deliveryProblems' => $this->deliveryProblems(skipGithub: $pending),
         ]);
     }
 
@@ -205,6 +210,55 @@ class FeedbackDetail extends Component
     private static function isolate(?string $name): ?string
     {
         return $name === null ? null : "\u{2068}{$name}\u{2069}";
+    }
+
+    /** @return array{number: int|string, url: string}|null the GitHub issue, when its stored address is http(s) */
+    private function githubIssue(): ?array
+    {
+        $ref = ($this->item->external_refs ?? [])['github'] ?? null;
+        $url = Ui::safeUrl($ref['html_url'] ?? null);
+        $number = $ref['issue_number'] ?? null;
+
+        return $url !== null && (is_int($number) || is_string($number)) ? ['number' => $number, 'url' => $url] : null;
+    }
+
+    /** Sent to GitHub from here, and neither the issue nor a failure recorded since has come back. */
+    private function githubPending(): bool
+    {
+        $queuedAt = Time::parse($this->githubQueuedAt);
+
+        if ($queuedAt === null || isset(($this->item->external_refs ?? [])['github'])) {
+            return false;
+        }
+
+        $failedAt = Time::parse(($this->item->external_refs ?? [])['github_last_error']['at'] ?? null);
+
+        return $failedAt === null || $failedAt->lt($queuedAt);
+    }
+
+    /**
+     * The destinations whose last delivery failed, as DeliveryError::describe() words them. While a
+     * GitHub send is pending, GitHub's earlier failure is left out: the new attempt may succeed.
+     *
+     * @return list<array{text: string, when: string, at: ?string}>
+     */
+    private function deliveryProblems(bool $skipGithub): array
+    {
+        $problems = [];
+
+        foreach ($this->item->external_refs ?? [] as $key => $record) {
+            if (! is_string($key) || ! str_ends_with($key, '_last_error')) {
+                continue;
+            }
+
+            $driver = substr($key, 0, -strlen('_last_error'));
+
+            if (($driver !== 'github' || ! $skipGithub) && ($problem = DeliveryError::describe($driver, $record)) !== null) {
+                $problems[] = $problem;
+            }
+        }
+
+        return $problems;
     }
 
     /** The resource action's conditions: configured, and no issue yet. */

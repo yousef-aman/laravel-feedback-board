@@ -83,7 +83,21 @@ return [
         ],
     ],
     'destinations' => [
-        'delivery_failed' => 'Feedback delivery failed',
+        'failed_title' => 'Delivery to :destination failed',
+        'failed' => 'Delivery to :destination failed: :reason',
+        'failed_when' => ':event, :time',
+        'github_issue' => 'GitHub issue #:number',
+        'events' => ['created' => 'New report', 'replied' => 'Reply', 'status_changed' => 'Status change'],
+        'reasons' => [
+            'connection_error' => 'could not connect.',
+            'invalid_url' => 'the configured URL is not valid.',
+            'auth_401' => 'access was refused; check the token and its permissions.',
+            'not_found_404' => 'not found; check the repository or the URL.',
+            'validation_422' => 'the service rejected the request.',
+            'http_429' => 'too many requests.',
+            'http_5xx' => 'the service had an error.',
+            'unknown' => 'unknown error.',
+        ],
     ],
     'triage' => [
         'analyzing' => 'AI is analyzing…',

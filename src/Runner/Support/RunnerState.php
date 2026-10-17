@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace YousefAman\FeedbackBoard\Runner\Support;
 
-use Carbon\Exceptions\InvalidFormatException;
 use Closure;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
+use YousefAman\FeedbackBoard\Support\Time;
 
 final class RunnerState
 {
@@ -87,15 +87,7 @@ final class RunnerState
      */
     public static function parseTime(mixed $value): ?Carbon
     {
-        if (! is_string($value) || $value === '') {
-            return null;
-        }
-
-        try {
-            return Carbon::parse($value);
-        } catch (InvalidFormatException) {
-            return null;
-        }
+        return Time::parse($value);
     }
 
     /**
