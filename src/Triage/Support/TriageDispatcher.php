@@ -70,8 +70,14 @@ final class TriageDispatcher
             return false; // debounce — a run is already in flight
         }
 
+        $pending = ['status' => 'pending', 'generated_at' => now()->toIso8601String()];
+        if (is_array($triage) && ($triage['status'] ?? null) === 'completed') {
+            // A re-run that fails puts this suggestion back (TriageFeedbackItem::writeFailed).
+            $pending['previous'] = $triage;
+        }
+
         $ai = $fresh->ai_state ?? [];
-        $ai['triage'] = ['status' => 'pending', 'generated_at' => now()->toIso8601String()];
+        $ai['triage'] = $pending;
         $fresh->ai_state = $ai;
         $fresh->save();
 

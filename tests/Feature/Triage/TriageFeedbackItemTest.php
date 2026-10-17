@@ -140,3 +140,63 @@ it('passes only the title and description to the driver — never reporter PII',
     expect($seen)->toBe(['Visible title', 'Visible description']);
     // The driver received exactly two strings — the FeedbackItem (and its PII) never entered it.
 });
+
+/** A re-run in flight over an earlier completed suggestion, as TriageDispatcher writes it. */
+function pendingOverPrevious(): FeedbackItem
+{
+    $item = FeedbackItem::factory()->create();
+    $item->ai_state = ['triage' => [
+        'status' => 'pending',
+        'generated_at' => now()->toIso8601String(),
+        'previous' => [
+            'status' => 'completed', 'model' => 'old-model', 'suggested_type' => 'bug', 'suggested_priority' => 'high',
+            'summary' => 'Old summary', 'generated_at' => '2026-10-01T10:00:00+00:00', 'error_code' => null,
+        ],
+    ]];
+    $item->save();
+
+    return $item;
+}
+
+it('keeps the previous suggestion, with the reason, when a re-run fails', function () {
+    app(TriageManager::class)->extend('spy', fn () => spyDriver(fn () => throw new TriageException('auth_401')));
+    $item = pendingOverPrevious();
+
+    (new TriageFeedbackItem($item->id))->handle(app(TriageManager::class));
+
+    $triage = $item->refresh()->ai_state['triage'];
+    expect($triage['status'])->toBe('completed')
+        ->and($triage['summary'])->toBe('Old summary')
+        ->and($triage['suggested_type'])->toBe('bug')
+        ->and($triage['suggested_priority'])->toBe('high')
+        ->and($triage['model'])->toBe('old-model')
+        ->and($triage['error_code'])->toBe('auth_401')
+        ->and($triage)->not->toHaveKey('previous');
+});
+
+it('keeps the previous suggestion when a re-run runs out of retries', function () {
+    $item = pendingOverPrevious();
+
+    (new TriageFeedbackItem($item->id))->failed(new TriageException('http_5xx'));
+
+    $triage = $item->refresh()->ai_state['triage'];
+    expect($triage['status'])->toBe('completed')
+        ->and($triage['summary'])->toBe('Old summary')
+        ->and($triage['error_code'])->toBe('http_5xx');
+});
+
+it('replaces the previous suggestion when a re-run succeeds', function () {
+    app(TriageManager::class)->extend('spy', fn () => spyDriver(
+        fn () => new TriageResult(FeedbackType::Question, null, 'New summary', 'spy-model')
+    ));
+    $item = pendingOverPrevious();
+
+    (new TriageFeedbackItem($item->id))->handle(app(TriageManager::class));
+
+    $triage = $item->refresh()->ai_state['triage'];
+    expect($triage['summary'])->toBe('New summary')
+        ->and($triage['suggested_type'])->toBe('question')
+        ->and($triage['suggested_priority'])->toBeNull()
+        ->and($triage['error_code'])->toBeNull()
+        ->and($triage)->not->toHaveKey('previous');
+});

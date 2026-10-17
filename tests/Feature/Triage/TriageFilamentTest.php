@@ -39,3 +39,15 @@ it('renders the suggestion modal body with the summary HTML-escaped', function (
     expect($html)->not->toContain('<script>alert(1)</script>') // raw markup escaped away
         ->and($html)->toContain('alert(1)');                   // escaped text present
 });
+
+it('notes a failed re-run in the suggestion modal, over the previous suggestion', function () {
+    $note = __('feedback-board::feedback-board.triage.previous_kept');
+    $render = fn (?string $code) => view('feedback-board::filament.triage-suggestion', [
+        'triage' => ['status' => 'completed', 'summary' => 'Old summary', 'error_code' => $code],
+    ])->render();
+
+    expect($render('auth_401'))->toContain(e(__('feedback-board::feedback-board.triage.reasons.auth_401')))
+        ->and($render('auth_401'))->toContain(e($note))
+        ->and($render('auth_401'))->toContain('Old summary')
+        ->and($render(null))->not->toContain(e($note));
+});

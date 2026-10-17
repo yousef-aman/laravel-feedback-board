@@ -470,6 +470,10 @@ products. Check your provider's terms before you send your users' reports to it.
 transaction commits) and can be re-run from the "Triage with AI" button in the
 board's card dialog or the Filament resource.
 
+**Failures.** The card says why a triage failed, for example that the provider refused the key or
+that the model name was not found. When a re-run fails, the card keeps the suggestion from the run
+before it and notes the failure above it.
+
 **Time.** The call to the provider, its one retry included, ends within 40 seconds, and the triage
 job has a 60-second timeout of its own, whatever `--timeout` the worker runs with. Keep the queue
 connection's `retry_after` above 60 seconds (Laravel's default is 90), or a second worker may pick

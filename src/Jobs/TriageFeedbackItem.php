@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace YousefAman\FeedbackBoard\Jobs;
 
+use Closure;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -91,18 +92,29 @@ class TriageFeedbackItem implements ShouldQueue
         $this->writeFailed($this->itemId, TriageError::code($e));
     }
 
-    /** Write the terminal failed state (best-effort lock; never rethrows a lock timeout). */
+    /**
+     * Write the terminal failed state (best-effort lock; never rethrows a lock timeout). A re-run over
+     * a completed suggestion puts that suggestion back, with this failure's code, so a failed re-run
+     * never loses a good one.
+     */
     private function writeFailed(int $id, string $code): void
     {
-        $this->writeTriage($id, [
-            'status' => 'failed',
-            'model' => null,
-            'suggested_type' => null,
-            'suggested_priority' => null,
-            'summary' => null,
-            'generated_at' => now()->toIso8601String(),
-            'error_code' => $code,
-        ], swallowLockTimeout: true);
+        $this->writeTriage($id, function (?array $current) use ($code): array {
+            $previous = $current['previous'] ?? null;
+            if (is_array($previous) && ($previous['status'] ?? null) === 'completed') {
+                return ['error_code' => $code] + $previous;
+            }
+
+            return [
+                'status' => 'failed',
+                'model' => null,
+                'suggested_type' => null,
+                'suggested_priority' => null,
+                'summary' => null,
+                'generated_at' => now()->toIso8601String(),
+                'error_code' => $code,
+            ];
+        }, swallowLockTimeout: true);
     }
 
     /**
@@ -111,9 +123,10 @@ class TriageFeedbackItem implements ShouldQueue
      * not from the lock, which serializes triage-vs-triage writes. In failed() a
      * LockTimeoutException is swallowed so the failure record never crashes the worker.
      *
-     * @param array<string, mixed> $triage
+     * @param array<string, mixed>|Closure(array<string, mixed>|null): array<string, mixed> $triage
+     *        the new triage block, or a function of the current one
      */
-    private function writeTriage(int $id, array $triage, bool $swallowLockTimeout = false): void
+    private function writeTriage(int $id, array|Closure $triage, bool $swallowLockTimeout = false): void
     {
         $store = config('feedback-board.ai.lock_store');
 
@@ -124,7 +137,8 @@ class TriageFeedbackItem implements ShouldQueue
                     return;
                 }
                 $ai = $fresh->ai_state ?? [];
-                $ai['triage'] = $triage;
+                $current = $ai['triage'] ?? null;
+                $ai['triage'] = $triage instanceof Closure ? $triage(is_array($current) ? $current : null) : $triage;
                 $fresh->ai_state = $ai;
                 $fresh->save();
             });

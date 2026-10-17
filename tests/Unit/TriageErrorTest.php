@@ -33,3 +33,10 @@ it('never includes the original message (no previous on TriageException)', funct
     expect((string) $e)->not->toContain('secret')
         ->and($e->getPrevious())->toBeNull();
 });
+
+it('words a code for people, and a code it has no words for as unknown', function () {
+    expect(TriageError::reason('auth_401'))->toBe(__('feedback-board::feedback-board.triage.reasons.auth_401'))
+        ->and(TriageError::reason('auth_401'))->not->toContain('auth_401')
+        ->and(TriageError::reason('quota_gone'))->toBe(__('feedback-board::feedback-board.triage.reasons.unknown'))
+        ->and(TriageError::reason(''))->toBe(__('feedback-board::feedback-board.triage.reasons.unknown'));
+});

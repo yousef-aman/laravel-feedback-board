@@ -131,11 +131,14 @@
                     @if (($triage['status'] ?? null) === 'pending')
                         <p class="fb-muted">{{ __('feedback-board::feedback-board.triage.analyzing') }}</p>
                     @elseif (($triage['status'] ?? null) === 'failed')
-                        <p class="fb-notice fb-notice--danger">{{ __('feedback-board::feedback-board.triage.failed') }}</p>
+                        <p class="fb-notice fb-notice--danger">{{ __('feedback-board::feedback-board.triage.failed_reason', ['reason' => \YousefAman\FeedbackBoard\Triage\Support\TriageError::reason((string) ($triage['error_code'] ?? ''))]) }}</p>
                         <div class="fb-actions">
                             <button type="button" class="fb-btn fb-btn--sm" wire:click="requestTriage">{{ __('feedback-board::feedback-board.triage.retriage') }}</button>
                         </div>
                     @elseif (($triage['status'] ?? null) === 'completed')
+                        @if (filled($triage['error_code'] ?? null))
+                            <p class="fb-notice fb-notice--warning">{{ __('feedback-board::feedback-board.triage.rerun_failed', ['reason' => \YousefAman\FeedbackBoard\Triage\Support\TriageError::reason((string) $triage['error_code'])]) }} {{ __('feedback-board::feedback-board.triage.previous_kept') }}</p>
+                        @endif
                         <p><strong>{{ __('feedback-board::feedback-board.triage.summary') }}:</strong> <span dir="auto">{{ $triage['summary'] }}</span></p>
                         <div class="fb-actions">
                             @if (($triage['suggested_type'] ?? null) && $triage['suggested_type'] !== ($item->type?->value))

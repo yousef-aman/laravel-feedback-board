@@ -72,3 +72,48 @@ it('does not poll once triage reaches a terminal state', function () {
     Livewire::actingAs($dev)->test(FeedbackDetail::class, ['item' => $item])
         ->assertDontSee('wire:poll', false); // no poll attribute in any form
 });
+
+it('says why the triage failed', function () {
+    $dev = TestUser::create(['name' => 'Dev']);
+    $item = FeedbackItem::factory()->create();
+    $item->ai_state = ['triage' => ['status' => 'failed', 'summary' => null, 'error_code' => 'auth_401']];
+    $item->save();
+
+    Livewire::actingAs($dev)->test(FeedbackDetail::class, ['item' => $item])
+        ->assertSee(__('feedback-board::feedback-board.triage.failed_reason', ['reason' => __('feedback-board::feedback-board.triage.reasons.auth_401')]));
+});
+
+it('reads a code it has no words for as an unknown error', function () {
+    $dev = TestUser::create(['name' => 'Dev']);
+    $item = FeedbackItem::factory()->create();
+    $item->ai_state = ['triage' => ['status' => 'failed', 'summary' => null, 'error_code' => 'quota_gone']];
+    $item->save();
+
+    Livewire::actingAs($dev)->test(FeedbackDetail::class, ['item' => $item])
+        ->assertSee(__('feedback-board::feedback-board.triage.reasons.unknown'))
+        ->assertDontSee('quota_gone');
+});
+
+it('keeps showing the previous suggestion, with a note, after a failed re-run', function () {
+    $dev = TestUser::create(['name' => 'Dev']);
+    $item = FeedbackItem::factory()->create(['priority' => FeedbackPriority::Low]);
+    $item->ai_state = ['triage' => ['status' => 'completed', 'suggested_priority' => 'urgent', 'summary' => 'Old summary', 'model' => 'fake', 'error_code' => 'auth_401']];
+    $item->save();
+
+    Livewire::actingAs($dev)->test(FeedbackDetail::class, ['item' => $item])
+        ->assertSee('Old summary')
+        ->assertSee(__('feedback-board::feedback-board.triage.apply_priority'))
+        ->assertSee(__('feedback-board::feedback-board.triage.rerun_failed', ['reason' => __('feedback-board::feedback-board.triage.reasons.auth_401')]))
+        ->assertSee(__('feedback-board::feedback-board.triage.previous_kept'));
+});
+
+it('shows no failure note on a clean suggestion', function () {
+    $dev = TestUser::create(['name' => 'Dev']);
+    $item = FeedbackItem::factory()->create();
+    $item->ai_state = ['triage' => ['status' => 'completed', 'summary' => 'Fine', 'model' => 'fake', 'error_code' => null]];
+    $item->save();
+
+    Livewire::actingAs($dev)->test(FeedbackDetail::class, ['item' => $item])
+        ->assertSee('Fine')
+        ->assertDontSee(__('feedback-board::feedback-board.triage.previous_kept'));
+});
