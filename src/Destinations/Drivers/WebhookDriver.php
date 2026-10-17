@@ -7,6 +7,7 @@ namespace YousefAman\FeedbackBoard\Destinations\Drivers;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use YousefAman\FeedbackBoard\Destinations\Contracts\Destination;
+use YousefAman\FeedbackBoard\Destinations\Support\DeliveryRecord;
 use YousefAman\FeedbackBoard\Destinations\Support\DestinationEvent;
 use YousefAman\FeedbackBoard\Destinations\Support\SignsPayloads;
 use YousefAman\FeedbackBoard\Destinations\Support\TransientRetry;
@@ -45,5 +46,7 @@ class WebhookDriver implements Destination
             ->withBody($rawBody, 'application/json')
             ->post($url)
             ->throw();
+
+        DeliveryRecord::clearFailure($item, 'webhook');
     }
 }

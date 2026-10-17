@@ -70,6 +70,7 @@ class GithubIssueDriver implements Destination
                         'repo' => $repo,
                         'posted' => [$deliveryId],
                     ];
+                    unset($refs['github_last_error']); // the issue exists: the recorded failure is over
                     $fresh->external_refs = $refs;
                     $fresh->save();
                     return;
@@ -92,6 +93,7 @@ class GithubIssueDriver implements Destination
                     $ref['posted'] = [...$posted, $deliveryId];
                     $refs = $fresh->external_refs ?? [];
                     $refs['github'] = $ref;
+                    unset($refs['github_last_error']); // the comment got through
                     $fresh->external_refs = $refs;
                     $fresh->save();
                 }
@@ -101,10 +103,29 @@ class GithubIssueDriver implements Destination
                     && config('feedback-board.destinations.github.close_on_resolved')) {
                     $resp = $this->client($token)->patch($this->base($issueRepo)."/issues/{$number}", ['state' => 'closed']);
                     $this->guardResponse($resp);
+                    $this->forgetFailure($fresh);
                 }
             });
         } catch (LockTimeoutException) {
             throw new RetryAfter(30); // contention — soft queue retry
+        }
+    }
+
+    /** After the issue was closed: drop the recorded failure, best-effort (the close already happened). */
+    private function forgetFailure(FeedbackItem $fresh): void
+    {
+        $refs = $fresh->external_refs ?? [];
+
+        if (! array_key_exists('github_last_error', $refs)) {
+            return;
+        }
+
+        try {
+            unset($refs['github_last_error']);
+            $fresh->external_refs = $refs;
+            $fresh->save();
+        } catch (\Throwable $e) {
+            report($e);
         }
     }
 

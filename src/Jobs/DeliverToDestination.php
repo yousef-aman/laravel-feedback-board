@@ -7,7 +7,6 @@ namespace YousefAman\FeedbackBoard\Jobs;
 use DateTimeInterface;
 use GuzzleHttp\Exception\TransferException;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Http\Client\ConnectionException;
@@ -67,8 +66,6 @@ class DeliverToDestination implements ShouldQueue
             $driver->send($item, $this->event, $this->deliveryId);
         } catch (RetryAfter $e) {
             $this->release($e->seconds);
-
-            return;
         } catch (ConnectionException) {
             // Its message ends with the URL: never let it reach a log or failed_jobs.
             throw new DeliveryFailed($this->driver, 'connection_error');
@@ -78,40 +75,6 @@ class DeliverToDestination implements ShouldQueue
         } catch (InvalidArgumentException) {
             // An unparsable configured URL (Guzzle's MalformedUriException) names the whole URL too.
             throw new DeliveryFailed($this->driver, 'invalid_url');
-        }
-
-        $this->clearFailure($item->id);
-    }
-
-    /**
-     * A delivery that got through clears this destination's recorded failure, so the board shows a
-     * failure only while the destination is failing. Best-effort: under contention the record stays.
-     */
-    protected function clearFailure(int $itemId): void
-    {
-        $key = $this->driver.'_last_error';
-
-        if (! array_key_exists($key, FeedbackItem::find($itemId)?->external_refs ?? [])) {
-            return;
-        }
-
-        $store = config('feedback-board.destinations.lock_store');
-
-        try {
-            Cache::store($store)->lock('feedback-board:github:'.$itemId, 10)->block(5, function () use ($itemId, $key) {
-                $fresh = FeedbackItem::find($itemId);
-                $refs = $fresh?->external_refs ?? [];
-
-                if ($fresh === null || ! array_key_exists($key, $refs)) {
-                    return;
-                }
-
-                unset($refs[$key]);
-                $fresh->external_refs = $refs;
-                $fresh->save();
-            });
-        } catch (LockTimeoutException) {
-            // The delivery itself succeeded; a stale failure record is the lesser harm.
         }
     }
 
