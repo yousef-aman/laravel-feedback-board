@@ -8,7 +8,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use YousefAman\FeedbackBoard\Models\FeedbackComment;
-use YousefAman\FeedbackBoard\Support\MailText;
+use YousefAman\FeedbackBoard\Support\{MailLayout, MailText};
 
 /** Tells developers that a reporter answered, and on which report. */
 class ReporterRepliedNotification extends Notification
@@ -31,7 +31,7 @@ class ReporterRepliedNotification extends Notification
         $item = $this->comment->item;
         $body = trim((string) $this->comment->body);
 
-        return (new MailMessage)
+        return MailLayout::message()
             ->subject(__('feedback-board::feedback-board.mail.reporter_reply_subject', ['title' => $item->title]))
             ->line(__('feedback-board::feedback-board.mail.reporter_reply_line', ['id' => $item->id]))
             ->line($body !== '' ? MailText::escape($body) : __('feedback-board::feedback-board.mail.reply_images'));

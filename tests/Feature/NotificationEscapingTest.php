@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Notification;
 use YousefAman\FeedbackBoard\Actions\ReplyToFeedback;
 use YousefAman\FeedbackBoard\Enums\AuthorRole;
 use YousefAman\FeedbackBoard\Models\{FeedbackComment, FeedbackItem};
-use YousefAman\FeedbackBoard\Notifications\{FeedbackResolvedNotification, NewFeedbackNotification, ReporterRepliedNotification};
+use YousefAman\FeedbackBoard\Notifications\{FeedbackRepliedNotification, FeedbackResolvedNotification, NewFeedbackNotification, ReporterRepliedNotification};
 use YousefAman\FeedbackBoard\Tests\TestUser;
 
 beforeEach(function () {
@@ -105,8 +105,11 @@ it('puts the escaped title in the Filament bell and the raw title in feedback_ti
     $new = (new NewFeedbackNotification($item))->toArray(new AnonymousNotifiable);
     $resolved = (new FeedbackResolvedNotification($item))->toArray(new AnonymousNotifiable);
     $reply = (new ReporterRepliedNotification($comment))->toArray(new AnonymousNotifiable);
+    $toReporter = (new FeedbackRepliedNotification($comment))->toArray(new AnonymousNotifiable);
 
-    expect($new['title'])->toContain('&lt;a href=')->not->toContain('<a href=')
+    expect($toReporter['title'])->toContain('&lt;a href=')->not->toContain('<a href=')
+        ->and($toReporter['kind'])->toBe('reply')
+        ->and($new['title'])->toContain('&lt;a href=')->not->toContain('<a href=')
         ->and($new['feedback_title'])->toBe($title)
         ->and($resolved['title'])->toContain('&lt;a href=')->not->toContain('<a href=')
         ->and($reply['title'])->toContain('&lt;a href=')->not->toContain('<a href=')

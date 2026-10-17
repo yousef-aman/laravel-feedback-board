@@ -44,7 +44,9 @@ return [
     'priority' => ['low' => 'Low', 'medium' => 'Medium', 'high' => 'High', 'urgent' => 'Urgent'],
     'mail' => [
         'new_subject' => 'New feedback: :title', 'new_line' => 'A new report was submitted.',
-        'reply_subject' => 'New reply on your feedback',
+        'greeting' => 'Hello!', 'salutation' => 'Regards,',
+        'reply_subject' => 'New reply on your feedback: :title',
+        'reply_line' => 'There is a new reply on report #:id.',
         'reply_images' => 'A reply with images was added.',
         'reporter_reply_subject' => 'Reporter replied: :title',
         'reporter_reply_line' => 'The reporter replied on report #:id.',

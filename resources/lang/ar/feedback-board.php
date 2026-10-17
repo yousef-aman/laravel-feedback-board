@@ -44,7 +44,9 @@ return [
     'priority' => ['low' => 'منخفضة', 'medium' => 'متوسطة', 'high' => 'عالية', 'urgent' => 'عاجلة'],
     'mail' => [
         'new_subject' => 'ملاحظة جديدة: :title', 'new_line' => 'تم رفع ملاحظة جديدة.',
-        'reply_subject' => 'رد جديد على ملاحظتك',
+        'greeting' => 'مرحبًا!', 'salutation' => 'مع التحية،',
+        'reply_subject' => 'رد جديد على ملاحظتك: :title',
+        'reply_line' => 'وصل رد جديد على البلاغ رقم :id.',
         'reply_images' => 'أُضيف رد يحتوي على صور.',
         'reporter_reply_subject' => 'ردّ المُبلِّغ على: :title',
         'reporter_reply_line' => 'ردّ المُبلِّغ على البلاغ رقم :id.',

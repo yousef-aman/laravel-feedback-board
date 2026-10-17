@@ -8,7 +8,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use YousefAman\FeedbackBoard\Models\FeedbackComment;
-use YousefAman\FeedbackBoard\Support\MailText;
+use YousefAman\FeedbackBoard\Support\{MailLayout, MailText};
 
 class FeedbackRepliedNotification extends Notification
 {
@@ -27,10 +27,12 @@ class FeedbackRepliedNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
+        $item = $this->comment->item;
         $body = trim((string) $this->comment->body);
 
-        return (new MailMessage)
-            ->subject(__('feedback-board::feedback-board.mail.reply_subject'))
+        return MailLayout::message()
+            ->subject(__('feedback-board::feedback-board.mail.reply_subject', ['title' => $item->title]))
+            ->line(__('feedback-board::feedback-board.mail.reply_line', ['id' => $item->id]))
             ->line($body !== '' ? MailText::escape($body) : __('feedback-board::feedback-board.mail.reply_images'));
     }
 
@@ -38,9 +40,10 @@ class FeedbackRepliedNotification extends Notification
     {
         $payload = ['feedback_item_id' => $this->comment->feedback_item_id, 'kind' => 'reply'];
 
+        // Filament renders a notification title as (sanitized) HTML: the reporter's title must be text.
         if (class_exists(\Filament\Notifications\Notification::class)) {
             return \Filament\Notifications\Notification::make()
-                ->title(__('feedback-board::feedback-board.mail.reply_subject'))
+                ->title(__('feedback-board::feedback-board.mail.reply_subject', ['title' => e($this->comment->item->title)]))
                 ->getDatabaseMessage() + $payload;
         }
 

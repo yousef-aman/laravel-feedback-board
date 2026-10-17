@@ -8,6 +8,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
+use YousefAman\FeedbackBoard\Support\MailLayout;
 
 class FeedbackResolvedNotification extends Notification
 {
@@ -26,7 +27,7 @@ class FeedbackResolvedNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        return MailLayout::message()
             ->subject(__('feedback-board::feedback-board.mail.resolved_subject', ['title' => $this->item->title]))
             ->line(__('feedback-board::feedback-board.mail.resolved_line'));
     }
