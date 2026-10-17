@@ -23,6 +23,13 @@ class FeedbackKanban extends Component
     public ?int $selectedId = null;
 
     /**
+     * The open card (?report=), so a link (a notification's) can open one. Untyped for the same
+     * reason as $type; mount() keeps it only when it names a report.
+     */
+    #[Url(as: 'report')]
+    public $report = null;
+
+    /**
      * The type filter (?type=). Untyped on purpose: Livewire 3 assigns query values without a
      * type guard, and #[Url] JSON-decodes "5" to an integer and "true" to a boolean; under
      * strict_types FeedbackType::tryFrom() would throw for those, so typeFilter() guards it.
@@ -37,13 +44,24 @@ class FeedbackKanban extends Component
 
     public function mount(): void
     {
-        // #[Url] has already assigned the query value.
+        // #[Url] has already assigned the query values.
         $this->type = self::typeFilter($this->type)?->value;
+
+        $id = self::reportId($this->report);
+        $id !== null && FeedbackItem::whereKey($id)->exists() ? $this->open($id) : $this->close();
     }
 
-    public function open(int $id): void { $this->selectedId = $id; }
+    public function open(int $id): void
+    {
+        $this->selectedId = $id;
+        $this->report = $id;
+    }
 
-    public function close(): void { $this->selectedId = null; }
+    public function close(): void
+    {
+        $this->selectedId = null;
+        $this->report = null;
+    }
 
     /** "all", or anything that is not a type, clears the filter. */
     public function filterType(string $type): void
@@ -132,5 +150,13 @@ class FeedbackKanban extends Component
     private static function typeFilter(mixed $value): ?FeedbackType
     {
         return is_string($value) ? FeedbackType::tryFrom($value) : null;
+    }
+
+    /** A positive report id from the query (#[Url] may decode "5" to an integer), else null. */
+    private static function reportId(mixed $value): ?int
+    {
+        $id = is_int($value) ? $value : (is_string($value) && ctype_digit($value) ? (int) $value : null);
+
+        return $id !== null && $id > 0 ? $id : null;
     }
 }
