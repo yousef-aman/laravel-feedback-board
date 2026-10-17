@@ -37,4 +37,15 @@ final class TriageError
 
         return 'unknown';
     }
+
+    /** Why a triage failed, in the app's language, from its code; a code with no wording reads as unknown. */
+    public static function reason(string $code): string
+    {
+        $key = 'feedback-board::feedback-board.triage.reasons.'.$code;
+        $text = __($key);
+
+        return is_string($text) && $text !== $key && $code !== ''
+            ? $text
+            : (string) __('feedback-board::feedback-board.triage.reasons.unknown');
+    }
 }

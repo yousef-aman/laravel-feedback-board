@@ -7,7 +7,13 @@ it('ships ai config defaults', function () {
         ->and(config('feedback-board.ai.default'))->toBe('anthropic')
         ->and(config('feedback-board.ai.max_input_chars'))->toBe(4000)
         ->and(config('feedback-board.ai.anthropic.model'))->toBe('claude-haiku-4-5')
-        ->and(config('feedback-board.ai.anthropic.max_tokens'))->toBe(1024);
+        ->and(config('feedback-board.ai.anthropic.max_tokens'))->toBe(1024)
+        ->and(config('feedback-board.ai.gemini.model'))->toBe('gemini-3.5-flash-lite')
+        ->and(config('feedback-board.ai.gemini.max_tokens'))->toBeNull()
+        ->and(config('feedback-board.ai.openai.model'))->toBe('gpt-6-luna')
+        ->and(config('feedback-board.ai.openai.base_url'))->toBe('https://api.openai.com/v1')
+        ->and(config('feedback-board.ai.openai.reasoning_effort'))->toBe('none')
+        ->and(config('feedback-board.ai.openai.max_tokens'))->toBeNull();
 });
 
 it('does not mass-assign server-authored columns but still allows server writes', function () {

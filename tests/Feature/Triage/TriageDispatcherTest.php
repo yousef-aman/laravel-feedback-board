@@ -40,3 +40,28 @@ it('re-dispatches after a terminal state', function () {
     expect($item->refresh()->ai_state['triage']['status'])->toBe('pending');
     Bus::assertDispatchedTimes(TriageFeedbackItem::class, 1);
 });
+
+it('keeps a completed suggestion aside while a re-run is pending', function () {
+    Bus::fake();
+    $item = FeedbackItem::factory()->create();
+    $item->ai_state = ['triage' => ['status' => 'completed', 'summary' => 'old', 'suggested_type' => 'bug', 'error_code' => null]];
+    $item->save();
+
+    TriageDispatcher::dispatch($item->refresh(), locked: true);
+
+    $triage = $item->refresh()->ai_state['triage'];
+    expect($triage['status'])->toBe('pending')
+        ->and($triage['previous']['summary'])->toBe('old')
+        ->and($triage['previous']['suggested_type'])->toBe('bug');
+});
+
+it('keeps nothing aside after a failed run', function () {
+    Bus::fake();
+    $item = FeedbackItem::factory()->create();
+    $item->ai_state = ['triage' => ['status' => 'failed', 'summary' => null, 'error_code' => 'auth_401']];
+    $item->save();
+
+    TriageDispatcher::dispatch($item->refresh(), locked: true);
+
+    expect($item->refresh()->ai_state['triage'])->not->toHaveKey('previous');
+});

@@ -22,9 +22,10 @@ use Throwable;
 use UnexpectedValueException;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
 use YousefAman\FeedbackBoard\Support\Ui;
+use YousefAman\FeedbackBoard\Triage\TriageManager;
 
 /**
- * The signed-in user, developer and reporter access, developer recipients and report links. Callbacks are registered from the
+ * The signed-in user, developer and reporter access, developer recipients, report links and triage drivers. Callbacks are registered from the
  * host app's AppServiceProvider::boot() and live in this container singleton, never in config, so
  * `php artisan config:cache` stays safe.
  */
@@ -70,6 +71,18 @@ class FeedbackBoard
     public function linkReportsUsing(callable $callback): void
     {
         $this->reportLinks = Closure::fromCallable($callback);
+    }
+
+    /**
+     * Add an AI triage driver, chosen with feedback-board.ai.default (FEEDBACK_BOARD_AI_DRIVER) set to $name.
+     * The factory receives the settings under feedback-board.ai.{$name} and returns a TriageDriver; one that
+     * also implements ChecksConfiguration decides whether triage runs.
+     *
+     * @param  callable(array<string, mixed>): \YousefAman\FeedbackBoard\Triage\Contracts\TriageDriver  $factory
+     */
+    public function extendTriage(string $name, callable $factory): void
+    {
+        app(TriageManager::class)->extend($name, fn () => $factory((array) config("feedback-board.ai.{$name}", [])));
     }
 
     /**

@@ -8,7 +8,7 @@ A self-hosted, embeddable feedback widget for Laravel applications. Clients subm
 
 ## Positioning
 
-Feedback Board is self-hosted by design. Reports are captured inside the authenticated client's session (no third-party script, no external SaaS), stored in your own database, and processed through your own notification and AI pipelines. You own the data, the hosting, and the runner. Optional destination drivers (webhook, Slack, GitHub Issues), AI triage and an AI runner contract plug into the same pipeline. All of them are off until you enable them, and each one you enable sends data to the service it names (AI triage sends only a report's title and description to the Anthropic API — see [AI Triage](#ai-triage-level-a)). A multi-tenant developer hub is planned — see the [Roadmap](#roadmap).
+Feedback Board is self-hosted by design. Reports are captured inside the authenticated client's session (no third-party script, no external SaaS), stored in your own database, and processed through your own notification and AI pipelines. You own the data, the hosting, and the runner. Optional destination drivers (webhook, Slack, GitHub Issues), AI triage and an AI runner contract plug into the same pipeline. All of them are off until you enable them, and each one you enable sends data to the service it names (AI triage sends only a report's title and description to the model provider you choose — see [AI Triage](#ai-triage-level-a)). A multi-tenant developer hub is planned — see the [Roadmap](#roadmap).
 
 ## Requirements
 
@@ -323,11 +323,13 @@ Key configuration options in `config/feedback-board.php`:
 | `ingest.secret` | string\|null | HMAC secret for ingest signature verification (`FEEDBACK_BOARD_INGEST_SECRET`) |
 | `ingest.tolerance` | int | Timestamp drift tolerance in seconds (default: `300`); rate limiting is handled by the route (`throttle:60,1`) |
 | `ai.enabled` | bool | Enable AI triage (`FEEDBACK_BOARD_AI_ENABLED`, default: `false`) — see [AI Triage](#ai-triage-level-a) |
-| `ai.default` | string | Triage driver (`FEEDBACK_BOARD_AI_DRIVER`, default: `'anthropic'`) |
+| `ai.default` | string | Triage driver: `anthropic`, `gemini`, `openai` or one added with `FeedbackBoard::extendTriage()` (`FEEDBACK_BOARD_AI_DRIVER`, default: `'anthropic'`) |
 | `ai.queue` | string\|null | Queue the triage jobs are pushed to (`FEEDBACK_BOARD_AI_QUEUE`; `null` or empty = the connection's default queue); make sure a worker listens on it, e.g. `php artisan queue:work --queue=ai,default` |
 | `ai.lock_store` | string\|null | Cache store for the per-item AI triage and runner lock (`FEEDBACK_BOARD_AI_LOCK_STORE`; `null` = app default). With several servers, use a shared store |
 | `ai.max_input_chars` | int | Combined title and description budget sent to the model (default: `4000`) |
 | `ai.anthropic.*` | array | `api_key` (`FEEDBACK_BOARD_ANTHROPIC_KEY`), `model` (`FEEDBACK_BOARD_ANTHROPIC_MODEL`, default: `'claude-haiku-4-5'`), `timeout` (`30`, seconds per attempt; the whole call, its retry included, stays within 40 seconds), `max_tokens` (`1024`) |
+| `ai.gemini.*` | array | `api_key` (`FEEDBACK_BOARD_GEMINI_KEY`), `model` (`FEEDBACK_BOARD_GEMINI_MODEL`, default: `'gemini-3.5-flash-lite'`), `timeout` (`30`), `max_tokens` (`null` = Gemini's own limit; thinking tokens count toward a cap) |
+| `ai.openai.*` | array | `api_key` (`FEEDBACK_BOARD_OPENAI_KEY`), `model` (`FEEDBACK_BOARD_OPENAI_MODEL`, default: `'gpt-6-luna'`), `base_url` (`FEEDBACK_BOARD_OPENAI_BASE_URL`, default: `'https://api.openai.com/v1'`), `reasoning_effort` (`FEEDBACK_BOARD_OPENAI_REASONING_EFFORT`, default: `'none'`; empty = not sent), `timeout` (`30`), `max_tokens` (`null` = the provider's own limit; sent as `max_completion_tokens`) |
 | `runner.enabled` | bool | Enable the AI runner (`FEEDBACK_BOARD_RUNNER_ENABLED`, default: `false`) — see [AI Runner Contract](#ai-runner-contract-level-bc) |
 | `runner.endpoint` / `runner.secret` | string\|null | Runner task-receive URL and HMAC secret (`FEEDBACK_RUNNER_ENDPOINT`, `FEEDBACK_RUNNER_SECRET`) |
 | `runner.timeout` / `runner.connect_timeout` | int | Dispatch HTTP timeouts in seconds (defaults: `8`, `4`) |
@@ -399,32 +401,80 @@ Optional, in-app AI triage that suggests a **type** and **priority** and a short
 reviews them and applies the type and priority one field at a time (the summary is shown,
 not applied) — the AI never changes a report's fields on its own.
 
-**Opt-in.** Disabled by default. Enable it and configure a provider:
+**Opt-in.** Disabled by default. Enable it and choose a provider: `anthropic`, `gemini` or `openai`.
 
 ```env
 FEEDBACK_BOARD_AI_ENABLED=true
-FEEDBACK_BOARD_AI_DRIVER=anthropic
+FEEDBACK_BOARD_AI_DRIVER=gemini          # or anthropic, openai
+
+FEEDBACK_BOARD_GEMINI_KEY=...            # Google AI Studio
 FEEDBACK_BOARD_ANTHROPIC_KEY=sk-ant-...
+FEEDBACK_BOARD_OPENAI_KEY=sk-...
+
 # optional:
+FEEDBACK_BOARD_GEMINI_MODEL=gemini-3.5-flash-lite
 FEEDBACK_BOARD_ANTHROPIC_MODEL=claude-haiku-4-5
+FEEDBACK_BOARD_OPENAI_MODEL=gpt-6-luna
 FEEDBACK_BOARD_AI_QUEUE=
 FEEDBACK_BOARD_AI_LOCK_STORE=redis
 ```
 
-When AI is enabled but its driver is unconfigured (e.g. no API key), triage stays
-inert — nothing is dispatched and the manual button returns 422.
+Only the selected provider's key is needed, and an empty model setting uses the provider's
+default model. When AI is enabled but its provider is unconfigured (no API key, or an unknown
+driver name), triage stays inert — nothing is dispatched and the manual button returns 422.
+
+**Providers.**
+
+- **`anthropic`**: the Messages API, with the triage as a forced tool call.
+- **`gemini`**: the Gemini API's `generateContent`, with the triage as JSON held to a schema. The key
+  is sent in a header, never in the URL.
+- **`openai`**: Chat Completions, with the triage as a forced function call. `reasoning_effort` is
+  sent as `none` by default, because OpenAI's reasoning models call functions in Chat Completions
+  only with reasoning off. `FEEDBACK_BOARD_OPENAI_BASE_URL` points it at any API that speaks the same
+  protocol, such as DeepSeek, Mistral, OpenRouter or a local Ollama. Set
+  `FEEDBACK_BOARD_OPENAI_REASONING_EFFORT=` (empty) for a provider or model that rejects that
+  field. A provider that needs no key, such as a local Ollama, still needs a non-empty key setting:
+  any placeholder will do.
+
+**Another provider.** Register a driver in `AppServiceProvider::boot()` and select it by name. The
+factory receives the settings under `feedback-board.ai.{name}`:
+
+```php
+use YousefAman\FeedbackBoard\Facades\FeedbackBoard;
+
+FeedbackBoard::extendTriage('mistral', fn (array $config) => new \App\Triage\MistralTriage($config));
+```
+
+The driver implements `YousefAman\FeedbackBoard\Triage\Contracts\TriageDriver`: it receives the title
+and description and returns a `TriageResult`. If it also implements `ChecksConfiguration`, its
+`configured()` decides whether triage runs; otherwise it counts as configured. A driver that fails
+to build, or returns something other than a `TriageDriver`, turns triage off and is reported once
+per request or worker. On failure, throw `TriageException` with a short code and keep keys out of
+its message: `http_429`, `http_5xx` and `connection_error` are retried (three tries in all), and any
+other code fails the triage at once. Any other exception fails it as `unknown`, without a retry and
+without a report.
 
 **What leaves your app.** Only the report's **title and description** are sent to
 the model, jointly truncated to `ai.max_input_chars` (default 4000) to bound cost.
 Reporter identity, email, attachments, and all internal fields are never sent. The
-API key is read from the environment, never logged, and never stored; failures
-record only a short sanitized error code.
+API key is read from the environment, never logged by the package, and never stored; failures
+record only a short sanitized error code. Laravel's own HTTP client events still carry the request,
+so a tool that records outgoing requests can store the key unless it hides the key's header
+(`Authorization` for OpenAI, `x-api-key` for Anthropic, `x-goog-api-key` for Gemini); with
+Telescope, add the last two through `Telescope::hideRequestHeaders()`. A summary is kept to 1,000
+characters. Each provider has its own data terms; for example,
+Google's terms for the Gemini API's free tier allow it to use what you send to improve its
+products. Check your provider's terms before you send your users' reports to it.
 
 **Triggering.** Triage runs automatically on new reports (after the creating
 transaction commits) and can be re-run from the "Triage with AI" button in the
 board's card dialog or the Filament resource.
 
-**Time.** The call to Anthropic, its one retry included, ends within 40 seconds, and the triage
+**Failures.** The card says why a triage failed, for example that the provider refused the key or
+that the model name was not found. When a re-run fails, the card keeps the suggestion from the run
+before it and notes the failure above it.
+
+**Time.** The call to the provider, its one retry included, ends within 40 seconds, and the triage
 job has a 60-second timeout of its own, whatever `--timeout` the worker runs with. Keep the queue
 connection's `retry_after` above 60 seconds (Laravel's default is 90), or a second worker may pick
 the job up while it is still running.

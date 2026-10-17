@@ -35,7 +35,7 @@ it('sends the documented body and parses the tool_use result', function () {
             && $request->hasHeader('x-api-key', 'sk-ant-secret')
             && $request->hasHeader('anthropic-version', '2023-06-01')
             && $b['model'] === 'claude-haiku-4-5'
-            && is_int($b['max_tokens']) && $b['max_tokens'] > 0
+            && $b['max_tokens'] === 1024
             && is_string($b['system'])
             && $b['tool_choice'] === ['type' => 'tool', 'name' => 'submit_triage']
             && str_contains($b['messages'][0]['content'], 'Login broken');
@@ -125,7 +125,7 @@ it('does not start a second attempt that could run past the time budget', functi
     expect($calls)->toBe(1);
 });
 
-it('keeps each attempt within the budget, whatever timeout is configured', function (int $configured, int $used) {
+it('keeps each attempt within the budget, whatever timeout is configured', function (?int $configured, int $used) {
     config()->set('feedback-board.ai.anthropic.timeout', $configured);
     $timeout = null;
     Http::fake(function ($request, array $options) use (&$timeout) {
@@ -137,7 +137,7 @@ it('keeps each attempt within the budget, whatever timeout is configured', funct
     (new AnthropicDriver())->triage('Login broken', null);
 
     expect($timeout)->toBe($used);
-})->with(['default' => [30, 30], 'too long' => [120, 40]]);
+})->with(['default' => [30, 30], 'too long' => [120, 40], 'unset' => [null, 30]]);
 
 it('gives the triage job more time than the call and its lock wait can take', function () {
     expect((new YousefAman\FeedbackBoard\Jobs\TriageFeedbackItem(1))->timeout)->toBeGreaterThan(40 + 8);

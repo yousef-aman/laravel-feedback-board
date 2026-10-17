@@ -10,6 +10,11 @@ use YousefAman\FeedbackBoard\Enums\FeedbackType;
 
 final class TriagePrompt
 {
+    /** The name of the function a provider is made to call with the triage. */
+    public const TOOL = 'submit_triage';
+
+    private const TOOL_DESCRIPTION = 'Submit the triage classification for one feedback item.';
+
     private const TITLE_CAP = 200;
 
     /** @return list<string> */
@@ -24,7 +29,8 @@ final class TriagePrompt
         return array_map(fn (FeedbackPriority $p) => $p->value, FeedbackPriority::cases());
     }
 
-    public static function system(): string
+    /** @param  bool  $viaTool  false when the provider answers with a JSON object instead of a tool call */
+    public static function system(bool $viaTool = true): string
     {
         $types = implode(', ', self::typeValues());
         $priorities = implode(', ', self::priorityValues());
@@ -35,7 +41,7 @@ final class TriagePrompt
             "Choose the single best `priority` from: {$priorities}.",
             'If a field is genuinely unclear, omit it rather than guessing.',
             'Write a concise one-or-two sentence `summary` in the SAME language as the input.',
-            'Always respond by calling the submit_triage tool.',
+            $viaTool ? 'Always respond by calling the '.self::TOOL.' tool.' : 'Always respond with a JSON object holding these fields.',
         ]);
     }
 
@@ -58,21 +64,40 @@ final class TriagePrompt
         return $titleLine.$descLabel.$description;
     }
 
-    /** @return array<string, mixed> */
+    /** The forced tool in Anthropic's shape. @return array<string, mixed> */
     public static function tool(): array
     {
         return [
-            'name' => 'submit_triage',
-            'description' => 'Submit the triage classification for one feedback item.',
-            'input_schema' => [
-                'type' => 'object',
-                'properties' => [
-                    'type' => ['type' => 'string', 'enum' => self::typeValues()],
-                    'priority' => ['type' => 'string', 'enum' => self::priorityValues()],
-                    'summary' => ['type' => 'string', 'description' => 'Concise summary in the input language.'],
-                ],
-                'required' => ['summary'],
+            'name' => self::TOOL,
+            'description' => self::TOOL_DESCRIPTION,
+            'input_schema' => self::schema(),
+        ];
+    }
+
+    /** The forced function in the shape of OpenAI's Chat Completions. @return array<string, mixed> */
+    public static function function(): array
+    {
+        return [
+            'type' => 'function',
+            'function' => [
+                'name' => self::TOOL,
+                'description' => self::TOOL_DESCRIPTION,
+                'parameters' => self::schema(),
             ],
+        ];
+    }
+
+    /** The triage fields as a JSON Schema object. @return array<string, mixed> */
+    public static function schema(): array
+    {
+        return [
+            'type' => 'object',
+            'properties' => [
+                'type' => ['type' => 'string', 'enum' => self::typeValues()],
+                'priority' => ['type' => 'string', 'enum' => self::priorityValues()],
+                'summary' => ['type' => 'string', 'description' => 'Concise summary in the input language.'],
+            ],
+            'required' => ['summary'],
         ];
     }
 }
