@@ -120,3 +120,14 @@ it('names the destination and the reason in the failure bell, with a link to the
         ->and($data['body'])->toBe('Could not connect.')
         ->and($data['actions'][0]['url'])->toBe('http://localhost/feedback-board/feedback/board?report='.$item->id);
 });
+
+it('still gives a card view published from a pre-release its githubQueued flag', function () {
+    config()->set('feedback-board.destinations.github.token', 'ghp');
+    config()->set('feedback-board.destinations.github.repo', 'acme/app');
+    Bus::fake();
+
+    Livewire::test(FeedbackDetail::class, ['item' => FeedbackItem::factory()->create()])
+        ->assertViewHas('githubQueued', false)
+        ->call('sendToGithub')
+        ->assertViewHas('githubQueued', true);
+});

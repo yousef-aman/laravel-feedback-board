@@ -137,12 +137,17 @@ Notifications are sent, and destination deliveries (webhook, Slack, GitHub) queu
 
 **Who is told what.** A new report and a reporter's reply notify your developers; the reply's notification names the report (`Reporter replied: {title}`, with its number). A developer's or the AI's public reply, and the Resolved status, notify the reporter, and so does an open report moved to Closed or Declined; filing a finished report away (for example Resolved to Closed) sends nothing. Text a reporter wrote is escaped in e-mails (Markdown), the Filament bell (HTML) and Slack (`<`, `>` and `&`); the webhook payload and GitHub issues and comments carry it unchanged. In the plain-text part of an e-mail, the escaping shows as a backslash before characters such as `[` or `*`. The new-report database notification's `feedback_title` key holds the raw report title.
 
-**Links to the report.** Each e-mail has a "View report" button, with the link written out under it, and each Filament bell entry a button. The reporter's open "My reports" on the report, the developers' open the board on the report; database payloads also carry the link as `feedback_url`. The link goes to the first Filament panel (the default panel first) that has the plugin, no tenancy and a guard the package recognises: for the reporter, a panel whose guard's model is the reporter's, with "My reports" on; for developers, a panel on a developer guard. Otherwise it goes to the standalone pages. To build the links yourself, register a callback in `AppServiceProvider::boot()`; its audience is `'reporter'` or `'developer'`, and returning `null` leaves the link out:
+**Links to the report.** Each e-mail has a "View report" button, with the link written out under it, and so does each Filament bell entry. The reporter's button opens "My reports" on the report; a developer's opens the board on the report. Database payloads also carry the link as `feedback_url`.
+
+The link goes to the first Filament panel, the default panel first, that has the plugin, no tenancy, and a guard the package recognises. For the reporter that is a panel whose guard's model is the reporter's, with "My reports" on; for a developer, a panel on a developer guard. A notified user must also be of that guard's model and, as a `FilamentUser`, allowed into the panel (`canAccessPanel()`). When no panel fits, the link goes to the standalone pages.
+
+To build the links yourself, register a callback in `AppServiceProvider::boot()`. It gets the report, the audience (`'reporter'` or `'developer'`) and the notified model (`null` for an e-mail address). Only an absolute `http`/`https` URL is used; `null`, or anything else, leaves the button out, and a callback that throws is reported once and leaves it out:
 
 ```php
+use YousefAman\FeedbackBoard\Facades\FeedbackBoard;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
 
-FeedbackBoard::linkReportsUsing(fn (FeedbackItem $item, string $audience) => $audience === 'developer'
+FeedbackBoard::linkReportsUsing(fn (FeedbackItem $item, string $audience, ?object $recipient) => $audience === 'developer'
     ? route('admin.feedback', ['report' => $item->id])
     : route('portal.reports', ['report' => $item->id]));
 ```
@@ -367,8 +372,9 @@ after 30 seconds, 2 minutes and 5 minutes, within 15 minutes; a GitHub rate-limi
 an attempt. On the `sync` queue it is not retried. A delivery that still fails is recorded as a
 sanitized code in `external_refs.{driver}_last_error` (never the raw error, URL, or token), and
 the next delivery to that destination that gets through clears it. Developers see each failing
-destination in the card dialog, with the reason, the event and how long ago, and, with database
-notifications on, get a bell entry that names the destination and the reason.
+destination in the card dialog, with the reason, the event and how long ago. With Filament
+installed, developers who are user models (`FeedbackBoard::notifyDevelopersUsing()`) also get a
+bell entry that names the destination and the reason; it needs the `notifications` table.
 Internal notes are never forwarded to any destination.
 
 ### Ingest endpoint (inbound)

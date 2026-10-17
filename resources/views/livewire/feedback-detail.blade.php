@@ -174,7 +174,7 @@
                             <p class="fb-muted">
                                 {{ __('feedback-board::feedback-board.runner.'.$runner['status']) }} —
                                 @if ($sentAt)
-                                    <time datetime="{{ $sentAt->toIso8601String() }}" title="{{ $sentAt->toIso8601String() }}">{{ $sentAt->locale(app()->getLocale(), 'en')->diffForHumans() }}</time>
+                                    <time datetime="{{ $sentAt->toIso8601String() }}" title="{{ $sentAt->toIso8601String() }}">{{ \YousefAman\FeedbackBoard\Support\Time::ago($sentAt) }}</time>
                                 @else
                                     {{ $runner['dispatched_at'] ?? '' }}
                                 @endif
@@ -182,7 +182,7 @@
                             @if (\YousefAman\FeedbackBoard\Runner\Support\RunnerState::isStale($runner))
                                 @php($lastActivity = $runner['updated_at'] ?? $runner['dispatched_at'] ?? '')
                                 @php($lastAt = \YousefAman\FeedbackBoard\Runner\Support\RunnerState::parseTime($lastActivity))
-                                <p class="fb-notice fb-notice--warning" @if ($lastAt) title="{{ $lastAt->toIso8601String() }}" @endif>{{ __('feedback-board::feedback-board.runner.stale', ['time' => $lastAt?->locale(app()->getLocale(), 'en')->diffForHumans(['syntax' => \Carbon\CarbonInterface::DIFF_ABSOLUTE]) ?? $lastActivity]) }}</p>
+                                <p class="fb-notice fb-notice--warning" @if ($lastAt) title="{{ $lastAt->toIso8601String() }}" @endif>{{ __('feedback-board::feedback-board.runner.stale', ['time' => $lastAt ? \YousefAman\FeedbackBoard\Support\Time::ago($lastAt, absolute: true) : $lastActivity]) }}</p>
                             @endif
                         @elseif ($runner['status'] === 'failed')
                             <p class="fb-notice fb-notice--danger">{{ __('feedback-board::feedback-board.runner.failed') }}: {{ $runner['error_code'] ?? '' }}</p>

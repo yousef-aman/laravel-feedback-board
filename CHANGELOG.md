@@ -45,7 +45,7 @@ These notes apply only to apps that installed the package from its development b
   - Configs published before the destination drivers have no `destinations.webhook`, `.slack`, `.github` or `.lock_store` keys.
 - **Route middleware.** The default `route_middleware` is now `['web', 'feedback-board.auth']`. A published config that lists `'auth'` keeps working for users of the default guard; replace `'auth'` with `'feedback-board.auth'` before you list other guards in `auth.guards`.
 - **UI markup.** The markup and `fb-*` class names changed to support the new stylesheet.
-  - Views published earlier with `--tag=feedback-board-views` override the new markup and render unstyled. Delete them, or re-publish them with `--force` and re-apply your changes.
+  - Views published earlier with `--tag=feedback-board-views` override the new markup and render unstyled, and miss the report buttons in e-mails and the GitHub issue link and delivery failures in the card. Delete them, or re-publish them with `--force` and re-apply your changes.
   - Host CSS that targeted the old classes may need updating.
   - The report form's modal is now a slide-over, and the board's drawer a dialog.
 - **Database (required).** Publish and run the new migration: `php artisan vendor:publish --tag=feedback-board-migrations`, then `php artisan migrate`. It adds the reporter's read marker and last-activity time and marks every existing reply as read. Until it runs, sending a report, replying and moving a card on the board fail, and the "My reports" panel page returns a server error; the rest of the panel keeps working.

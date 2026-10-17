@@ -143,6 +143,7 @@ class FeedbackDetail extends Component
             'canGithub' => $this->canSendToGithub(),
             'githubIssue' => $this->githubIssue(),
             'githubPending' => $pending = $this->githubPending(),
+            'githubQueued' => $pending, // the name a card view published from a pre-release reads
             'deliveryProblems' => $this->deliveryProblems(skipGithub: $pending),
         ]);
     }
