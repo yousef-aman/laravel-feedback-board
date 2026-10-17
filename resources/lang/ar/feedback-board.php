@@ -45,6 +45,8 @@ return [
     'mail' => [
         'new_subject' => 'ملاحظة جديدة: :title', 'new_line' => 'تم رفع ملاحظة جديدة.',
         'greeting' => 'مرحبًا!', 'salutation' => 'مع التحية،',
+        'view_report' => 'عرض البلاغ',
+        'link_help' => 'إذا لم يعمل زر «:action»، انسخ هذا الرابط إلى المتصفح:',
         'reply_subject' => 'رد جديد على ملاحظتك: :title',
         'reply_line' => 'وصل رد جديد على البلاغ رقم :id.',
         'reply_images' => 'أُضيف رد يحتوي على صور.',

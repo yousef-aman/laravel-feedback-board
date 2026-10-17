@@ -27,7 +27,7 @@ class NewFeedbackNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        return MailLayout::message()
+        return MailLayout::message($this->item, 'developer')
             ->subject(__('feedback-board::feedback-board.mail.new_subject', ['title' => $this->item->title]))
             ->line(__('feedback-board::feedback-board.mail.new_line'))
             ->line(MailText::escape($this->item->title));
@@ -36,15 +36,12 @@ class NewFeedbackNotification extends Notification
     public function toArray(object $notifiable): array
     {
         // `feedback_title`, not `title`: Filament's own `title` wins in `getDatabaseMessage() + $payload`.
-        $payload = ['feedback_item_id' => $this->item->id, 'feedback_title' => $this->item->title, 'kind' => 'new'];
-
-        // Filament's bell only renders rows carrying format:'filament' (see Global Constraints).
-        if (class_exists(\Filament\Notifications\Notification::class)) {
-            return \Filament\Notifications\Notification::make()
-                ->title(__('feedback-board::feedback-board.mail.new_subject', ['title' => e($this->item->title)]))
-                ->getDatabaseMessage() + $payload;
-        }
-
-        return $payload;
+        // Filament renders a notification title as (sanitized) HTML: the reporter's title must be text.
+        return MailLayout::database(
+            __('feedback-board::feedback-board.mail.new_subject', ['title' => e($this->item->title)]),
+            $this->item,
+            'developer',
+            ['feedback_item_id' => $this->item->id, 'feedback_title' => $this->item->title, 'kind' => 'new'],
+        );
     }
 }

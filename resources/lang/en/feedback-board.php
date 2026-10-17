@@ -45,6 +45,8 @@ return [
     'mail' => [
         'new_subject' => 'New feedback: :title', 'new_line' => 'A new report was submitted.',
         'greeting' => 'Hello!', 'salutation' => 'Regards,',
+        'view_report' => 'View report',
+        'link_help' => 'If the “:action” button does not work, copy this link into your browser:',
         'reply_subject' => 'New reply on your feedback: :title',
         'reply_line' => 'There is a new reply on report #:id.',
         'reply_images' => 'A reply with images was added.',
