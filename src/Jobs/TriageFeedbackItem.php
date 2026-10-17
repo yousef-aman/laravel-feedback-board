@@ -23,7 +23,7 @@ class TriageFeedbackItem implements ShouldQueue
     public int $tries = 3;
 
     /**
-     * Above the Anthropic call's time budget (AnthropicDriver::TIME_BUDGET) plus the result lock's wait,
+     * Above a provider call's time budget (HttpTriageDriver::TIME_BUDGET) plus the result lock's wait,
      * and below the queue's default retry_after (90): a worker started with a shorter --timeout still
      * gives this job its full time.
      */

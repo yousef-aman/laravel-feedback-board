@@ -107,6 +107,7 @@ return [
         // listener does not dispatch and the manual action returns 422.
         'enabled' => env('FEEDBACK_BOARD_AI_ENABLED', false),
 
+        // anthropic | gemini | openai, or a driver added with FeedbackBoard::extendTriage().
         'default' => env('FEEDBACK_BOARD_AI_DRIVER', 'anthropic'),
 
         'queue' => env('FEEDBACK_BOARD_AI_QUEUE'), // queue for triage jobs; null or '' = the connection's default queue
@@ -124,6 +125,26 @@ return [
             'model' => env('FEEDBACK_BOARD_ANTHROPIC_MODEL', 'claude-haiku-4-5'),
             'timeout' => 30,
             'max_tokens' => 1024,
+        ],
+
+        'gemini' => [
+            'api_key' => env('FEEDBACK_BOARD_GEMINI_KEY'),
+            'model' => env('FEEDBACK_BOARD_GEMINI_MODEL', 'gemini-3.5-flash-lite'),
+            'timeout' => 30,
+            // null = Gemini's own limit. Thinking tokens count toward a cap, so a small one can cut the answer off.
+            'max_tokens' => null,
+        ],
+
+        // OpenAI's Chat Completions; base_url points it at any API that speaks the same protocol.
+        'openai' => [
+            'api_key' => env('FEEDBACK_BOARD_OPENAI_KEY'),
+            'model' => env('FEEDBACK_BOARD_OPENAI_MODEL', 'gpt-6-luna'),
+            'base_url' => env('FEEDBACK_BOARD_OPENAI_BASE_URL', 'https://api.openai.com/v1'),
+            // OpenAI's reasoning models call functions in Chat Completions only with 'none'.
+            // Set it empty for a provider that rejects the field.
+            'reasoning_effort' => env('FEEDBACK_BOARD_OPENAI_REASONING_EFFORT', 'none'),
+            'timeout' => 30,
+            'max_tokens' => null, // null = the provider's own limit; sent as max_completion_tokens
         ],
     ],
 
