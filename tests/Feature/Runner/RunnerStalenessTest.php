@@ -105,7 +105,7 @@ it('shows the stale line and the re-send button in the card dialog', function ()
     $item = hRunnerItem(['status' => 'running', 'task_id' => 'old', 'dispatched_at' => hAgo(40), 'updated_at' => hAgo(35)]);
 
     Livewire::test(FeedbackDetail::class, ['item' => $item])
-        ->assertSee('No update since')
+        ->assertSee('No update for')
         ->assertSee(__('feedback-board::feedback-board.runner.resend'));
 });
 
@@ -114,6 +114,6 @@ it('hides the re-send button while a task is fresh', function () {
     $item = hRunnerItem(['status' => 'running', 'task_id' => 'live', 'dispatched_at' => hAgo(2), 'updated_at' => hAgo(1)]);
 
     Livewire::test(FeedbackDetail::class, ['item' => $item])
-        ->assertDontSee('No update since')
+        ->assertDontSee('No update for')
         ->assertDontSee(__('feedback-board::feedback-board.runner.resend'));
 });

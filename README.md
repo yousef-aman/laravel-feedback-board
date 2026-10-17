@@ -135,7 +135,22 @@ Then add `'database'` to `notifications.channels` in `config/feedback-board.php`
 
 Notifications are sent, and destination deliveries (webhook, Slack, GitHub) queued, only after the report, reply or status change is saved. If sending or queueing fails (for example, the mail server is down, or a Slack outage on the `sync` queue), the failure is reported to your exception handler and the user's action is still kept.
 
-**Who is told what.** A new report and a reporter's reply notify your developers; the reply's notification names the report (`Reporter replied: {title}`, with its number). A developer's or the AI's public reply, and the Resolved status, notify the reporter. Text a reporter wrote is escaped in e-mails (Markdown), the Filament bell (HTML) and Slack (`<`, `>` and `&`); the webhook payload and GitHub issues and comments carry it unchanged. In the plain-text part of an e-mail, the escaping shows as a backslash before characters such as `[` or `*`. The new-report database notification's `feedback_title` key holds the raw report title.
+**Who is told what.** A new report and a reporter's reply notify your developers; the reply's notification names the report (`Reporter replied: {title}`, with its number). A developer's or the AI's public reply, and the Resolved status, notify the reporter, and so does an open report moved to Closed or Declined; filing a finished report away (for example Resolved to Closed) sends nothing. Text a reporter wrote is escaped in e-mails (Markdown), the Filament bell (HTML) and Slack (`<`, `>` and `&`); the webhook payload and GitHub issues and comments carry it unchanged. In the plain-text part of an e-mail, the escaping shows as a backslash before characters such as `[` or `*`. The new-report database notification's `feedback_title` key holds the raw report title.
+
+**Links to the report.** Each e-mail has a "View report" button, with the link written out under it, and so does each Filament bell entry. The reporter's button opens "My reports" on the report; a developer's opens the board on the report. Database payloads also carry the link as `feedback_url`.
+
+The link goes to the first Filament panel, the default panel first, that has the plugin, no tenancy, and a guard the package recognises. For the reporter that is a panel whose guard's model is the reporter's, with "My reports" on; for a developer, a panel on a developer guard. A notified user must also be of that guard's model and, as a `FilamentUser`, allowed into the panel (`canAccessPanel()`). When no panel fits, the link goes to the standalone pages.
+
+To build the links yourself, register a callback in `AppServiceProvider::boot()`. It gets the report, the audience (`'reporter'` or `'developer'`) and the notified model (`null` for an e-mail address). Only an absolute `http`/`https` URL is used; `null`, or anything else, leaves the button out, and a callback that throws is reported once and leaves it out:
+
+```php
+use YousefAman\FeedbackBoard\Facades\FeedbackBoard;
+use YousefAman\FeedbackBoard\Models\FeedbackItem;
+
+FeedbackBoard::linkReportsUsing(fn (FeedbackItem $item, string $audience, ?object $recipient) => $audience === 'developer'
+    ? route('admin.feedback', ['report' => $item->id])
+    : route('portal.reports', ['report' => $item->id]));
+```
 
 ### Choosing who can report
 
@@ -231,6 +246,8 @@ By default the package sees the user of the guard in use: inside a Filament pane
 
 The package ships with English (`en`) and Arabic (`ar`) translations. The Arabic locale sets `dir` to `rtl`. Pass the direction value to your layout's `<html>` tag as shown in the usage example above.
 
+The package's e-mails follow the same direction: in Arabic their text runs and aligns right to left. A report title or reply inside an e-mail keeps its own direction, so an English reply in an Arabic e-mail, or the reverse, keeps its word order. They keep your app's mail layout and theme (`mail.markdown.theme`), and their greeting and sign-off come from the package's translations. They use the package's own Markdown template, `feedback-board::mail.notification`, so a customised `vendor/notifications/email.blade.php` does not change them; publish the package's views to customise that template.
+
 Supported locales: `en`, `ar`. Add more by publishing translations (`php artisan vendor:publish --tag=feedback-board-translations`) and creating your own locale directory under `lang/vendor/feedback-board/`, for example `lang/vendor/feedback-board/fr/feedback-board.php`. Do not create `resources/lang`: once that directory exists, Laravel loads all of your app's translations from it instead of `lang/`.
 
 ## Styling & theming
@@ -310,7 +327,7 @@ Key configuration options in `config/feedback-board.php`:
 | `ai.queue` | string\|null | Queue the triage jobs are pushed to (`FEEDBACK_BOARD_AI_QUEUE`; `null` or empty = the connection's default queue); make sure a worker listens on it, e.g. `php artisan queue:work --queue=ai,default` |
 | `ai.lock_store` | string\|null | Cache store for the per-item AI triage and runner lock (`FEEDBACK_BOARD_AI_LOCK_STORE`; `null` = app default). With several servers, use a shared store |
 | `ai.max_input_chars` | int | Combined title and description budget sent to the model (default: `4000`) |
-| `ai.anthropic.*` | array | `api_key` (`FEEDBACK_BOARD_ANTHROPIC_KEY`), `model` (`FEEDBACK_BOARD_ANTHROPIC_MODEL`, default: `'claude-haiku-4-5'`), `timeout` (`30`), `max_tokens` (`1024`) |
+| `ai.anthropic.*` | array | `api_key` (`FEEDBACK_BOARD_ANTHROPIC_KEY`), `model` (`FEEDBACK_BOARD_ANTHROPIC_MODEL`, default: `'claude-haiku-4-5'`), `timeout` (`30`, seconds per attempt; the whole call, its retry included, stays within 40 seconds), `max_tokens` (`1024`) |
 | `runner.enabled` | bool | Enable the AI runner (`FEEDBACK_BOARD_RUNNER_ENABLED`, default: `false`) — see [AI Runner Contract](#ai-runner-contract-level-bc) |
 | `runner.endpoint` / `runner.secret` | string\|null | Runner task-receive URL and HMAC secret (`FEEDBACK_RUNNER_ENDPOINT`, `FEEDBACK_RUNNER_SECRET`) |
 | `runner.timeout` / `runner.connect_timeout` | int | Dispatch HTTP timeouts in seconds (defaults: `8`, `4`) |
@@ -341,6 +358,7 @@ Set `FEEDBACK_GITHUB_TOKEN` (a **fine-grained PAT** scoped to a single repo with
 broader access, avoid it) and `FEEDBACK_GITHUB_REPO` (`owner/name`). GitHub is **not**
 added to `destinations.enabled`: the first issue is created by the developer's manual
 "Send to GitHub" action; later replies and status changes auto-comment on it.
+Each reply comment starts with its author's role, for example `**Reporter** replied:`; no person's name is sent. Once the issue exists, the card dialog and the All reports table link it.
 Set `feedback-board.destinations.github.close_on_resolved` to close the issue on resolve. Comments and closing always go to the repo where the issue was opened, even after `FEEDBACK_GITHUB_REPO` changes; if the token can no longer reach that repo, the delivery fails with `not_found_404` or `auth_401`.
 
 GitHub idempotency, delivery-failure records and the runner's PR link are guarded by a cache
@@ -352,7 +370,11 @@ is process-local (no cross-worker protection).
 Delivery failures are isolated per destination. On a real queue, a failed delivery is retried
 after 30 seconds, 2 minutes and 5 minutes, within 15 minutes; a GitHub rate-limit wait counts as
 an attempt. On the `sync` queue it is not retried. A delivery that still fails is recorded as a
-sanitized code in `external_refs.{driver}_last_error` (never the raw error, URL, or token).
+sanitized code in `external_refs.{driver}_last_error` (never the raw error, URL, or token), and
+the next delivery to that destination that gets through clears it. Developers see each failing
+destination in the card dialog, with the reason, the event and how long ago. With Filament
+installed, developers who are user models (`FeedbackBoard::notifyDevelopersUsing()`) also get a
+bell entry that names the destination and the reason; it needs the `notifications` table.
 Internal notes are never forwarded to any destination.
 
 ### Ingest endpoint (inbound)
@@ -401,6 +423,11 @@ record only a short sanitized error code.
 **Triggering.** Triage runs automatically on new reports (after the creating
 transaction commits) and can be re-run from the "Triage with AI" button in the
 board's card dialog or the Filament resource.
+
+**Time.** The call to Anthropic, its one retry included, ends within 40 seconds, and the triage
+job has a 60-second timeout of its own, whatever `--timeout` the worker runs with. Keep the queue
+connection's `retry_after` above 60 seconds (Laravel's default is 90), or a second worker may pick
+the job up while it is still running.
 
 **Lock store.** The per-item `ai_state` lock (also used by the AI runner) comes from
 `FEEDBACK_BOARD_AI_LOCK_STORE` (unset = your app's default cache store). Like destinations, it

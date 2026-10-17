@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use YousefAman\FeedbackBoard\Destinations\Contracts\Destination;
+use YousefAman\FeedbackBoard\Destinations\Support\DeliveryRecord;
 use YousefAman\FeedbackBoard\Destinations\Support\DestinationEvent;
 use YousefAman\FeedbackBoard\Destinations\Support\TransientRetry;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
@@ -51,5 +52,7 @@ class SlackDriver implements Destination
         if ($response->status() !== 200 || trim($response->body()) !== 'ok') {
             throw new RuntimeException('feedback-board: slack delivery rejected (status '.$response->status().').');
         }
+
+        DeliveryRecord::clearFailure($item, 'slack');
     }
 }

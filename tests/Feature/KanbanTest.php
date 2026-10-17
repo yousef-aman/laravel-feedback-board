@@ -221,3 +221,24 @@ it('keeps an English title auto-directed on an Arabic board', function () {
         ->assertSeeHtml('<p class="fb-card__title" dir="auto">Export to CSV fails</p>')
         ->assertSeeHtml('aria-label="تصفية حسب النوع"');
 });
+
+it('opens the card a link names, and keeps the open card in the link', function () {
+    $item = FeedbackItem::factory()->create(['title' => 'Linked card']);
+
+    Livewire::withQueryParams(['report' => (string) $item->id])->actingAs(kanbanDev())->test(FeedbackKanban::class)
+        ->assertSet('selectedId', $item->id)
+        ->assertSeeLivewire('feedback-board::feedback-detail')
+        ->call('close')
+        ->assertSet('report', null)
+        ->call('open', $item->id)
+        ->assertSet('report', $item->id);
+});
+
+it('ignores a link to a card that does not exist or is not a number', function (string $report) {
+    FeedbackItem::factory()->create();
+
+    Livewire::withQueryParams(['report' => $report])->actingAs(kanbanDev())->test(FeedbackKanban::class)
+        ->assertSet('selectedId', null)
+        ->assertSet('report', null)
+        ->assertDontSeeLivewire('feedback-board::feedback-detail');
+})->with(['missing' => '999', 'text' => 'abc', 'zero' => '0', 'negative' => '-1']);

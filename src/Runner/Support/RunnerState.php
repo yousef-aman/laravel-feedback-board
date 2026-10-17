@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace YousefAman\FeedbackBoard\Runner\Support;
 
-use Carbon\Exceptions\InvalidFormatException;
 use Closure;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
+use YousefAman\FeedbackBoard\Support\Time;
 
 final class RunnerState
 {
@@ -56,8 +56,8 @@ final class RunnerState
      * True when an in-flight task (dispatched or running) has shown no activity for
      * runner.stale_after seconds, so a developer may re-send it. Activity is the last write
      * (updated_at, which merge() sets), else the dispatch time. A value that cannot be parsed
-     * counts as stale; a task with no timestamp at all (a row written by hand) does not, because
-     * there is nothing to measure. stale_after = 0 turns staleness off.
+     * (an empty string included) counts as stale; a task with no timestamp at all (a row written
+     * by hand) does not, because there is nothing to measure. stale_after = 0 turns staleness off.
      *
      * @param  array<string, mixed>|null  $runner
      */
@@ -75,14 +75,19 @@ final class RunnerState
             return false;
         }
 
-        try {
-            $at = is_string($value) ? Carbon::parse($value) : null;
-        } catch (InvalidFormatException) {
-            $at = null;
-        }
+        $at = self::parseTime($value);
 
         // Carbon 3's diffInSeconds() is a signed float: compare points in time instead.
         return $at === null || $at->addSeconds($after)->isPast();
+    }
+
+    /**
+     * A runner timestamp as a date, or null when it is not a non-empty string Carbon can parse
+     * (Carbon reads '' as now).
+     */
+    public static function parseTime(mixed $value): ?Carbon
+    {
+        return Time::parse($value);
     }
 
     /**

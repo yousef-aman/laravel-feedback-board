@@ -8,6 +8,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
+use YousefAman\FeedbackBoard\Support\MailLayout;
 
 class FeedbackResolvedNotification extends Notification
 {
@@ -26,21 +27,19 @@ class FeedbackResolvedNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        return MailLayout::message($this->item, 'reporter', $notifiable)
             ->subject(__('feedback-board::feedback-board.mail.resolved_subject', ['title' => $this->item->title]))
             ->line(__('feedback-board::feedback-board.mail.resolved_line'));
     }
 
     public function toArray(object $notifiable): array
     {
-        $payload = ['feedback_item_id' => $this->item->id, 'kind' => 'resolved'];
-
-        if (class_exists(\Filament\Notifications\Notification::class)) {
-            return \Filament\Notifications\Notification::make()
-                ->title(__('feedback-board::feedback-board.mail.resolved_subject', ['title' => e($this->item->title)]))
-                ->getDatabaseMessage() + $payload;
-        }
-
-        return $payload;
+        return MailLayout::database(
+            __('feedback-board::feedback-board.mail.resolved_subject', ['title' => e($this->item->title)]),
+            $this->item,
+            'reporter',
+            ['feedback_item_id' => $this->item->id, 'kind' => 'resolved'],
+            $notifiable,
+        );
     }
 }

@@ -98,3 +98,47 @@ it('throws not_configured when the key is absent', function () {
     expect(fn () => (new AnthropicDriver())->triage('t', 'd'))
         ->toThrow(TriageException::class, 'not_configured');
 });
+
+it('tries a quick transient failure once more', function () {
+    $calls = 0;
+    Http::fake(function () use (&$calls) {
+        $calls++;
+        Illuminate\Support\Carbon::setTestNow(now()->addSecond());
+
+        return Http::response('overloaded', 529);
+    });
+
+    expect(fn () => (new AnthropicDriver())->triage('Login broken', null))->toThrow(TriageException::class);
+    expect($calls)->toBe(2);
+});
+
+it('does not start a second attempt that could run past the time budget', function () {
+    $calls = 0;
+    Http::fake(function () use (&$calls) {
+        $calls++;
+        Illuminate\Support\Carbon::setTestNow(now()->addSeconds(20));
+
+        return Http::response('overloaded', 529);
+    });
+
+    expect(fn () => (new AnthropicDriver())->triage('Login broken', null))->toThrow(TriageException::class);
+    expect($calls)->toBe(1);
+});
+
+it('keeps each attempt within the budget, whatever timeout is configured', function (int $configured, int $used) {
+    config()->set('feedback-board.ai.anthropic.timeout', $configured);
+    $timeout = null;
+    Http::fake(function ($request, array $options) use (&$timeout) {
+        $timeout = $options['timeout'] ?? null;
+
+        return Http::response(toolUse(['type' => 'bug', 'priority' => 'high', 'summary' => 'x']), 200);
+    });
+
+    (new AnthropicDriver())->triage('Login broken', null);
+
+    expect($timeout)->toBe($used);
+})->with(['default' => [30, 30], 'too long' => [120, 40]]);
+
+it('gives the triage job more time than the call and its lock wait can take', function () {
+    expect((new YousefAman\FeedbackBoard\Jobs\TriageFeedbackItem(1))->timeout)->toBeGreaterThan(40 + 8);
+});

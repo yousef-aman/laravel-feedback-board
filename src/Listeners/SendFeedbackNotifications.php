@@ -11,7 +11,7 @@ use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Notification as NotificationFacade;
 use YousefAman\FeedbackBoard\Enums\{AuthorRole, FeedbackStatus};
 use YousefAman\FeedbackBoard\Events\{FeedbackItemCreated, FeedbackReplied, FeedbackStatusChanged};
-use YousefAman\FeedbackBoard\Notifications\{FeedbackRepliedNotification, FeedbackResolvedNotification, NewFeedbackNotification, ReporterRepliedNotification};
+use YousefAman\FeedbackBoard\Notifications\{FeedbackClosedNotification, FeedbackRepliedNotification, FeedbackResolvedNotification, NewFeedbackNotification, ReporterRepliedNotification};
 use YousefAman\FeedbackBoard\Support\DeveloperRecipients;
 
 class SendFeedbackNotifications
@@ -44,13 +44,22 @@ class SendFeedbackNotifications
         $this->sendAfterCommit(fn () => $comment->item->reporter?->notify(new FeedbackRepliedNotification($comment)));
     }
 
+    /**
+     * The reporter hears about a resolution, and about an open report closed or declined. Filing a
+     * finished report away (resolved or declined to closed, and the like) sends nothing.
+     */
     public function onStatusChanged(FeedbackStatusChanged $event): void
     {
-        if ($event->to !== FeedbackStatus::Resolved) {
-            return;
-        }
+        $notification = match (true) {
+            $event->to === FeedbackStatus::Resolved => new FeedbackResolvedNotification($event->item),
+            in_array($event->to, [FeedbackStatus::Closed, FeedbackStatus::Declined], true) && $event->from->isOpen()
+                => new FeedbackClosedNotification($event->item, $event->to),
+            default => null,
+        };
 
-        $this->sendAfterCommit(fn () => $event->item->reporter?->notify(new FeedbackResolvedNotification($event->item)));
+        if ($notification !== null) {
+            $this->sendAfterCommit(fn () => $event->item->reporter?->notify($notification));
+        }
     }
 
     public function subscribe(Dispatcher $events): array

@@ -22,6 +22,13 @@ class TriageFeedbackItem implements ShouldQueue
 
     public int $tries = 3;
 
+    /**
+     * Above the Anthropic call's time budget (AnthropicDriver::TIME_BUDGET) plus the result lock's wait,
+     * and below the queue's default retry_after (90): a worker started with a shorter --timeout still
+     * gives this job its full time.
+     */
+    public int $timeout = 60;
+
     public function __construct(public int $itemId)
     {
         /** Never run against an uncommitted/rolled-back row. */

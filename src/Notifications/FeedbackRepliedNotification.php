@@ -8,7 +8,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use YousefAman\FeedbackBoard\Models\FeedbackComment;
-use YousefAman\FeedbackBoard\Support\MailText;
+use YousefAman\FeedbackBoard\Support\{MailLayout, MailText};
 
 class FeedbackRepliedNotification extends Notification
 {
@@ -27,23 +27,26 @@ class FeedbackRepliedNotification extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
+        $item = $this->comment->item;
         $body = trim((string) $this->comment->body);
 
-        return (new MailMessage)
-            ->subject(__('feedback-board::feedback-board.mail.reply_subject'))
-            ->line($body !== '' ? MailText::escape($body) : __('feedback-board::feedback-board.mail.reply_images'));
+        return MailLayout::message($item, 'reporter', $notifiable)
+            ->subject(__('feedback-board::feedback-board.mail.reply_subject', ['title' => $item->title]))
+            ->line(__('feedback-board::feedback-board.mail.reply_line', ['id' => $item->id]))
+            ->line($body !== '' ? MailText::line($body) : __('feedback-board::feedback-board.mail.reply_images'));
     }
 
     public function toArray(object $notifiable): array
     {
-        $payload = ['feedback_item_id' => $this->comment->feedback_item_id, 'kind' => 'reply'];
+        $item = $this->comment->item;
 
-        if (class_exists(\Filament\Notifications\Notification::class)) {
-            return \Filament\Notifications\Notification::make()
-                ->title(__('feedback-board::feedback-board.mail.reply_subject'))
-                ->getDatabaseMessage() + $payload;
-        }
-
-        return $payload;
+        // Filament renders a notification title as (sanitized) HTML: the reporter's title must be text.
+        return MailLayout::database(
+            __('feedback-board::feedback-board.mail.reply_subject', ['title' => e($item->title)]),
+            $item,
+            'reporter',
+            ['feedback_item_id' => $item->id, 'kind' => 'reply'],
+            $notifiable,
+        );
     }
 }

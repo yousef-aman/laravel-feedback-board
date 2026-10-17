@@ -103,3 +103,4 @@ it('DeliveryError maps throwables to a fixed vocabulary', function () {
     expect(DeliveryError::code(new \Illuminate\Http\Client\ConnectionException('x')))->toBe('connection_error')
         ->and(DeliveryError::code(new RuntimeException('boom')))->toBe('unknown');
 });
+

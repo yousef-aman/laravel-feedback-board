@@ -41,3 +41,8 @@ it('escapes the three Slack control characters once', function () {
     expect(SlackText::escape('<!channel> R&D <https://evil.example|Open> &amp;'))
         ->toBe('&lt;!channel&gt; R&amp;D &lt;https://evil.example|Open&gt; &amp;amp;');
 });
+
+it('isolates a mail line in its own direction, after escaping it', function () {
+    expect(MailText::line('Try *Ctrl+F5* (again)'))->toBe("\u{2068}Try \\*Ctrl+F5\\* (again)\u{2069}")
+        ->and(MailText::line("زر الحفظ\nلا يعمل"))->toBe("\u{2068}زر الحفظ لا يعمل\u{2069}");
+});

@@ -8,7 +8,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use YousefAman\FeedbackBoard\Models\FeedbackComment;
-use YousefAman\FeedbackBoard\Support\MailText;
+use YousefAman\FeedbackBoard\Support\{MailLayout, MailText};
 
 /** Tells developers that a reporter answered, and on which report. */
 class ReporterRepliedNotification extends Notification
@@ -31,24 +31,23 @@ class ReporterRepliedNotification extends Notification
         $item = $this->comment->item;
         $body = trim((string) $this->comment->body);
 
-        return (new MailMessage)
+        return MailLayout::message($item, 'developer', $notifiable)
             ->subject(__('feedback-board::feedback-board.mail.reporter_reply_subject', ['title' => $item->title]))
             ->line(__('feedback-board::feedback-board.mail.reporter_reply_line', ['id' => $item->id]))
-            ->line($body !== '' ? MailText::escape($body) : __('feedback-board::feedback-board.mail.reply_images'));
+            ->line($body !== '' ? MailText::line($body) : __('feedback-board::feedback-board.mail.reply_images'));
     }
 
     public function toArray(object $notifiable): array
     {
         $item = $this->comment->item;
-        $payload = ['feedback_item_id' => $item->id, 'kind' => 'reporter_reply'];
 
         // Filament renders a notification title as (sanitized) HTML: the reporter's title must be text.
-        if (class_exists(\Filament\Notifications\Notification::class)) {
-            return \Filament\Notifications\Notification::make()
-                ->title(__('feedback-board::feedback-board.mail.reporter_reply_subject', ['title' => e($item->title)]))
-                ->getDatabaseMessage() + $payload;
-        }
-
-        return $payload;
+        return MailLayout::database(
+            __('feedback-board::feedback-board.mail.reporter_reply_subject', ['title' => e($item->title)]),
+            $item,
+            'developer',
+            ['feedback_item_id' => $item->id, 'kind' => 'reporter_reply'],
+            $notifiable,
+        );
     }
 }

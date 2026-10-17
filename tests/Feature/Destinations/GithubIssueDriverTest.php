@@ -152,3 +152,19 @@ it('skips the auto-comment for an image-only reply', function () {
 
     Http::assertNothingSent();
 });
+
+it("says who wrote a reply, by role only, above the reply's text", function (\YousefAman\FeedbackBoard\Enums\AuthorRole $role, string $label) {
+    Http::fake(['api.github.com/*' => Http::response(['id' => 1], 201)]);
+    $item = FeedbackItem::factory()->create([
+        'external_refs' => ['github' => ['issue_number' => 7, 'node_id' => 'N', 'html_url' => 'u', 'repo' => 'acme/app', 'posted' => []]],
+    ]);
+    $comment = FeedbackComment::factory()->create(['feedback_item_id' => $item->id, 'author_role' => $role, 'body' => 'Still broken', 'is_internal' => false]);
+
+    (new GithubIssueDriver())->send($item, new FeedbackReplied($comment), 'dlv-role');
+
+    Http::assertSent(fn ($r) => $r->data() === ['body' => "**{$label}** replied:\n\nStill broken"]);
+})->with([
+    'reporter' => [\YousefAman\FeedbackBoard\Enums\AuthorRole::Reporter, 'Reporter'],
+    'developer' => [\YousefAman\FeedbackBoard\Enums\AuthorRole::Developer, 'Developer'],
+    'ai' => [\YousefAman\FeedbackBoard\Enums\AuthorRole::Ai, 'AI'],
+]);

@@ -169,9 +169,20 @@
                         </div>
                     @else
                         @if (in_array($runner['status'], ['dispatched','running'], true))
-                            <p class="fb-muted">{{ __('feedback-board::feedback-board.runner.'.$runner['status']) }} — {{ $runner['dispatched_at'] ?? '' }}</p>
+                            {{-- Times as words in the app's language, set explicitly (Carbon follows it only through its Laravel provider): a raw ISO string scrambles in RTL text. An unparsable value is shown as stored. --}}
+                            @php($sentAt = \YousefAman\FeedbackBoard\Runner\Support\RunnerState::parseTime($runner['dispatched_at'] ?? null))
+                            <p class="fb-muted">
+                                {{ __('feedback-board::feedback-board.runner.'.$runner['status']) }} —
+                                @if ($sentAt)
+                                    <time datetime="{{ $sentAt->toIso8601String() }}" title="{{ $sentAt->toIso8601String() }}">{{ \YousefAman\FeedbackBoard\Support\Time::ago($sentAt) }}</time>
+                                @else
+                                    {{ $runner['dispatched_at'] ?? '' }}
+                                @endif
+                            </p>
                             @if (\YousefAman\FeedbackBoard\Runner\Support\RunnerState::isStale($runner))
-                                <p class="fb-notice fb-notice--warning">{{ __('feedback-board::feedback-board.runner.stale', ['time' => $runner['updated_at'] ?? $runner['dispatched_at'] ?? '']) }}</p>
+                                @php($lastActivity = $runner['updated_at'] ?? $runner['dispatched_at'] ?? '')
+                                @php($lastAt = \YousefAman\FeedbackBoard\Runner\Support\RunnerState::parseTime($lastActivity))
+                                <p class="fb-notice fb-notice--warning" @if ($lastAt) title="{{ $lastAt->toIso8601String() }}" @endif>{{ __('feedback-board::feedback-board.runner.stale', ['time' => $lastAt ? \YousefAman\FeedbackBoard\Support\Time::ago($lastAt, absolute: true) : $lastActivity]) }}</p>
                             @endif
                         @elseif ($runner['status'] === 'failed')
                             <p class="fb-notice fb-notice--danger">{{ __('feedback-board::feedback-board.runner.failed') }}: {{ $runner['error_code'] ?? '' }}</p>
@@ -195,15 +206,24 @@
                 </div>
             @endif
 
-            @if ($githubQueued)
-                <p class="fb-notice">{{ __('feedback-board::feedback-board.detail.github_queued') }}</p>
-            @elseif ($canGithub)
-                <div class="fb-actions">
-                    <button type="button" class="fb-btn fb-btn--sm" wire:click="sendToGithub" wire:loading.attr="disabled" wire:target="sendToGithub">
-                        <x-feedback-board::icon name="code-bracket" />{{ __('feedback-board::feedback-board.detail.send_github') }}
-                    </button>
-                </div>
-            @endif
+            {{-- The GitHub issue, failing deliveries, and "Send to GitHub". It polls while a send waits for its issue or failure. --}}
+            <div wire:key="deliveries-{{ $item->id }}" @if ($githubPending) wire:poll.5s @endif>
+                @if ($githubIssue)
+                    <p><a class="fb-link" href="{{ $githubIssue['url'] }}" target="_blank" rel="noopener noreferrer">{{ __('feedback-board::feedback-board.destinations.github_issue', ['number' => $githubIssue['number']]) }}</a></p>
+                @endif
+                @foreach ($deliveryProblems as $problem)
+                    <p class="fb-notice fb-notice--warning" @if ($problem['at']) title="{{ $problem['at'] }}" @endif>{{ $problem['text'] }} <span class="fb-muted">({{ $problem['when'] }})</span></p>
+                @endforeach
+                @if ($githubPending)
+                    <p class="fb-notice">{{ __('feedback-board::feedback-board.detail.github_queued') }}</p>
+                @elseif ($canGithub)
+                    <div class="fb-actions">
+                        <button type="button" class="fb-btn fb-btn--sm" wire:click="sendToGithub" wire:loading.attr="disabled" wire:target="sendToGithub">
+                            <x-feedback-board::icon name="code-bracket" />{{ __('feedback-board::feedback-board.detail.send_github') }}
+                        </button>
+                    </div>
+                @endif
+            </div>
         </div>
 
         <aside class="fb-dialog__side" aria-labelledby="{{ $uid }}-side-title">

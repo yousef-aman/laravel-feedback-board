@@ -19,6 +19,13 @@ use YousefAman\FeedbackBoard\Triage\Support\TriageResult;
 
 final class AnthropicDriver implements TriageDriver
 {
+    /**
+     * Seconds the whole call may take, its retry included. It keeps the triage job, whose own timeout
+     * is 60 seconds, clear of a worker's kill: each attempt's timeout is at most this, and a second
+     * attempt starts only when it can finish within it.
+     */
+    public const TIME_BUDGET = 40;
+
     public function triage(string $title, ?string $description): TriageResult
     {
         $key = config('feedback-board.ai.anthropic.api_key');
@@ -28,7 +35,9 @@ final class AnthropicDriver implements TriageDriver
 
         $model = (string) config('feedback-board.ai.anthropic.model', 'claude-haiku-4-5');
         $maxTokens = max(1, (int) config('feedback-board.ai.anthropic.max_tokens', 512));
-        $timeout = (int) config('feedback-board.ai.anthropic.timeout', 30);
+        $timeout = min(max(1, (int) config('feedback-board.ai.anthropic.timeout', 30)), self::TIME_BUDGET);
+        $deadline = now()->addSeconds(self::TIME_BUDGET);
+        $transient = TransientRetry::when();
         $maxChars = (int) config('feedback-board.ai.max_input_chars', 4000);
 
         try {
@@ -37,9 +46,9 @@ final class AnthropicDriver implements TriageDriver
                     'anthropic-version' => '2023-06-01',
                 ])
                 ->timeout($timeout)
-                // retry() narrows to connection/429/5xx via TransientRetry; throw:false
-                // returns the final response so guardResponse() decides.
-                ->retry(2, 200, TransientRetry::when(), throw: false)
+                // retry() narrows to connection/429/5xx via TransientRetry, and to a second attempt that
+                // can end within the budget; throw:false returns the final response so guardResponse() decides.
+                ->retry(2, 200, fn (Throwable $e) => $transient($e) && now()->addSeconds($timeout)->lte($deadline), throw: false)
                 ->post('https://api.anthropic.com/v1/messages', [
                     'model' => $model,
                     'max_tokens' => $maxTokens,

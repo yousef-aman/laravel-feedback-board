@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 use YousefAman\FeedbackBoard\Destinations\Contracts\Destination;
 use YousefAman\FeedbackBoard\Destinations\Exceptions\RetryAfter;
 use YousefAman\FeedbackBoard\Destinations\Support\DestinationEvent;
-use YousefAman\FeedbackBoard\Enums\FeedbackStatus;
+use YousefAman\FeedbackBoard\Enums\{AuthorRole, FeedbackStatus};
 use YousefAman\FeedbackBoard\Events\FeedbackItemCreated;
 use YousefAman\FeedbackBoard\Events\FeedbackReplied;
 use YousefAman\FeedbackBoard\Events\FeedbackStatusChanged;
@@ -70,6 +70,7 @@ class GithubIssueDriver implements Destination
                         'repo' => $repo,
                         'posted' => [$deliveryId],
                     ];
+                    unset($refs['github_last_error']); // the issue exists: the recorded failure is over
                     $fresh->external_refs = $refs;
                     $fresh->save();
                     return;
@@ -92,6 +93,7 @@ class GithubIssueDriver implements Destination
                     $ref['posted'] = [...$posted, $deliveryId];
                     $refs = $fresh->external_refs ?? [];
                     $refs['github'] = $ref;
+                    unset($refs['github_last_error']); // the comment got through
                     $fresh->external_refs = $refs;
                     $fresh->save();
                 }
@@ -101,10 +103,29 @@ class GithubIssueDriver implements Destination
                     && config('feedback-board.destinations.github.close_on_resolved')) {
                     $resp = $this->client($token)->patch($this->base($issueRepo)."/issues/{$number}", ['state' => 'closed']);
                     $this->guardResponse($resp);
+                    $this->forgetFailure($fresh);
                 }
             });
         } catch (LockTimeoutException) {
             throw new RetryAfter(30); // contention — soft queue retry
+        }
+    }
+
+    /** After the issue was closed: drop the recorded failure, best-effort (the close already happened). */
+    private function forgetFailure(FeedbackItem $fresh): void
+    {
+        $refs = $fresh->external_refs ?? [];
+
+        if (! array_key_exists('github_last_error', $refs)) {
+            return;
+        }
+
+        try {
+            unset($refs['github_last_error']);
+            $fresh->external_refs = $refs;
+            $fresh->save();
+        } catch (\Throwable $e) {
+            report($e);
         }
     }
 
@@ -144,7 +165,14 @@ class GithubIssueDriver implements Destination
     private function commentBody(object $event): string
     {
         if ($event instanceof FeedbackReplied) {
-            return $event->comment->body ?? '';
+            // By role only, in English like the status lines: no reporter or developer name leaves the app.
+            $author = match ($event->comment->author_role) {
+                AuthorRole::Reporter => 'Reporter',
+                AuthorRole::Ai => 'AI',
+                default => 'Developer', // the column's default
+            };
+
+            return "**{$author}** replied:\n\n".($event->comment->body ?? '');
         }
         if ($event instanceof FeedbackStatusChanged) {
             return "Status: {$event->from->value} → {$event->to->value}";

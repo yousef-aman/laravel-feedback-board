@@ -23,7 +23,7 @@ it('tells developers which report the reporter answered', function () {
         $mail = $notification->toMail($notifiable);
 
         return $mail->subject === 'Reporter replied: Checkout button broken'
-            && $mail->introLines === ['The reporter replied on report #'.$this->item->id.'.', 'Still broken on my side'];
+            && $mail->introLines === ['The reporter replied on report #'.$this->item->id.'.', "\u{2068}Still broken on my side\u{2069}"];
     });
     Notification::assertSentOnDemandTimes(FeedbackRepliedNotification::class, 0);
 });

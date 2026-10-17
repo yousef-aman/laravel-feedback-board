@@ -59,6 +59,28 @@ it('mails a fallback line for an image-only reply', function () {
     $comment = app(ReplyToFeedback::class)->handle($item, '', null, AuthorRole::Developer);
     $mail = (new FeedbackRepliedNotification($comment))->toMail($client);
 
-    expect($mail->introLines)->toBe([__('feedback-board::feedback-board.mail.reply_images')])
-        ->and($mail->introLines[0])->toBe('A reply with images was added.');
+    expect($mail->introLines)->toBe(['There is a new reply on report #'.$item->id.'.', 'A reply with images was added.']);
+});
+
+it('tells the reporter which report got the reply', function () {
+    $client = TestUser::create(['name' => 'C', 'email' => 'c@x.com']);
+    $item = FeedbackItem::factory()->for($client, 'reporter')->create(['title' => 'Checkout button broken']);
+
+    $comment = app(ReplyToFeedback::class)->handle($item, 'Fixed now', null, AuthorRole::Developer);
+    $mail = (new FeedbackRepliedNotification($comment))->toMail($client);
+
+    expect($mail->subject)->toBe('New reply on your feedback: Checkout button broken')
+        ->and($mail->introLines)->toBe(['There is a new reply on report #'.$item->id.'.', "\u{2068}Fixed now\u{2069}"]);
+});
+
+it('tells the reporter which report got the reply, in Arabic', function () {
+    app()->setLocale('ar');
+    $client = TestUser::create(['name' => 'C', 'email' => 'c@x.com']);
+    $item = FeedbackItem::factory()->for($client, 'reporter')->create(['title' => 'زر الحفظ لا يعمل']);
+
+    $comment = app(ReplyToFeedback::class)->handle($item, 'تم الإصلاح', null, AuthorRole::Developer);
+    $mail = (new FeedbackRepliedNotification($comment))->toMail($client);
+
+    expect($mail->subject)->toBe('رد جديد على ملاحظتك: زر الحفظ لا يعمل')
+        ->and($mail->introLines[0])->toBe('وصل رد جديد على البلاغ رقم '.$item->id.'.');
 });

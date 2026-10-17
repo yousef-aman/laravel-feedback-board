@@ -12,6 +12,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Throwable;
 use YousefAman\FeedbackBoard\Destinations\DestinationManager;
@@ -20,6 +21,7 @@ use YousefAman\FeedbackBoard\Destinations\Exceptions\RetryAfter;
 use YousefAman\FeedbackBoard\Destinations\Support\DeliveryError;
 use YousefAman\FeedbackBoard\Destinations\Support\DestinationEvent;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
+use YousefAman\FeedbackBoard\Support\MailLayout;
 
 class DeliverToDestination implements ShouldQueue
 {
@@ -105,11 +107,11 @@ class DeliverToDestination implements ShouldQueue
             $fresh->save();
         });
 
-        $this->notifyDevelopers($code);
+        $this->notifyDevelopers($item, $code);
     }
 
     /** Best-effort Filament database notification; never throws, never leaks secrets. */
-    protected function notifyDevelopers(string $code): void
+    protected function notifyDevelopers(FeedbackItem $item, string $code): void
     {
         if (! class_exists(\Filament\Notifications\Notification::class)) {
             return;
@@ -128,13 +130,23 @@ class DeliverToDestination implements ShouldQueue
                 return; // email-only recipients have no database notification target
             }
 
-            \Filament\Notifications\Notification::make()
-                ->title(__('feedback-board::feedback-board.destinations.delivery_failed'))
-                ->body($this->driver.': '.$code)
-                ->danger()
-                ->sendToDatabase($notifiables);
         } catch (Throwable) {
-            // best-effort: a notification failure must not mask the delivery failure
+            return; // best-effort: a notification failure must not mask the delivery failure
+        }
+
+        // One entry per developer, each with the link to the board they can open; one failing
+        // recipient does not stop the others.
+        foreach ($notifiables as $notifiable) {
+            try {
+                \Filament\Notifications\Notification::make()
+                    ->title(__('feedback-board::feedback-board.destinations.failed_title', ['destination' => DeliveryError::destination($this->driver)]))
+                    ->body(Str::ucfirst(DeliveryError::reason($code)))
+                    ->danger()
+                    ->actions(MailLayout::bellButton(app(\YousefAman\FeedbackBoard\FeedbackBoard::class)->reportUrl($item, 'developer', $notifiable)))
+                    ->sendToDatabase($notifiable);
+            } catch (Throwable) {
+                // best-effort, as above
+            }
         }
     }
 }
