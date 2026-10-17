@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\{Notification, View};
 use YousefAman\FeedbackBoard\Enums\AuthorRole;
 use YousefAman\FeedbackBoard\Models\{FeedbackComment, FeedbackItem};
-use YousefAman\FeedbackBoard\Notifications\{FeedbackRepliedNotification, FeedbackResolvedNotification, NewFeedbackNotification, ReporterRepliedNotification};
+use YousefAman\FeedbackBoard\Notifications\{FeedbackClosedNotification, FeedbackRepliedNotification, FeedbackResolvedNotification, NewFeedbackNotification, ReporterRepliedNotification};
 
 beforeEach(function () {
     config()->set('mail.default', 'array');
@@ -62,6 +62,7 @@ dataset('feedback mails', [
     'reply to the reporter' => fn () => new FeedbackRepliedNotification(hLayoutComment(AuthorRole::Developer)),
     'reporter reply' => fn () => new ReporterRepliedNotification(hLayoutComment(AuthorRole::Reporter)),
     'resolved' => fn () => new FeedbackResolvedNotification(FeedbackItem::factory()->create(['title' => 'زر الحفظ (Orders) رقم 15'])),
+    'declined' => fn () => new FeedbackClosedNotification(FeedbackItem::factory()->create(['title' => 'زر الحفظ (Orders) رقم 15']), YousefAman\FeedbackBoard\Enums\FeedbackStatus::Declined),
 ]);
 
 it('lays the e-mail out right to left in Arabic', function (Illuminate\Notifications\Notification $notification) {
@@ -144,6 +145,7 @@ dataset('feedback mails and their links', [
     'reply, to My reports' => [fn () => new FeedbackRepliedNotification(hLayoutComment(AuthorRole::Developer)), '/feedback-board/feedback?report='],
     'reporter reply, to the board' => [fn () => new ReporterRepliedNotification(hLayoutComment(AuthorRole::Reporter)), '/feedback-board/feedback/board?report='],
     'resolved, to My reports' => [fn () => new FeedbackResolvedNotification(FeedbackItem::factory()->create()), '/feedback-board/feedback?report='],
+    'closed, to My reports' => [fn () => new FeedbackClosedNotification(FeedbackItem::factory()->create(), YousefAman\FeedbackBoard\Enums\FeedbackStatus::Closed), '/feedback-board/feedback?report='],
 ]);
 
 it('opens the report from a button, with the link spelled out under it and in the plain-text part', function (Illuminate\Notifications\Notification $notification, string $path) {

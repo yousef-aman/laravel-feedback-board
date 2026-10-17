@@ -53,6 +53,8 @@ return [
         'reporter_reply_subject' => 'ردّ المُبلِّغ على: :title',
         'reporter_reply_line' => 'ردّ المُبلِّغ على البلاغ رقم :id.',
         'resolved_subject' => 'تم الحل: :title', 'resolved_line' => 'تم حل ملاحظتك.',
+        'closed_subject' => 'تم الإغلاق: :title', 'closed_line' => 'تم إغلاق ملاحظتك.',
+        'declined_subject' => 'تم الرفض: :title', 'declined_line' => 'تم رفض ملاحظتك.',
     ],
     'board' => [
         'my_reports' => 'بلاغاتي',

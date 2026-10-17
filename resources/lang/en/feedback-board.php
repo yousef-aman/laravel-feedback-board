@@ -53,6 +53,8 @@ return [
         'reporter_reply_subject' => 'Reporter replied: :title',
         'reporter_reply_line' => 'The reporter replied on report #:id.',
         'resolved_subject' => 'Resolved: :title', 'resolved_line' => 'Your report was resolved.',
+        'closed_subject' => 'Closed: :title', 'closed_line' => 'Your report was closed.',
+        'declined_subject' => 'Declined: :title', 'declined_line' => 'Your report was declined.',
     ],
     'board' => [
         'my_reports' => 'My reports',
