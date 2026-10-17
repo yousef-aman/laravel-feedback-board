@@ -56,3 +56,10 @@ it('links the standalone My reports page from a tenant panel page that has no te
 
     expect(Ui::reportsUrl())->toBe(MyFeedbackPage::getUrl(panel: 'admin', tenant: $this->team));
 });
+
+it('links notifications to the standalone pages, since a tenant panel URL needs a tenant', function () {
+    $item = FeedbackItem::factory()->for(TenantUser::create(['name' => 'Client']), 'reporter')->create();
+
+    expect(FeedbackBoard::reportUrl($item, 'reporter'))->toBe('http://localhost/feedback-board/feedback?report='.$item->id)
+        ->and(FeedbackBoard::reportUrl($item, 'developer'))->toBe('http://localhost/feedback-board/feedback/board?report='.$item->id);
+});

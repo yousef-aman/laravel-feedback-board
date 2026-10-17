@@ -9,6 +9,7 @@ use Generator;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -19,9 +20,11 @@ use InvalidArgumentException;
 use RuntimeException;
 use Throwable;
 use UnexpectedValueException;
+use YousefAman\FeedbackBoard\Models\FeedbackItem;
+use YousefAman\FeedbackBoard\Support\Ui;
 
 /**
- * The signed-in user, developer and reporter access, and developer recipients. Callbacks are registered from the
+ * The signed-in user, developer and reporter access, developer recipients and report links. Callbacks are registered from the
  * host app's AppServiceProvider::boot() and live in this container singleton, never in config, so
  * `php artisan config:cache` stays safe.
  */
@@ -32,6 +35,8 @@ class FeedbackBoard
     protected ?Closure $reporterResolver = null;
 
     protected ?Closure $developerRecipients = null;
+
+    protected ?Closure $reportLinks = null;
 
     /** @var array<string, true> problems already reported by this instance */
     private array $reported = [];
@@ -55,6 +60,50 @@ class FeedbackBoard
     public function notifyDevelopersUsing(callable $callback): void
     {
         $this->developerRecipients = Closure::fromCallable($callback);
+    }
+
+    /**
+     * @param  callable(FeedbackItem, string): ?string  $callback  the link a notification gives for a report:
+     *   its audience is 'reporter' or 'developer'; null leaves the link out
+     */
+    public function linkReportsUsing(callable $callback): void
+    {
+        $this->reportLinks = Closure::fromCallable($callback);
+    }
+
+    /**
+     * The link that opens a report for its reporter ('reporter': My reports) or for developers
+     * ('developer': the board), as notifications give it; null when there is none.
+     *
+     * The app's linkReportsUsing() callback decides when it is set; only an http(s) URL is kept, and
+     * a callback that throws is reported once and gives no link. Otherwise the page is in the first
+     * Filament panel, the default panel first, that has the plugin and no tenancy and recognises the
+     * audience: for the reporter, a panel on a guard whose model is the reporter's, with My reports
+     * on; for developers, a panel on a developer guard. Without one, the standalone page.
+     */
+    public function reportUrl(FeedbackItem $item, string $audience): ?string
+    {
+        if ($this->reportLinks !== null) {
+            try {
+                return Ui::safeUrl(($this->reportLinks)($item, $audience));
+            } catch (Throwable $e) {
+                $this->reportOnce('report-links', $e);
+
+                return null;
+            }
+        }
+
+        $developer = $audience === 'developer';
+
+        try {
+            $url = $this->panelReportUrl($item, $developer);
+        } catch (Throwable $e) {
+            // A panel whose URLs cannot be built here: the standalone page still opens the report.
+            $this->reportOnce('report-links-panel', $e);
+            $url = null;
+        }
+
+        return $url ?? route($developer ? 'feedback-board.board.page' : 'feedback-board.page', ['report' => $item->getKey()]);
     }
 
     /**
@@ -383,6 +432,55 @@ class FeedbackBoard
         }
 
         return $guards;
+    }
+
+    /** The report's page in the first Filament panel that suits the audience (see reportUrl()); null when none does. */
+    private function panelReportUrl(FeedbackItem $item, bool $developer): ?string
+    {
+        // Filament may be installed but not booted (an app without panels): check the provider, not the class.
+        if (! app()->providerIsLoaded(\Filament\FilamentServiceProvider::class)) {
+            return null;
+        }
+
+        $configured = $this->configuredGuards();
+        $developerGuards = $developer ? $this->developerGuards() : null;
+        $reporterModel = $developer || $item->reporter_type === null
+            ? null
+            : (Relation::getMorphedModel($item->reporter_type) ?? $item->reporter_type);
+
+        if (! $developer && $reporterModel === null) {
+            return null;
+        }
+
+        $panels = \Filament\Facades\Filament::getPanels();
+
+        foreach ($panels as $id => $panel) {
+            if ($panel->isDefault()) {
+                $panels = [$id => $panel, ...$panels];
+
+                break;
+            }
+        }
+
+        foreach ($panels as $panel) {
+            $plugin = $panel->hasPlugin('feedback-board') ? $panel->getPlugin('feedback-board') : null;
+            $guard = $panel->getAuthGuard();
+
+            if (! $plugin instanceof Filament\FeedbackBoardPlugin || $panel->hasTenancy()
+                || ($configured !== null && ! in_array($guard, $configured, true))) {
+                continue;
+            }
+
+            if ($developer && ($developerGuards === null || in_array($guard, $developerGuards, true))) {
+                return Filament\Pages\FeedbackBoardPage::getUrl(['report' => $item->getKey()], panel: $panel->getId());
+            }
+
+            if (! $developer && $plugin->hasMyReports() && $this->providerModel($guard) === $reporterModel) {
+                return Filament\Pages\MyFeedbackPage::getUrl(['report' => $item->getKey()], panel: $panel->getId());
+            }
+        }
+
+        return null;
     }
 
     /** @return array{id: string, guard: string}|null the current Filament panel; null outside one */
