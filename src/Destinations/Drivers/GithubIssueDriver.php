@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 use YousefAman\FeedbackBoard\Destinations\Contracts\Destination;
 use YousefAman\FeedbackBoard\Destinations\Exceptions\RetryAfter;
 use YousefAman\FeedbackBoard\Destinations\Support\DestinationEvent;
-use YousefAman\FeedbackBoard\Enums\FeedbackStatus;
+use YousefAman\FeedbackBoard\Enums\{AuthorRole, FeedbackStatus};
 use YousefAman\FeedbackBoard\Events\FeedbackItemCreated;
 use YousefAman\FeedbackBoard\Events\FeedbackReplied;
 use YousefAman\FeedbackBoard\Events\FeedbackStatusChanged;
@@ -144,7 +144,14 @@ class GithubIssueDriver implements Destination
     private function commentBody(object $event): string
     {
         if ($event instanceof FeedbackReplied) {
-            return $event->comment->body ?? '';
+            // By role only, in English like the status lines: no reporter or developer name leaves the app.
+            $author = match ($event->comment->author_role) {
+                AuthorRole::Reporter => 'Reporter',
+                AuthorRole::Ai => 'AI',
+                default => 'Developer', // the column's default
+            };
+
+            return "**{$author}** replied:\n\n".($event->comment->body ?? '');
         }
         if ($event instanceof FeedbackStatusChanged) {
             return "Status: {$event->from->value} → {$event->to->value}";
