@@ -30,4 +30,14 @@ final class MailText
 
         return (string) preg_replace('/^(\d+)([.)])/', '$1\\\\$2', $line);
     }
+
+    /**
+     * escape(), then wrapped in Unicode's first-strong isolate (U+2068 … U+2069): the text takes the
+     * direction of its own first letter, so an English reply in an Arabic e-mail, or the reverse, keeps
+     * its word order while the paragraph keeps the e-mail's. The marks are invisible in both parts.
+     */
+    public static function line(string $text): string
+    {
+        return "\u{2068}".self::escape($text)."\u{2069}";
+    }
 }

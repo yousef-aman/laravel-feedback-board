@@ -33,7 +33,7 @@ class FeedbackRepliedNotification extends Notification
         return MailLayout::message($item, 'reporter')
             ->subject(__('feedback-board::feedback-board.mail.reply_subject', ['title' => $item->title]))
             ->line(__('feedback-board::feedback-board.mail.reply_line', ['id' => $item->id]))
-            ->line($body !== '' ? MailText::escape($body) : __('feedback-board::feedback-board.mail.reply_images'));
+            ->line($body !== '' ? MailText::line($body) : __('feedback-board::feedback-board.mail.reply_images'));
     }
 
     public function toArray(object $notifiable): array

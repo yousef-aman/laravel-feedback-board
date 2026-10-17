@@ -30,7 +30,7 @@ class NewFeedbackNotification extends Notification
         return MailLayout::message($this->item, 'developer')
             ->subject(__('feedback-board::feedback-board.mail.new_subject', ['title' => $this->item->title]))
             ->line(__('feedback-board::feedback-board.mail.new_line'))
-            ->line(MailText::escape($this->item->title));
+            ->line(MailText::line($this->item->title));
     }
 
     public function toArray(object $notifiable): array

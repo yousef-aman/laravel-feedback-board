@@ -254,3 +254,14 @@ it('leaves the bell button out when the app gives no link', function () {
 
     expect($data['feedback_url'])->toBeNull()->and($data['actions'])->toBe([]);
 });
+
+it("gives a reporter's or developer's own text its own direction inside the e-mail", function () {
+    app()->setLocale('ar');
+    $item = FeedbackItem::factory()->create(['title' => 'Export fails']);
+    $comment = FeedbackComment::factory()->for($item, 'item')->create(['author_role' => AuthorRole::Developer, 'body' => 'Deployed a fix (Ctrl+F5).']);
+
+    [$html] = hLayoutMail(new FeedbackRepliedNotification($comment));
+
+    expect(hBody($html)['text'])->toContain("\u{2068}Deployed a fix (Ctrl+F5).\u{2069}")
+        ->and(hBody($html)['text'])->toContain('وصل رد جديد على البلاغ رقم '.$item->id.'.');
+});

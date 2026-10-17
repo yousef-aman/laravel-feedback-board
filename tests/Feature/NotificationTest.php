@@ -70,7 +70,7 @@ it('tells the reporter which report got the reply', function () {
     $mail = (new FeedbackRepliedNotification($comment))->toMail($client);
 
     expect($mail->subject)->toBe('New reply on your feedback: Checkout button broken')
-        ->and($mail->introLines)->toBe(['There is a new reply on report #'.$item->id.'.', 'Fixed now']);
+        ->and($mail->introLines)->toBe(['There is a new reply on report #'.$item->id.'.', "\u{2068}Fixed now\u{2069}"]);
 });
 
 it('tells the reporter which report got the reply, in Arabic', function () {
