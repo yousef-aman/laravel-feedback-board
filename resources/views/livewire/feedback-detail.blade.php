@@ -169,9 +169,20 @@
                         </div>
                     @else
                         @if (in_array($runner['status'], ['dispatched','running'], true))
-                            <p class="fb-muted">{{ __('feedback-board::feedback-board.runner.'.$runner['status']) }} — {{ $runner['dispatched_at'] ?? '' }}</p>
+                            {{-- Times as words in the app's language, set explicitly (Carbon follows it only through its Laravel provider): a raw ISO string scrambles in RTL text. An unparsable value is shown as stored. --}}
+                            @php($sentAt = \YousefAman\FeedbackBoard\Runner\Support\RunnerState::parseTime($runner['dispatched_at'] ?? null))
+                            <p class="fb-muted">
+                                {{ __('feedback-board::feedback-board.runner.'.$runner['status']) }} —
+                                @if ($sentAt)
+                                    <time datetime="{{ $sentAt->toIso8601String() }}" title="{{ $sentAt->toIso8601String() }}">{{ $sentAt->locale(app()->getLocale(), 'en')->diffForHumans() }}</time>
+                                @else
+                                    {{ $runner['dispatched_at'] ?? '' }}
+                                @endif
+                            </p>
                             @if (\YousefAman\FeedbackBoard\Runner\Support\RunnerState::isStale($runner))
-                                <p class="fb-notice fb-notice--warning">{{ __('feedback-board::feedback-board.runner.stale', ['time' => $runner['updated_at'] ?? $runner['dispatched_at'] ?? '']) }}</p>
+                                @php($lastActivity = $runner['updated_at'] ?? $runner['dispatched_at'] ?? '')
+                                @php($lastAt = \YousefAman\FeedbackBoard\Runner\Support\RunnerState::parseTime($lastActivity))
+                                <p class="fb-notice fb-notice--warning" @if ($lastAt) title="{{ $lastAt->toIso8601String() }}" @endif>{{ __('feedback-board::feedback-board.runner.stale', ['time' => $lastAt?->locale(app()->getLocale(), 'en')->diffForHumans(['syntax' => \Carbon\CarbonInterface::DIFF_ABSOLUTE]) ?? $lastActivity]) }}</p>
                             @endif
                         @elseif ($runner['status'] === 'failed')
                             <p class="fb-notice fb-notice--danger">{{ __('feedback-board::feedback-board.runner.failed') }}: {{ $runner['error_code'] ?? '' }}</p>

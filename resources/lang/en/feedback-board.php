@@ -102,7 +102,7 @@ return [
         'diff' => 'Suggested diff',
         'view_result' => 'View agent result',
         'ingest_disabled' => 'Ingest is disabled — agent post-back will fail. Enable feedback-board ingest.',
-        'stale' => 'No update since :time — the agent may have stopped.',
+        'stale' => 'No update for :time — the agent may have stopped.',
     ],
     'reports' => [
         'subheading' => "Follow your reports and the support team's replies",
