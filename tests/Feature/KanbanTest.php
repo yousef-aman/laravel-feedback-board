@@ -201,22 +201,30 @@ it('keeps the same number of queries for 2 cards and for 10 with unread markers'
     $dev = kanbanDev();
 
     $seed = function (int $cards) use ($dev): void {
-        FeedbackItem::factory()->count($cards)->create()->each(function (FeedbackItem $item, int $i) use ($dev): void {
-            FeedbackComment::factory()->for($item, 'item')->create(['author_type' => null, 'author_id' => null, 'author_role' => AuthorRole::Reporter]);
-            $i % 2 === 0 && DeveloperReads::markRead($item, $dev);
-        });
+        $items = FeedbackItem::factory()->count($cards)->create();
+        $items->filter(fn (FeedbackItem $item, int $i) => $i % 2 === 0)->each(fn (FeedbackItem $item) => DeveloperReads::markRead($item, $dev));
+        // A second after the reads, so the read cards get a bell.
+        $this->travel(1)->seconds();
+        $items->each(fn (FeedbackItem $item) => FeedbackComment::factory()->for($item, 'item')
+            ->create(['author_type' => null, 'author_id' => null, 'author_role' => AuthorRole::Reporter]));
     };
 
     $queries = function () use ($dev): int {
         DB::flushQueryLog();
         DB::enableQueryLog();
-        Livewire::actingAs($dev)->test(FeedbackKanban::class)->assertOk();
+        $board = Livewire::actingAs($dev)->test(FeedbackKanban::class)->assertOk();
         DB::disableQueryLog();
+
+        // Measured on real markers: the read cards ring a bell, the others say New.
+        $news = collect($board->viewData('cards'))->pluck('news');
+        expect($news->where('new', true))->not->toBeEmpty()
+            ->and($news->where('new', false)->where('unread', '>', 0))->not->toBeEmpty();
 
         return count(DB::getQueryLog());
     };
 
     Livewire::actingAs($dev)->test(FeedbackKanban::class); // writes the baseline
+    $this->travel(1)->seconds();
     $seed(2);
     $two = $queries();
     $seed(8);
