@@ -192,7 +192,7 @@ This adds three entries to the panel's navigation, in a translated **Feedback** 
 | Entry | Who sees it | Badge |
 |---|---|---|
 | **My reports** (`/admin/my-feedback`) | every panel user who may report, or has reports | reports with unread replies |
-| **Feedback board** (`/admin/feedback-board-page`) | developers | open reports |
+| **Feedback board** (`/admin/feedback-board-page`) | developers | open reports; red with the number of cards that have something new for you |
 | **All reports** (the feedback items resource) | developers | — |
 
 Reporters follow their reports and reply, with images, without leaving the panel; developers triage on the Kanban and work each report in a card dialog. To keep "My reports" out of a panel, such as an admin-only one, turn it off for that panel:
@@ -201,7 +201,7 @@ Reporters follow their reports and reply, with images, without leaving the panel
 $panel->plugin(FeedbackBoardPlugin::make()->myReports(false));
 ```
 
-**Unread markers.** On the developer board, a card shows a red bell with the number of comments by others (the reporter, a colleague, an internal note or the AI) since you last opened it, and a "New" label while it is an open report you have never opened. Opening the card clears both, and your own comments never count.
+**Unread markers.** On the developer board, a card shows a red bell with the number of comments by others (the reporter, a colleague, an internal note or the AI) since you last opened it, and a "New" label while it is an open report you have never opened and did not send. Opening the card clears both, and your own comments never count.
 
 Only what happens after a developer's first board visit counts, so the first visit starts clean rather than lighting every old card. "New" applies to open reports only; a comment on a resolved report still rings the bell. The board's sidebar badge in the panel turns red with the number of cards that have something new and shows the open count when you hover it; it refreshes when the card dialog closes. The markers need the `create_feedback_reads_table` migration (see the upgrade notes in the changelog).
 
