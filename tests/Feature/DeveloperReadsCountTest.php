@@ -3,7 +3,8 @@
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
-use Illuminate\Support\Facades\{DB, Log, Schema};
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\{DB, Exceptions, Log, Schema};
 use YousefAman\FeedbackBoard\Actions\{AssignFeedback, SetPriority, TransitionStatus};
 use YousefAman\FeedbackBoard\Enums\{AuthorRole, FeedbackPriority, FeedbackStatus, FeedbackType};
 use YousefAman\FeedbackBoard\Facades\FeedbackBoard;
@@ -377,5 +378,23 @@ it('counts nothing without the reads table, with one warning', function () {
             ->once();
     } finally {
         (require __DIR__.'/../../database/migrations/create_feedback_reads_table.php')->up();
+    }
+});
+
+it('reports any other query failure, with the table present, instead of asking for the migrations', function () {
+    $dev = ubCountDev();
+    DeveloperReads::begin($dev);
+    // A real failure on an existing table: the query asks for a column that is not there.
+    Schema::table('feedback_reads', fn ($table) => $table->renameColumn('read_at', 'seen_at'));
+    Exceptions::fake();
+    Log::spy();
+
+    try {
+        expect(DeveloperReads::cardsWithNews($dev))->toBe(0);
+
+        Exceptions::assertReported(QueryException::class);
+        Log::shouldNotHaveReceived('warning');
+    } finally {
+        Schema::table('feedback_reads', fn ($table) => $table->renameColumn('seen_at', 'read_at'));
     }
 });

@@ -13,6 +13,7 @@ use Illuminate\Database\Query\JoinClause;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use YousefAman\FeedbackBoard\Enums\FeedbackStatus;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
 use YousefAman\FeedbackBoard\Models\FeedbackRead;
@@ -211,17 +212,36 @@ final class DeveloperReads
             ->whereRaw($comments->getQuery()->getGrammar()->wrap($table.'.created_at').' > '.$since, $bindings);
     }
 
+    /**
+     * Runs $run, and returns $fallback when it fails. A missing reads table logs one warning per
+     * process asking for the migrations; any other database error is reported as it is.
+     */
     private static function safely(Closure $run, mixed $fallback): mixed
     {
         try {
             return $run();
         } catch (QueryException $e) {
-            if (! self::$warned) {
+            if (self::tableExists()) {
+                report($e);
+            } elseif (! self::$warned) {
                 self::$warned = true;
                 Log::warning('feedback-board: reading the developer read state failed; publish and run the package migrations.', ['exception' => $e->getMessage()]);
             }
 
             return $fallback;
+        }
+    }
+
+    /** Whether the reads table exists on its model's connection; true when that cannot be checked. */
+    private static function tableExists(): bool
+    {
+        $reads = new FeedbackRead;
+
+        try {
+            return Schema::connection($reads->getConnectionName())->hasTable($reads->getTable());
+        } catch (QueryException) {
+            // The database itself is failing: report that rather than ask for the migrations.
+            return true;
         }
     }
 }
