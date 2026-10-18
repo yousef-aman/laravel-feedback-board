@@ -67,31 +67,53 @@ class FeedbackBoardPage extends Page
         return self::badgeState()['tooltip'];
     }
 
+    private const BADGE_MEMO = 'feedback-board.board-badge.';
+
     /**
-     * One computation per request for all three badge methods. Filament checks canAccess()
-     * first, so this never runs for non-developers.
+     * Memoised on the current request's attributes, per developer: one computation per request
+     * for all three badge methods, never shared across requests or users in a long-lived worker.
+     * Filament checks canAccess() first, so this never runs for non-developers.
      *
      * @return array{badge: ?string, color: string, tooltip: ?string}
      */
     private static function badgeState(): array
     {
-        return once(function (): array {
-            $open = FeedbackItem::query()
-                ->whereIn('status', array_map(fn (FeedbackStatus $status) => $status->value, FeedbackStatus::openCases()))
-                ->count();
-            $user = FeedbackBoard::user();
-            $news = $user instanceof Model ? DeveloperReads::cardsWithNews($user) : 0;
+        $user = FeedbackBoard::user();
+        $key = self::BADGE_MEMO.($user instanceof Model ? $user->getMorphClass().'.'.$user->getKey() : 'none');
+        $attributes = request()->attributes;
 
-            if ($news > 0) {
-                return [
-                    'badge' => (string) $news,
-                    'color' => 'danger',
-                    'tooltip' => __('feedback-board::feedback-board.nav.open_reports', ['count' => $open]),
-                ];
+        if ($attributes->has($key)) {
+            return $attributes->get($key);
+        }
+
+        $open = FeedbackItem::query()
+            ->whereIn('status', array_map(fn (FeedbackStatus $status) => $status->value, FeedbackStatus::openCases()))
+            ->count();
+        $news = $user instanceof Model ? DeveloperReads::cardsWithNews($user) : 0;
+
+        $state = $news > 0
+            ? [
+                'badge' => (string) $news,
+                'color' => 'danger',
+                'tooltip' => __('feedback-board::feedback-board.nav.open_reports', ['count' => $open]),
+            ]
+            : ['badge' => $open > 0 ? (string) $open : null, 'color' => 'gray', 'tooltip' => null];
+
+        $attributes->set($key, $state);
+
+        return $state;
+    }
+
+    /** @internal Test seam: forgets the badge memo of the current request. */
+    public static function forgetBadgeState(): void
+    {
+        $attributes = request()->attributes;
+
+        foreach (array_keys($attributes->all()) as $key) {
+            if (str_starts_with((string) $key, self::BADGE_MEMO)) {
+                $attributes->remove($key);
             }
-
-            return ['badge' => $open > 0 ? (string) $open : null, 'color' => 'gray', 'tooltip' => null];
-        });
+        }
     }
 
     public static function canAccess(): bool

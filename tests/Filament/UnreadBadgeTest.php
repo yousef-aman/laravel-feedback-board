@@ -1,7 +1,6 @@
 <?php
 
 use Illuminate\Support\Facades\{DB, Log, Schema};
-use Illuminate\Support\Once;
 use YousefAman\FeedbackBoard\Enums\{AuthorRole, FeedbackStatus};
 use YousefAman\FeedbackBoard\Filament\Pages\FeedbackBoardPage;
 use YousefAman\FeedbackBoard\Filament\Resources\FeedbackItemResource;
@@ -39,7 +38,7 @@ it('keeps the gray open count when nothing is new, with no tooltip', function ()
         ->and(FeedbackBoardPage::getNavigationBadgeTooltip())->toBeNull();
 
     DeveloperReads::begin($dev);
-    Once::flush();
+    FeedbackBoardPage::forgetBadgeState();
 
     expect(FeedbackBoardPage::getNavigationBadge())->toBe('2')
         ->and(FeedbackBoardPage::getNavigationBadgeColor())->toBe('gray')
@@ -55,7 +54,7 @@ it('turns red with the number of cards that have something new, and tells the op
     $this->travel(1)->minutes();
     FeedbackItem::factory()->create();
     ubBadgeReporterComment($old->first());
-    Once::flush();
+    FeedbackBoardPage::forgetBadgeState();
 
     expect(FeedbackBoardPage::getNavigationBadge())->toBe('2')
         ->and(FeedbackBoardPage::getNavigationBadgeColor())->toBe('danger')
@@ -71,10 +70,11 @@ it('counts a comment on a resolved report but not the resolved report as New', f
     $this->travel(1)->minutes();
     FeedbackItem::factory()->create(['status' => FeedbackStatus::Resolved]);
     ubBadgeReporterComment($older);
-    Once::flush();
+    FeedbackBoardPage::forgetBadgeState();
 
     expect(FeedbackBoardPage::getNavigationBadge())->toBe('1')
-        ->and(FeedbackBoardPage::getNavigationBadgeColor())->toBe('danger');
+        ->and(FeedbackBoardPage::getNavigationBadgeColor())->toBe('danger')
+        ->and(FeedbackBoardPage::getNavigationBadgeTooltip())->toBe(__('feedback-board::feedback-board.nav.open_reports', ['count' => 0]));
 });
 
 it('renders the red badge and its tooltip in the panel\'s sidebar', function () {
@@ -108,14 +108,39 @@ it('computes the badge once for its value, colour and tooltip', function () {
     DeveloperReads::begin($dev);
     $this->travel(1)->minutes();
     FeedbackItem::factory()->create();
-    Once::flush();
+    FeedbackBoardPage::forgetBadgeState();
 
     DB::enableQueryLog();
     FeedbackBoardPage::getNavigationBadge();
     FeedbackBoardPage::getNavigationBadgeColor();
     FeedbackBoardPage::getNavigationBadgeTooltip();
 
-    expect(count(DB::getQueryLog()))->toBeLessThanOrEqual(2);
+    expect(count(DB::getQueryLog()))->toBe(2);
+
+    FeedbackBoardPage::getNavigationBadge();
+    FeedbackBoardPage::getNavigationBadgeColor();
+    FeedbackBoardPage::getNavigationBadgeTooltip();
+
+    expect(count(DB::getQueryLog()))->toBe(2);
+});
+
+it('keeps the badge of each developer apart within one request', function () {
+    config()->set('feedback-board.authorization.developer_resolver', fn ($user) => str_starts_with($user->name, 'Dev'));
+    $a = FilamentTestUser::create(['name' => 'Dev A', 'email' => 'a@x.com']);
+    $b = FilamentTestUser::create(['name' => 'Dev B', 'email' => 'b@x.com']);
+    DeveloperReads::begin($a);
+    $this->travel(1)->minutes();
+    FeedbackItem::factory()->create();
+    DeveloperReads::begin($b);
+
+    $this->actingAs($a);
+    expect(FeedbackBoardPage::getNavigationBadge())->toBe('1')
+        ->and(FeedbackBoardPage::getNavigationBadgeColor())->toBe('danger');
+
+    $this->actingAs($b);
+    expect(FeedbackBoardPage::getNavigationBadge())->toBe('1')
+        ->and(FeedbackBoardPage::getNavigationBadgeColor())->toBe('gray')
+        ->and(FeedbackBoardPage::getNavigationBadgeTooltip())->toBeNull();
 });
 
 it('keeps the panel browsable without the reads table, with one warning', function () {
