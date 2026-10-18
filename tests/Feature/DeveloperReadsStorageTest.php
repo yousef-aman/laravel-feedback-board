@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Database\Schema\Builder;
 use Illuminate\Support\Facades\{DB, Log, Schema};
 use YousefAman\FeedbackBoard\Models\{FeedbackItem, FeedbackRead};
 use YousefAman\FeedbackBoard\Support\DeveloperReads;
@@ -22,6 +23,31 @@ it('creates the reads table with a unique reader-and-report index, and drops it 
 
     (require __DIR__.'/../../database/migrations/create_feedback_reads_table.php')->up();
     expect(Schema::hasTable('feedback_reads'))->toBeTrue();
+});
+
+it('indexes the reader only through the unique index, on the columns morphs() makes', function () {
+    $indexes = collect(Schema::getIndexes('feedback_reads'));
+
+    expect($indexes->filter(fn (array $index) => $index['columns'] === ['reader_type', 'reader_id']))->toBeEmpty()
+        ->and($indexes->firstWhere('name', 'feedback_reads_reader_item_unique')['columns'])->toBe(['reader_type', 'reader_id', 'feedback_item_id'])
+        ->and(Schema::getColumnType('feedback_reads', 'reader_type'))->toBe('varchar')
+        ->and(Schema::getColumnType('feedback_reads', 'reader_id'))->toBe('integer');
+});
+
+it('keys the reader as the host keys its morphs', function () {
+    $migration = require __DIR__.'/../../database/migrations/create_feedback_reads_table.php';
+    Builder::defaultMorphKeyType('uuid');
+
+    try {
+        $migration->down();
+        $migration->up();
+
+        expect(Schema::getColumnType('feedback_reads', 'reader_id'))->toBe('varchar');
+    } finally {
+        Builder::defaultMorphKeyType('int');
+        $migration->down();
+        $migration->up();
+    }
 });
 
 it('writes the baseline on the first visit only and keeps the earliest', function () {
