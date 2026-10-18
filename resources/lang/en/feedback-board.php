@@ -200,7 +200,7 @@ return [
         'github_queued' => 'Sent to GitHub; the issue is being created.',
         'empty_feed' => 'No comments yet.',
     ],
-    'nav' => ['group' => 'Feedback', 'my_reports' => 'My reports', 'all_reports' => 'All reports'],
+    'nav' => ['group' => 'Feedback', 'my_reports' => 'My reports', 'all_reports' => 'All reports', 'open_reports' => 'Open reports: :count'],
     'resource' => [
         'model' => 'report',
         'plural' => 'reports',

@@ -6,10 +6,12 @@ namespace YousefAman\FeedbackBoard\Filament\Pages;
 
 use Filament\Pages\Page;
 use Filament\Support\Enums\Width;
+use Illuminate\Database\Eloquent\Model;
 use YousefAman\FeedbackBoard\Enums\FeedbackStatus;
 use YousefAman\FeedbackBoard\Facades\FeedbackBoard;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
 use YousefAman\FeedbackBoard\Policies\FeedbackItemPolicy;
+use YousefAman\FeedbackBoard\Support\DeveloperReads;
 
 class FeedbackBoardPage extends Page
 {
@@ -48,19 +50,48 @@ class FeedbackBoardPage extends Page
         return 2;
     }
 
-    /** Open reports. Filament checks canAccess() first, so this never runs for non-developers. */
+    /** Red with the cards that have something new, else gray with the open count. */
     public static function getNavigationBadge(): ?string
     {
-        $count = FeedbackItem::query()
-            ->whereIn('status', array_map(fn (FeedbackStatus $status) => $status->value, FeedbackStatus::openCases()))
-            ->count();
-
-        return $count > 0 ? (string) $count : null;
+        return self::badgeState()['badge'];
     }
 
     public static function getNavigationBadgeColor(): string
     {
-        return 'gray';
+        return self::badgeState()['color'];
+    }
+
+    /** The open count, shown on hover only while the badge is red. */
+    public static function getNavigationBadgeTooltip(): ?string
+    {
+        return self::badgeState()['tooltip'];
+    }
+
+    /**
+     * One computation per request for all three badge methods. Filament checks canAccess()
+     * first, so this never runs for non-developers.
+     *
+     * @return array{badge: ?string, color: string, tooltip: ?string}
+     */
+    private static function badgeState(): array
+    {
+        return once(function (): array {
+            $open = FeedbackItem::query()
+                ->whereIn('status', array_map(fn (FeedbackStatus $status) => $status->value, FeedbackStatus::openCases()))
+                ->count();
+            $user = FeedbackBoard::user();
+            $news = $user instanceof Model ? DeveloperReads::cardsWithNews($user) : 0;
+
+            if ($news > 0) {
+                return [
+                    'badge' => (string) $news,
+                    'color' => 'danger',
+                    'tooltip' => __('feedback-board::feedback-board.nav.open_reports', ['count' => $open]),
+                ];
+            }
+
+            return ['badge' => $open > 0 ? (string) $open : null, 'color' => 'gray', 'tooltip' => null];
+        });
     }
 
     public static function canAccess(): bool

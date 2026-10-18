@@ -201,6 +201,10 @@ Reporters follow their reports and reply, with images, without leaving the panel
 $panel->plugin(FeedbackBoardPlugin::make()->myReports(false));
 ```
 
+**Unread markers.** On the developer board, a card shows a red bell with the number of comments by others (the reporter, a colleague, an internal note or the AI) since you last opened it, and a "New" label while it is an open report you have never opened. Opening the card clears both, and your own comments never count.
+
+Only what happens after a developer's first board visit counts, so the first visit starts clean rather than lighting every old card. "New" applies to open reports only; a comment on a resolved report still rings the bell. The board's sidebar badge in the panel turns red with the number of cards that have something new and shows the open count when you hover it; it refreshes when the card dialog closes. The markers need the `create_feedback_reads_table` migration (see the upgrade notes in the changelog).
+
 **Colours.** Inside a panel the package follows the panel's primary colour, in light and dark mode, with readable text on it (white, or the colour's darkest shade for a light primary such as amber). Your own `--fb-accent` properties still win.
 
 **Tenant panels.** On a panel with `->tenant(...)`, the package's pages live under `/{panel}/{tenant}/…`, and reports are not scoped to a tenant: developers see every report whatever the tenant, while each reporter still sees only their own. Developer access is app-wide too, so a developer resolver that grants per-tenant admins lets them read the reports of every tenant. On a page of the panel that has no tenant (the profile page, tenant registration), the launcher links the standalone "My reports" page.

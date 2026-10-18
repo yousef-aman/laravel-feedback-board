@@ -200,7 +200,7 @@ return [
         'github_queued' => 'أُرسل إلى GitHub، وجارٍ إنشاء البلاغ هناك.',
         'empty_feed' => 'لا توجد تعليقات بعد.',
     ],
-    'nav' => ['group' => 'الملاحظات', 'my_reports' => 'بلاغاتي', 'all_reports' => 'كل البلاغات'],
+    'nav' => ['group' => 'الملاحظات', 'my_reports' => 'بلاغاتي', 'all_reports' => 'كل البلاغات', 'open_reports' => 'البلاغات المفتوحة: :count'],
     'resource' => [
         'model' => 'بلاغ',
         'plural' => 'بلاغات',
