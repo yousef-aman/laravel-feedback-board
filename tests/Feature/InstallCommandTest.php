@@ -27,7 +27,7 @@ function publishedFeedbackMigrations(): array
 beforeEach(fn () => removePublishedInstallFiles());
 afterEach(fn () => removePublishedInstallFiles());
 
-it('publishes the config and the five migrations, then prints the next steps', function () {
+it('publishes the config and the six migrations, then prints the next steps', function () {
     $this->artisan('feedback-board:install')
         ->expectsConfirmation('Would you like to run the migrations now?', 'no')
         ->expectsOutputToContain('<x-feedback-board::launcher />')
@@ -38,8 +38,8 @@ it('publishes the config and the five migrations, then prints the next steps', f
         ->assertSuccessful();
 
     expect(File::exists(config_path('feedback-board.php')))->toBeTrue()
-        ->and(publishedFeedbackMigrations())->toHaveCount(5)
-        ->and(basename(last(publishedFeedbackMigrations())))->toEndWith('_update_feedback_items_add_reporter_columns.php')
+        ->and(publishedFeedbackMigrations())->toHaveCount(6)
+        ->and(basename(last(publishedFeedbackMigrations())))->toEndWith('_create_feedback_reads_table.php')
         ->and(Artisan::all()['feedback-board:install']->isHidden())->toBeTrue();
 });
 
@@ -58,7 +58,7 @@ it('is safe to re-run: keeps an edited config and does not duplicate migrations'
         ->expectsConfirmation('Would you like to run the migrations now?', 'no')
         ->assertSuccessful();
 
-    expect(publishedFeedbackMigrations())->toHaveCount(5)
+    expect(publishedFeedbackMigrations())->toHaveCount(6)
         ->and(File::get(config_path('feedback-board.php')))->toContain('// edited by the host app');
 });
 
