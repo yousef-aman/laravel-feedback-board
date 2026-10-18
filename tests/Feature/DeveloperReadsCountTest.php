@@ -3,7 +3,7 @@
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
-use Illuminate\Support\Facades\{DB, Schema};
+use Illuminate\Support\Facades\{DB, Log, Schema};
 use YousefAman\FeedbackBoard\Actions\{AssignFeedback, SetPriority, TransitionStatus};
 use YousefAman\FeedbackBoard\Enums\{AuthorRole, FeedbackPriority, FeedbackStatus, FeedbackType};
 use YousefAman\FeedbackBoard\Facades\FeedbackBoard;
@@ -279,5 +279,103 @@ it('keys reads and own comments by the morph alias', function () use ($marker) {
     } finally {
         Relation::morphMap([], false);
         Relation::requireMorphMap(false);
+    }
+});
+
+it('reads a comment in the same second as the baseline, and counts one a second later', function () use ($marker) {
+    $dev = ubCountDev();
+    $other = ubCountOtherDev();
+    $this->travelTo('2026-10-18 08:59:00');
+    $item = FeedbackItem::factory()->create();
+
+    $this->travelTo('2026-10-18 09:00:00');
+    $baseline = DeveloperReads::begin($dev);
+    ubComment($item, $other);
+
+    expect($marker($item, $dev, $baseline)['unread'])->toBe(0)
+        ->and(DeveloperReads::cardsWithNews($dev))->toBe(0);
+
+    $this->travelTo('2026-10-18 09:00:01');
+    ubComment($item, $other);
+
+    expect($marker($item, $dev, $baseline)['unread'])->toBe(1)
+        ->and(DeveloperReads::cardsWithNews($dev))->toBe(1);
+});
+
+it('does not label a report created in the same second as the baseline New', function () use ($marker) {
+    $dev = ubCountDev();
+    $baseline = DeveloperReads::begin($dev);
+    $item = FeedbackItem::factory()->create();
+
+    expect($marker($item, $dev, $baseline)['new'])->toBeFalse()
+        ->and(DeveloperReads::cardsWithNews($dev))->toBe(0);
+
+    $this->travelTo('2026-10-18 09:00:01');
+    $later = FeedbackItem::factory()->create();
+
+    expect($marker($later, $dev, $baseline)['new'])->toBeTrue()
+        ->and(DeveloperReads::cardsWithNews($dev))->toBe(1);
+});
+
+it('finds the read by the morph alias, for the bell and for the sidebar count', function () use ($marker) {
+    Relation::enforceMorphMap(['staff' => TestUser::class]);
+
+    try {
+        $dev = ubCountDev();
+        $other = ubCountOtherDev();
+        $baseline = DeveloperReads::begin($dev);
+
+        $this->travel(1)->minutes();
+        $item = FeedbackItem::factory()->create();
+        $quiet = FeedbackItem::factory()->create();
+        ubComment($item, $other);
+        ubComment($quiet, $other);
+
+        $this->travel(1)->minutes();
+        DeveloperReads::markRead($item, $dev);
+        DeveloperReads::markRead($quiet, $dev);
+
+        $this->travel(1)->minutes();
+        ubComment($item, $other);
+        ubComment($quiet, $dev);
+
+        // $quiet is read, and only the developer's own comment came after: it holds the count at 1.
+        expect($marker($item, $dev, $baseline))->toBe(['new' => false, 'unread' => 1])
+            ->and($marker($quiet, $dev, $baseline))->toBe(['new' => false, 'unread' => 0])
+            ->and(DeveloperReads::cardsWithNews($dev))->toBe(1);
+    } finally {
+        Relation::morphMap([], false);
+        Relation::requireMorphMap(false);
+    }
+});
+
+it('counts nothing for a developer with a read but no baseline', function () {
+    $dev = ubCountDev();
+    $other = ubCountOtherDev();
+    $item = FeedbackItem::factory()->create();
+    DeveloperReads::markRead($item, $dev);
+
+    $this->travel(1)->minutes();
+    ubComment($item, $other);
+    FeedbackItem::factory()->create();
+
+    expect(DeveloperReads::baseline($dev))->toBeNull()
+        ->and(DeveloperReads::cardsWithNews($dev))->toBe(0);
+});
+
+it('counts nothing without the reads table, with one warning', function () {
+    $dev = ubCountDev();
+    Schema::drop('feedback_reads');
+    Log::spy();
+
+    try {
+        expect(DeveloperReads::cardsWithNews($dev))->toBe(0)
+            ->and(DeveloperReads::cardsWithNews($dev))->toBe(0);
+
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn (string $m) => str_contains($m, 'feedback-board') && str_contains($m, 'publish and run the package migrations'))
+            ->once();
+    } finally {
+        (require __DIR__.'/../../database/migrations/create_feedback_reads_table.php')->up();
     }
 });

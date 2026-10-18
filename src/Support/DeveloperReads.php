@@ -9,6 +9,7 @@ use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -105,8 +106,9 @@ final class DeveloperReads
     }
 
     /**
-     * Reports in any status that are new or have an unread comment, in one query. With no baseline
-     * every comparison against it is NULL, so the count is 0; this never writes one.
+     * Reports in any status that are new or have an unread comment, in one query that looks up the
+     * developer's read of each report once and the baseline once. With no baseline the count is 0;
+     * this never writes one.
      */
     public static function cardsWithNews(Model $developer): int
     {
@@ -118,24 +120,38 @@ final class DeveloperReads
             $grammar = $items->getQuery()->getGrammar();
             $open = array_map(fn (FeedbackStatus $status): string => $status->value, FeedbackStatus::openCases());
 
+            // One row, whose read_at is NULL when the developer has no baseline.
             $baseline = $items->getQuery()->newQuery()
                 ->from($reads)
-                ->selectRaw('min('.$grammar->wrap($reads.'.read_at').')')
+                ->selectRaw('min('.$grammar->wrap($reads.'.read_at').') as '.$grammar->wrap('read_at'))
                 ->whereNull($reads.'.feedback_item_id')
                 ->where($reads.'.reader_type', $developer->getMorphClass())
                 ->where($reads.'.reader_id', $developer->getKey());
 
+            // The reads table is unique on reader and report, so at most one read row joins each
+            // report and count() counts reports.
             return $items
+                ->leftJoin($reads.' as developer_read', fn (JoinClause $join) => $join
+                    ->on('developer_read.feedback_item_id', '=', $model->getQualifiedKeyName())
+                    ->where('developer_read.reader_type', '=', $developer->getMorphClass())
+                    ->where('developer_read.reader_id', '=', $developer->getKey()))
+                ->crossJoinSub($baseline, 'baseline')
+                // Before the first board visit nothing is new, not even on a report already read.
+                ->whereNotNull('baseline.read_at')
                 ->where(fn (Builder $news) => $news
                     ->where(fn (Builder $new) => $new
-                        ->whereNotExists(self::reads($items->getQuery(), $model->getQualifiedKeyName(), $developer))
+                        ->whereNull('developer_read.id')
                         ->whereIn($table.'.status', $open)
-                        ->where($table.'.created_at', '>', $baseline)
+                        ->whereColumn($table.'.created_at', '>', 'baseline.read_at')
                         ->where(fn (Builder $notSent) => $notSent
                             ->whereNull($table.'.reporter_type')
                             ->orWhere($table.'.reporter_type', '<>', $developer->getMorphClass())
                             ->orWhere($table.'.reporter_id', '<>', $developer->getKey())))
-                    ->orWhereHas('comments', fn (Builder $comments) => self::unreadComments($comments, $developer, $baseline)))
+                    ->orWhereHas('comments', fn (Builder $comments) => self::unreadSince(
+                        $comments,
+                        $developer,
+                        'coalesce('.$grammar->wrap('developer_read.read_at').', '.$grammar->wrap('baseline.read_at').')',
+                    )))
                 ->count();
         }, 0);
     }
@@ -169,30 +185,30 @@ final class DeveloperReads
             ->where($reads.'.reader_id', $developer->getKey());
     }
 
-    /**
-     * Comments, internal or not, newer than the developer's read of their report, else than the
-     * baseline (a time, or a subselect of it), and not the developer's own. A comment with no
-     * author is someone else's. Second precision: a comment in the same second as the read is read.
-     */
-    private static function unreadComments(Builder $comments, Model $developer, CarbonInterface|QueryBuilder $baseline): void
+    /** Comments newer than the developer's read of their report, else than the baseline. */
+    private static function unreadComments(Builder $comments, Model $developer, CarbonInterface $baseline): void
     {
-        $grammar = $comments->getQuery()->getGrammar();
-        $table = $comments->getModel()->getTable();
-        $readAt = self::reads($comments->getQuery(), $table.'.feedback_item_id', $developer)
+        $readAt = self::reads($comments->getQuery(), $comments->getModel()->getTable().'.feedback_item_id', $developer)
             ->select((new FeedbackRead)->getTable().'.read_at');
-        [$since, $sinceBindings] = $baseline instanceof QueryBuilder
-            ? ['('.$baseline->toSql().')', $baseline->getBindings()]
-            : ['?', [$baseline]];
+
+        self::unreadSince($comments, $developer, 'coalesce(('.$readAt->toSql().'), ?)', [...$readAt->getBindings(), $baseline]);
+    }
+
+    /**
+     * Comments, internal or not, created after $since (an SQL expression) and not the developer's
+     * own; a comment with no author is someone else's. The board and the sidebar both use this.
+     * Strictly after, at second precision: a comment in the same second as the read is read.
+     */
+    private static function unreadSince(Builder $comments, Model $developer, string $since, array $bindings = []): void
+    {
+        $table = $comments->getModel()->getTable();
 
         $comments
             ->where(fn (Builder $others) => $others
                 ->whereNull($table.'.author_type')
                 ->orWhere($table.'.author_type', '<>', $developer->getMorphClass())
                 ->orWhere($table.'.author_id', '<>', $developer->getKey()))
-            ->whereRaw(
-                $grammar->wrap($table.'.created_at').' > coalesce(('.$readAt->toSql().'), '.$since.')',
-                [...$readAt->getBindings(), ...$sinceBindings],
-            );
+            ->whereRaw($comments->getQuery()->getGrammar()->wrap($table.'.created_at').' > '.$since, $bindings);
     }
 
     private static function safely(Closure $run, mixed $fallback): mixed
