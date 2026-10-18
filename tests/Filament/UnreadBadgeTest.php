@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\{DB, Log, Schema};
+use Illuminate\Support\Js;
 use YousefAman\FeedbackBoard\Enums\{AuthorRole, FeedbackStatus};
 use YousefAman\FeedbackBoard\Filament\Pages\FeedbackBoardPage;
 use YousefAman\FeedbackBoard\Filament\Resources\FeedbackItemResource;
@@ -77,6 +78,22 @@ it('counts a comment on a resolved report but not the resolved report as New', f
         ->and(FeedbackBoardPage::getNavigationBadgeTooltip())->toBe(__('feedback-board::feedback-board.nav.open_reports', ['count' => 0]));
 });
 
+it('shows no badge when nothing is open and nothing is new', function () {
+    $dev = ubBadgeDev();
+    $this->actingAs($dev);
+    $older = FeedbackItem::factory()->create(['status' => FeedbackStatus::Resolved]);
+    ubBadgeReporterComment($older);
+    DeveloperReads::begin($dev);
+
+    $this->travel(1)->minutes();
+    FeedbackItem::factory()->create(['status' => FeedbackStatus::Closed]);
+    FeedbackBoardPage::forgetBadgeState();
+
+    expect(FeedbackBoardPage::getNavigationBadge())->toBeNull()
+        ->and(FeedbackBoardPage::getNavigationBadgeColor())->toBe('gray')
+        ->and(FeedbackBoardPage::getNavigationBadgeTooltip())->toBeNull();
+});
+
 it('renders the red badge and its tooltip in the panel\'s sidebar', function () {
     $dev = ubBadgeDev();
     DeveloperReads::begin($dev);
@@ -85,9 +102,10 @@ it('renders the red badge and its tooltip in the panel\'s sidebar', function () 
 
     $html = $this->actingAs($dev)->get(FeedbackBoardPage::getUrl())->assertOk()->getContent();
 
-    // `fi-color-danger` is the colour class both Filament 4.0 and 5.x put on the badge.
+    // `fi-color-danger` is the colour class both Filament 4.0 and 5.x put on the badge. Filament
+    // writes the tooltip as `x-tooltip="{ content: @js($tooltip), … }"`.
     expect($html)->toMatch('/class="(?=[^"]*\bfi-color-danger\b)[^"]*\bfi-badge\b/')
-        ->toContain(e(__('feedback-board::feedback-board.nav.open_reports', ['count' => 1])));
+        ->toContain('content: '.Js::from(__('feedback-board::feedback-board.nav.open_reports', ['count' => 1]))->toHtml());
 });
 
 it('renders the red badge and its tooltip in Arabic too', function () {
@@ -99,7 +117,9 @@ it('renders the red badge and its tooltip in Arabic too', function () {
 
     $html = $this->actingAs($dev)->get(FeedbackBoardPage::getUrl())->assertOk()->getContent();
 
-    expect($html)->toMatch('/class="(?=[^"]*\bfi-color-danger\b)[^"]*\bfi-badge\b/')->toContain('البلاغات المفتوحة: 1');
+    // Laravel 12.0's Js::from() escapes non-ASCII (\u0627…) where Laravel 13 keeps it as is.
+    expect($html)->toMatch('/class="(?=[^"]*\bfi-color-danger\b)[^"]*\bfi-badge\b/')
+        ->toContain('content: '.Js::from('البلاغات المفتوحة: 1')->toHtml());
 });
 
 it('computes the badge once for its value, colour and tooltip', function () {
