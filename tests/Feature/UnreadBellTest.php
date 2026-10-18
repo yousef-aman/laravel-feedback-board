@@ -89,6 +89,17 @@ it('labels an unopened open report as New, instead of a number', function () {
         ->assertDontSeeHtml(ubBoardUnread(2));
 });
 
+it('hides the visible New from screen readers, which hear "New report" once', function () {
+    $dev = ubBoardDev();
+    Livewire::actingAs($dev)->test(FeedbackKanban::class);
+    $this->travel(1)->seconds();
+    FeedbackItem::factory()->create(['status' => FeedbackStatus::New]);
+
+    Livewire::actingAs($dev)->test(FeedbackKanban::class)
+        ->assertSeeHtml('<span aria-hidden="true">'.e(__('feedback-board::feedback-board.kanban.new')).'</span>'
+            .'<span class="fb-sr-only">'.e(__('feedback-board::feedback-board.kanban.new_report')).'</span>');
+});
+
 it('clears the card when the developer opens it, and rings again for a later comment', function () {
     $dev = ubBoardDev();
     Livewire::actingAs($dev)->test(FeedbackKanban::class);

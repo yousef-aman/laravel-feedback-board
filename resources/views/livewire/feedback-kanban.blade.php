@@ -42,7 +42,7 @@
                              x-on:dragend="dragging = false"
                              x-bind:class="{ 'fb-card--dragging': dragging }">
                             @if ($card['news']['new'] ?? false)
-                                <span class="fb-card__news fb-card__news--new">{{ __('feedback-board::feedback-board.kanban.new') }}<span class="fb-sr-only">{{ __('feedback-board::feedback-board.kanban.new_report') }}</span></span>
+                                <span class="fb-card__news fb-card__news--new"><span aria-hidden="true">{{ __('feedback-board::feedback-board.kanban.new') }}</span><span class="fb-sr-only">{{ __('feedback-board::feedback-board.kanban.new_report') }}</span></span>
                             @elseif (($card['news']['unread'] ?? 0) > 0)
                                 <span class="fb-card__news"><x-feedback-board::icon name="bell" /><span aria-hidden="true">{{ $card['news']['unread'] >= 100 ? '99+' : $card['news']['unread'] }}</span><span class="fb-sr-only">{{ __('feedback-board::feedback-board.kanban.unread', ['count' => $card['news']['unread']]) }}</span></span>
                             @endif
