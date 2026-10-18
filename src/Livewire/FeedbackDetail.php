@@ -16,7 +16,7 @@ use YousefAman\FeedbackBoard\Livewire\Concerns\WithStagedUploads;
 use YousefAman\FeedbackBoard\Models\{FeedbackActivity, FeedbackComment, FeedbackItem};
 use YousefAman\FeedbackBoard\Policies\FeedbackItemPolicy;
 use YousefAman\FeedbackBoard\Services\AttachmentStorage;
-use YousefAman\FeedbackBoard\Support\{Person, Time, Ui};
+use YousefAman\FeedbackBoard\Support\{DeveloperReads, Person, Time, Ui};
 
 class FeedbackDetail extends Component
 {
@@ -125,6 +125,10 @@ class FeedbackDetail extends Component
 
     public function render(): View
     {
+        // Read first, then load the feed: a comment that lands in between counts as unread later.
+        $user = FeedbackBoard::user();
+        FeedbackItemPolicy::isDeveloper($user) && DeveloperReads::markRead($this->item, $user);
+
         $cover = $this->item->coverAttachment;
 
         return view('feedback-board::livewire.feedback-detail', [

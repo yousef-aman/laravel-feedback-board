@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace YousefAman\FeedbackBoard\Livewire;
 
+use Carbon\CarbonInterface;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Livewire\Attributes\{On, Url};
 use Livewire\Component;
 use YousefAman\FeedbackBoard\Actions\TransitionStatus;
@@ -14,7 +16,7 @@ use YousefAman\FeedbackBoard\Facades\FeedbackBoard;
 use YousefAman\FeedbackBoard\Models\{FeedbackAttachment, FeedbackItem};
 use YousefAman\FeedbackBoard\Policies\FeedbackItemPolicy;
 use YousefAman\FeedbackBoard\Support\Concerns\AuthorizesFeedbackUser;
-use YousefAman\FeedbackBoard\Support\Person;
+use YousefAman\FeedbackBoard\Support\{DeveloperReads, Person};
 
 class FeedbackKanban extends Component
 {
@@ -61,6 +63,7 @@ class FeedbackKanban extends Component
     {
         $this->selectedId = null;
         $this->report = null;
+        $this->dispatch('refresh-sidebar');
     }
 
     /** "all", or anything that is not a type, clears the filter. */
@@ -98,6 +101,8 @@ class FeedbackKanban extends Component
 
         // One query for every card, with its counts; the cover and the assignee are eager-loaded.
         // Nothing runs per card.
+        $user = FeedbackBoard::user();
+        $baseline = DeveloperReads::begin($user);
         $items = FeedbackItem::query()
             ->with(['coverAttachment', 'assignee'])
             ->withCount([
@@ -106,8 +111,11 @@ class FeedbackKanban extends Component
                 'attachments',
             ])
             ->latest()
-            ->orderByDesc('id')
-            ->get();
+            ->orderByDesc('id');
+
+        // Without a baseline the reads table may be missing, so the markers are left out.
+        $baseline !== null && DeveloperReads::apply($items, $user, $baseline);
+        $items = $items->get();
 
         $counts = ['all' => $items->count()];
 
@@ -129,13 +137,13 @@ class FeedbackKanban extends Component
                 'active' => $case === $type,
             ], [null, ...FeedbackType::cases()]),
             'counts' => $counts,
-            'cards' => $shown->mapWithKeys(fn (FeedbackItem $item) => [$item->id => $this->card($item)])->all(),
+            'cards' => $shown->mapWithKeys(fn (FeedbackItem $item) => [$item->id => $this->card($item, $user, $baseline)])->all(),
             'selected' => $this->selectedId ? FeedbackItem::find($this->selectedId) : null,
         ]);
     }
 
-    /** @return array{cover: ?FeedbackAttachment, reporter: ?string, assignee: ?string} */
-    private function card(FeedbackItem $item): array
+    /** @return array{cover: ?FeedbackAttachment, reporter: ?string, assignee: ?string, news: ?array{new: bool, unread: int}} */
+    private function card(FeedbackItem $item, Model $user, ?CarbonInterface $baseline): array
     {
         $cover = $item->coverAttachment;
 
@@ -144,6 +152,7 @@ class FeedbackKanban extends Component
             'cover' => $cover?->isImage() ? $cover : null,
             'reporter' => $item->reporterLabel(),
             'assignee' => $item->assignee_id !== null ? Person::name($item->assignee, $item->assignee_id) : null,
+            'news' => $baseline !== null ? DeveloperReads::marker($item, $user, $baseline) : null,
         ];
     }
 

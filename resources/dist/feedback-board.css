@@ -1853,6 +1853,7 @@
 }
 
 .fb-card {
+    position: relative;
     display: block;
     overflow: hidden;
     border: 1px solid var(--_fb-border);
@@ -1874,6 +1875,35 @@
 
 .fb-card--dragging {
     opacity: 0.45;
+}
+
+.fb-card__news {
+    position: absolute;
+    inset-block-start: 0.5rem;
+    inset-inline-end: 0.5rem;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding-block: 0.125rem;
+    padding-inline: 0.5rem;
+    border-radius: 999px;
+    background: #dc2626;
+    color: #fff;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    line-height: 1.25;
+    pointer-events: none;
+}
+
+.fb-card__news .fb-icon {
+    inline-size: 1rem;
+    block-size: 1rem;
+}
+
+.fb-card__news--new {
+    padding-inline: 0.625rem;
+    letter-spacing: 0.01em;
 }
 
 .fb-card__cover {

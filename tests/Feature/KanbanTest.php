@@ -8,7 +8,7 @@ use YousefAman\FeedbackBoard\Enums\{AuthorRole, FeedbackPriority, FeedbackStatus
 use YousefAman\FeedbackBoard\Livewire\FeedbackKanban;
 use YousefAman\FeedbackBoard\Models\{FeedbackComment, FeedbackItem};
 use YousefAman\FeedbackBoard\Services\AttachmentStorage;
-use YousefAman\FeedbackBoard\Support\Person;
+use YousefAman\FeedbackBoard\Support\{DeveloperReads, Person};
 use YousefAman\FeedbackBoard\Tests\TestUser;
 
 beforeEach(function () {
@@ -189,6 +189,34 @@ it('loads the board with the same number of queries for 2 cards and for 10', fun
         return count(DB::getQueryLog());
     };
 
+    Livewire::actingAs($dev)->test(FeedbackKanban::class); // the first visit writes the developer's baseline
+    $seed(2);
+    $two = $queries();
+    $seed(8);
+
+    expect($queries())->toBe($two);
+});
+
+it('keeps the same number of queries for 2 cards and for 10 with unread markers', function () {
+    $dev = kanbanDev();
+
+    $seed = function (int $cards) use ($dev): void {
+        FeedbackItem::factory()->count($cards)->create()->each(function (FeedbackItem $item, int $i) use ($dev): void {
+            FeedbackComment::factory()->for($item, 'item')->create(['author_type' => null, 'author_id' => null, 'author_role' => AuthorRole::Reporter]);
+            $i % 2 === 0 && DeveloperReads::markRead($item, $dev);
+        });
+    };
+
+    $queries = function () use ($dev): int {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        Livewire::actingAs($dev)->test(FeedbackKanban::class)->assertOk();
+        DB::disableQueryLog();
+
+        return count(DB::getQueryLog());
+    };
+
+    Livewire::actingAs($dev)->test(FeedbackKanban::class); // writes the baseline
     $seed(2);
     $two = $queries();
     $seed(8);
