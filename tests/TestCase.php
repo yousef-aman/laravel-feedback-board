@@ -15,6 +15,7 @@ class TestCase extends Orchestra
         app('livewire')->flushState();
 
         \YousefAman\FeedbackBoard\Support\Ui::useStylesheetPath(null);
+        \YousefAman\FeedbackBoard\Support\DeveloperReads::resetMigrationWarning();
     }
 
     protected function getPackageProviders($app): array

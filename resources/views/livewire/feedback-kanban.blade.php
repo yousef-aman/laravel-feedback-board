@@ -41,6 +41,11 @@
                              x-on:dragstart="dragging = true; $event.dataTransfer.effectAllowed = 'move'; $event.dataTransfer.setData('id', '{{ $item->id }}')"
                              x-on:dragend="dragging = false"
                              x-bind:class="{ 'fb-card--dragging': dragging }">
+                            @if ($card['news']['new'] ?? false)
+                                <span class="fb-card__news fb-card__news--new"><span aria-hidden="true">{{ __('feedback-board::feedback-board.kanban.new') }}</span><span class="fb-sr-only">{{ __('feedback-board::feedback-board.kanban.new_report') }}</span></span>
+                            @elseif (($card['news']['unread'] ?? 0) > 0)
+                                <span class="fb-card__news"><x-feedback-board::icon name="bell" /><span aria-hidden="true">{{ $card['news']['unread'] >= 100 ? '99+' : $card['news']['unread'] }}</span><span class="fb-sr-only">{{ __('feedback-board::feedback-board.kanban.unread', ['count' => $card['news']['unread']]) }}</span></span>
+                            @endif
                             @if ($card['cover'])
                                 {{-- Decorative (the title follows). A broken image is removed; x-init also catches one that failed before Alpine started. --}}
                                 <img class="fb-card__cover" src="{{ $card['cover']->url() }}" alt="" loading="lazy" decoding="async" draggable="false"

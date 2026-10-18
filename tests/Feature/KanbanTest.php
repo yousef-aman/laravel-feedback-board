@@ -8,7 +8,7 @@ use YousefAman\FeedbackBoard\Enums\{AuthorRole, FeedbackPriority, FeedbackStatus
 use YousefAman\FeedbackBoard\Livewire\FeedbackKanban;
 use YousefAman\FeedbackBoard\Models\{FeedbackComment, FeedbackItem};
 use YousefAman\FeedbackBoard\Services\AttachmentStorage;
-use YousefAman\FeedbackBoard\Support\Person;
+use YousefAman\FeedbackBoard\Support\{DeveloperReads, Person};
 use YousefAman\FeedbackBoard\Tests\TestUser;
 
 beforeEach(function () {
@@ -189,6 +189,42 @@ it('loads the board with the same number of queries for 2 cards and for 10', fun
         return count(DB::getQueryLog());
     };
 
+    Livewire::actingAs($dev)->test(FeedbackKanban::class); // the first visit writes the developer's baseline
+    $seed(2);
+    $two = $queries();
+    $seed(8);
+
+    expect($queries())->toBe($two);
+});
+
+it('keeps the same number of queries for 2 cards and for 10 with unread markers', function () {
+    $dev = kanbanDev();
+
+    $seed = function (int $cards) use ($dev): void {
+        $items = FeedbackItem::factory()->count($cards)->create();
+        $items->filter(fn (FeedbackItem $item, int $i) => $i % 2 === 0)->each(fn (FeedbackItem $item) => DeveloperReads::markRead($item, $dev));
+        // A second after the reads, so the read cards get a bell.
+        $this->travel(1)->seconds();
+        $items->each(fn (FeedbackItem $item) => FeedbackComment::factory()->for($item, 'item')
+            ->create(['author_type' => null, 'author_id' => null, 'author_role' => AuthorRole::Reporter]));
+    };
+
+    $queries = function () use ($dev): int {
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $board = Livewire::actingAs($dev)->test(FeedbackKanban::class)->assertOk();
+        DB::disableQueryLog();
+
+        // Measured on real markers: the read cards ring a bell, the others say New.
+        $news = collect($board->viewData('cards'))->pluck('news');
+        expect($news->where('new', true))->not->toBeEmpty()
+            ->and($news->where('new', false)->where('unread', '>', 0))->not->toBeEmpty();
+
+        return count(DB::getQueryLog());
+    };
+
+    Livewire::actingAs($dev)->test(FeedbackKanban::class); // writes the baseline
+    $this->travel(1)->seconds();
     $seed(2);
     $two = $queries();
     $seed(8);

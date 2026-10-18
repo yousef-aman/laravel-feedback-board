@@ -21,6 +21,7 @@ class FeedbackBoardServiceProvider extends PackageServiceProvider
                 'create_feedback_attachments_table',
                 'create_feedback_activities_table',
                 'update_feedback_items_add_reporter_columns',
+                'create_feedback_reads_table',
             ])
             ->hasTranslations()
             ->hasViews()

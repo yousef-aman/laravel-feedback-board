@@ -175,6 +175,9 @@ return [
         'comments' => 'Comments: :count',
         'attachments' => 'Attachments: :count',
         'internal' => 'Internal notes: :count',
+        'new' => 'New',
+        'new_report' => 'New report',
+        'unread' => 'New comments: :count',
         'reporter' => 'Reporter: :name',
         'assignee' => 'Assignee: :name',
     ],
@@ -197,7 +200,7 @@ return [
         'github_queued' => 'Sent to GitHub; the issue is being created.',
         'empty_feed' => 'No comments yet.',
     ],
-    'nav' => ['group' => 'Feedback', 'my_reports' => 'My reports', 'all_reports' => 'All reports'],
+    'nav' => ['group' => 'Feedback', 'my_reports' => 'My reports', 'all_reports' => 'All reports', 'open_reports' => 'Open reports: :count'],
     'resource' => [
         'model' => 'report',
         'plural' => 'reports',
