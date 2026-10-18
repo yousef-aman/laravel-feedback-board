@@ -153,6 +153,24 @@ it('asks the panel to refresh its sidebar when the card closes', function () {
         ->assertDispatched('refresh-sidebar');
 });
 
+it('does not ask for a sidebar refresh when the board loads with no card open', function () {
+    Livewire::actingAs(ubBoardDev())->test(FeedbackKanban::class)
+        ->assertNotDispatched('refresh-sidebar');
+
+    Livewire::withQueryParams(['report' => '999'])->actingAs(ubBoardDev())->test(FeedbackKanban::class)
+        ->assertNotDispatched('refresh-sidebar');
+});
+
+it('asks for a sidebar refresh when a card a link opened closes', function () {
+    $item = FeedbackItem::factory()->create();
+
+    Livewire::withQueryParams(['report' => (string) $item->id])->actingAs(ubBoardDev())->test(FeedbackKanban::class)
+        ->assertSet('selectedId', $item->id)
+        ->assertNotDispatched('refresh-sidebar')
+        ->call('close')
+        ->assertDispatched('refresh-sidebar');
+});
+
 it('shows the bell on an Arabic board', function () {
     app()->setLocale('ar');
     $dev = ubBoardDev();

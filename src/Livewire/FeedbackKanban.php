@@ -59,11 +59,16 @@ class FeedbackKanban extends Component
         $this->report = $id;
     }
 
+    /** Closing an open card asks the panel to redraw its sidebar badge; a load with none open does not. */
     public function close(): void
     {
+        $wasOpen = $this->selectedId !== null;
         $this->selectedId = null;
         $this->report = null;
-        $this->dispatch('refresh-sidebar');
+
+        if ($wasOpen) {
+            $this->dispatch('refresh-sidebar');
+        }
     }
 
     /** "all", or anything that is not a type, clears the filter. */
