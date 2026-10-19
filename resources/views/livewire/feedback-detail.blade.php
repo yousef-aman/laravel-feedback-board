@@ -299,7 +299,7 @@
                                 </p>
                                 <div class="fb-entry__text">
                                     @if (filled($comment->body))
-                                        <p class="fb-prose" dir="auto">{{ $comment->body }}</p>
+                                        <x-feedback-board::comment-body :comment="$comment" />
                                     @endif
                                     @if ($commentImages->isNotEmpty())
                                         <div class="fb-thumbs">

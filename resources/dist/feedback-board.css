@@ -516,6 +516,96 @@
     overflow-wrap: anywhere;
 }
 
+/* The AI assistant's Markdown (Support\Markdown). Explicit, so a host reset (Tailwind's preflight) cannot flatten it. */
+.fb-md {
+    overflow-wrap: anywhere;
+}
+
+.fb-md :is(p, ul, ol, pre, blockquote, table, h1, h2, h3, h4, h5, h6) {
+    margin-block: 0 0.5rem;
+}
+
+.fb-md > :last-child {
+    margin-block-end: 0;
+}
+
+.fb-md :is(h1, h2, h3, h4, h5, h6) {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.fb-md :is(ul, ol) {
+    padding-inline-start: 1.25rem;
+}
+
+.fb-md ul {
+    list-style: disc;
+}
+
+.fb-md ol {
+    list-style: decimal;
+}
+
+.fb-md strong {
+    font-weight: 600;
+}
+
+.fb-md a {
+    color: var(--_fb-link);
+    text-decoration: underline;
+}
+
+.fb-md code {
+    padding: 0.0625rem 0.25rem;
+    border-radius: var(--_fb-radius-sm);
+    background: var(--_fb-surface-muted);
+    font-family: var(--_fb-mono);
+    font-size: 0.8125em;
+    direction: ltr;
+    unicode-bidi: isolate;
+}
+
+.fb-md pre {
+    max-height: 20rem;
+    overflow: auto;
+    padding: 0.625rem;
+    border-radius: var(--_fb-radius-sm);
+    background: var(--_fb-surface-muted);
+    text-align: left;
+}
+
+.fb-md pre code {
+    padding: 0;
+    background: none;
+    white-space: pre;
+}
+
+.fb-md blockquote {
+    padding-inline-start: 0.75rem;
+    border-inline-start: 3px solid var(--_fb-border-strong);
+    color: var(--_fb-text-muted);
+}
+
+.fb-md hr {
+    margin-block: 0.75rem;
+    border: 0;
+    border-block-start: 1px solid var(--_fb-border);
+}
+
+.fb-md table {
+    display: block;
+    max-inline-size: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+}
+
+.fb-md :is(th, td) {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--_fb-border);
+    text-align: start;
+}
+
 .fb-pre {
     max-height: 20rem;
     overflow: auto;
