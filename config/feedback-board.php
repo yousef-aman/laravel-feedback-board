@@ -86,6 +86,8 @@ return [
         'slack' => [
             'webhook_url' => env('FEEDBACK_SLACK_WEBHOOK_URL'),
             'events' => ['feedback.created', 'feedback.status_changed'],
+            // The messages' language, e.g. 'ar'. null = the app's (the current locale when the queue is `sync`).
+            'locale' => env('FEEDBACK_SLACK_LOCALE'),
         ],
 
         'github' => [
