@@ -33,8 +33,8 @@ final class DeliveryError
 
             return match (true) {
                 $status === 401 || $status === 403 => 'auth_401',
-                $status === 404 => 'not_found_404',
-                $status === 422 => 'validation_422',
+                $status === 404 || $status === 410 => 'not_found_404', // Slack: 410 for an archived channel
+                $status === 400 || $status === 422 => 'validation_422', // Slack: 400 for a message it cannot read
                 $status === 429 => 'http_429',
                 $status >= 500 => 'http_5xx',
                 default => 'unknown',

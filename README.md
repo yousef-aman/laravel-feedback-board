@@ -322,7 +322,7 @@ Key configuration options in `config/feedback-board.php`:
 | `destinations.default` | string | Kept for contract parity; the `mail` driver is a no-op (default: `'mail'`) |
 | `destinations.enabled` | array | Automatic destination drivers, e.g. `['webhook', 'slack']` — empty by default. Do not add `github` here: its first issue is created by a developer, and later comments are posted without it (see [Destinations](#destinations-outbound)) |
 | `destinations.lock_store` | string\|null | Cache store for the locks around GitHub delivery, delivery-failure records and the runner's PR link (`FEEDBACK_DESTINATIONS_LOCK_STORE`; `null` = app default). With several servers, use a shared store such as `redis` or `database` |
-| `destinations.webhook` / `.slack` / `.github` | array | Per-driver URL, secret or token, and event list — see [Destinations](#destinations-outbound) |
+| `destinations.webhook` / `.slack` / `.github` | array | Per-driver URL, secret or token, and event list, plus Slack's message language (`slack.locale`) — see [Destinations](#destinations-outbound) |
 | `ingest.enabled` | bool | Enable the signed ingest endpoint (`FEEDBACK_BOARD_INGEST_ENABLED`, default: `false`) |
 | `ingest.secret` | string\|null | HMAC secret for ingest signature verification (`FEEDBACK_BOARD_INGEST_SECRET`) |
 | `ingest.tolerance` | int | Timestamp drift tolerance in seconds (default: `300`); rate limiting is handled by the route (`throttle:60,1`) |
@@ -356,7 +356,9 @@ the signature against the **raw request body** before trusting it. A reply that 
 
 ### Slack
 Create an Incoming Webhook, set `FEEDBACK_SLACK_WEBHOOK_URL`, add `'slack'` to
-`destinations.enabled`. The webhook URL is a secret: the package never puts it in its exceptions, its error state or failed jobs. A connection error is reported as `connection_error`, and an unparsable URL as `invalid_url`. Laravel's own HTTP client events still carry the request, so a tool that records them (Telescope, Nightwatch) can store the URL.
+`destinations.enabled`. The webhook URL is a secret: the package never puts it in its exceptions, its error state or failed jobs. A connection error is reported as `connection_error`, and an unparsable URL as `invalid_url`; when Slack refuses the URL, the report says why (`not_found_404` for a deleted webhook or an archived channel, `auth_401` for a revoked one). Laravel's own HTTP client events still carry the request, so a tool that records them (Telescope, Nightwatch) can store the URL.
+
+Each message names the event and the report's number, and shows the title, the start of the description, the type, priority, status (for a status change, the old and the new one) and reporter, with a link that opens the report on the developers' board (see `FeedbackBoard::linkReportsUsing()`). It is written in the app's language; `FEEDBACK_SLACK_LOCALE` (`destinations.slack.locale`) picks another, for example `ar` for an Arabic-speaking team on an app whose default is English.
 
 ### GitHub Issues
 Set `FEEDBACK_GITHUB_TOKEN` (a **fine-grained PAT** scoped to a single repo with

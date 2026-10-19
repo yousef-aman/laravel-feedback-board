@@ -16,9 +16,9 @@ it('escapes reporter text in Slack mrkdwn and keeps the header as typed', functi
     (new SlackDriver())->send($item, new FeedbackItemCreated($item), 'dlv-escape');
 
     Http::assertSent(function ($request) {
-        $fields = collect($request['blocks'][1]['fields'])->pluck('text');
+        $fields = collect(collect($request['blocks'])->firstWhere('fields')['fields'])->pluck('text');
 
-        return $request['text'] === '[feedback.created] &lt;!channel&gt; R&amp;D down'
+        return $request['text'] === 'New report: &lt;!channel&gt; R&amp;D down'
             && $request['blocks'][0]['text']['text'] === '<!channel> R&D down'
             && $fields->last() === "*Reporter:*\n&lt;https://evil.example|Open&gt; &amp; co";
     });
@@ -29,6 +29,6 @@ it('breaks the line after every field label', function () {
 
     (new SlackDriver())->send($item, new FeedbackItemCreated($item), 'dlv-newline');
 
-    Http::assertSent(fn ($request) => collect($request['blocks'][1]['fields'])
+    Http::assertSent(fn ($request) => collect(collect($request['blocks'])->firstWhere('fields')['fields'])
         ->every(fn (array $field) => str_contains($field['text'], ":*\n") && ! str_contains($field['text'], '\n')));
 });

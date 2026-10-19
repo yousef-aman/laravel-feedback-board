@@ -14,4 +14,10 @@ final class SlackText
     {
         return strtr($text, ['&' => '&amp;', '<' => '&lt;', '>' => '&gt;']);
     }
+
+    /** A mrkdwn link. A | would end the URL early, so it is percent-encoded. */
+    public static function link(string $url, string $label): string
+    {
+        return '<'.self::escape(str_replace('|', '%7C', $url)).'|'.self::escape($label).'>';
+    }
 }

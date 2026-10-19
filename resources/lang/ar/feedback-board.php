@@ -88,6 +88,7 @@ return [
         'failed_when' => ':event، :time',
         'github_issue' => 'الـ issue رقم :number على GitHub',
         'events' => ['created' => 'بلاغ جديد', 'replied' => 'رد', 'status_changed' => 'تغيير الحالة'],
+        'slack' => ['number' => 'البلاغ رقم :id', 'status_change' => 'من :from إلى :to'],
         'reasons' => [
             'connection_error' => 'تعذّر الاتصال.',
             'invalid_url' => 'الرابط المضبوط غير صالح.',

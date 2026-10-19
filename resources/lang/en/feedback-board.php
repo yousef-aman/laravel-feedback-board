@@ -88,6 +88,7 @@ return [
         'failed_when' => ':event, :time',
         'github_issue' => 'GitHub issue #:number',
         'events' => ['created' => 'New report', 'replied' => 'Reply', 'status_changed' => 'Status change'],
+        'slack' => ['number' => 'Report #:id', 'status_change' => ':from → :to'],
         'reasons' => [
             'connection_error' => 'could not connect.',
             'invalid_url' => 'the configured URL is not valid.',
