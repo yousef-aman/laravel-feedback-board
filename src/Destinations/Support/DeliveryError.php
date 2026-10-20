@@ -6,6 +6,7 @@ namespace YousefAman\FeedbackBoard\Destinations\Support;
 
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Str;
 use Throwable;
 use YousefAman\FeedbackBoard\Destinations\Exceptions\DeliveryFailed;
@@ -31,6 +32,10 @@ final class DeliveryError
         if ($e instanceof RequestException) {
             $status = $e->response?->status() ?? 0;
 
+            if ($e->response !== null && self::throttled($e->response)) {
+                return 'http_429';
+            }
+
             return match (true) {
                 $status === 401 || $status === 403 => 'auth_401',
                 $status === 404 || $status === 410 => 'not_found_404', // Slack: 410 for an archived channel
@@ -42,6 +47,35 @@ final class DeliveryError
         }
 
         return 'unknown';
+    }
+
+    /**
+     * A refusal that waiting cannot fix: a rejected key or permission (401, 403), a missing target
+     * (404, 410) or a request the destination cannot read (400, 422). A throttled one is not.
+     */
+    public static function permanent(Throwable $e): bool
+    {
+        if (! $e instanceof RequestException || $e->response === null || self::throttled($e->response)) {
+            return false;
+        }
+
+        return in_array($e->response->status(), [400, 401, 403, 404, 410, 422], true);
+    }
+
+    /**
+     * A 403 or 422 that means "not now" rather than "no". GitHub answers a spent rate limit with a
+     * 403 and x-ratelimit-remaining: 0, Retry-After, or neither header for a secondary limit (its
+     * message says so), and an issue or comment created too fast with a 422.
+     */
+    private static function throttled(Response $response): bool
+    {
+        if (! in_array($response->status(), [403, 422], true)) {
+            return false;
+        }
+
+        return $response->header('x-ratelimit-remaining') === '0'
+            || $response->header('Retry-After') !== ''
+            || Str::contains($response->body(), ['rate limit', 'abuse detection', 'submitted too quickly'], ignoreCase: true);
     }
 
     /** A driver's name as people know it: GitHub, Slack, Webhook, else the name in title case. */

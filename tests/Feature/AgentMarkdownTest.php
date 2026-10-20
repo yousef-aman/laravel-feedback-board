@@ -131,3 +131,12 @@ it('lets a list item or a quote take its direction from the paragraphs inside it
     expect($html)->toContain("<li dir=\"auto\">\n<p>أولاً</p>")
         ->and($html)->toContain("<blockquote dir=\"auto\">\n<p>ملاحظة مهمة</p>");
 });
+
+it('lays a table out in the direction of its own text, whatever the page around it', function () {
+    $html = (string) Markdown::html("| File | Change |\n|---|---|\n| Cart.php | خصم |\n\n| الملف | التغيير |\n|---|---|\n| Cart.php | fix |\n\n| 1 | 2 |\n|---|---|\n| 3 | 4 |");
+
+    expect($html)->toContain('<table dir="ltr">')
+        ->and($html)->toContain('<table dir="rtl">')
+        ->and($html)->toContain('<table>')
+        ->and($html)->toContain('<td dir="auto">خصم</td>');
+});

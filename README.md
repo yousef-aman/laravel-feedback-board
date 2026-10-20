@@ -15,7 +15,7 @@ Feedback Board is self-hosted by design. Reports are captured inside the authent
 - PHP 8.2+ (8.3+ for Laravel 13)
 - Laravel 12 or 13
 - Livewire 3.8.3+ or 4.3.4+
-- Filament 4 or 5 (optional, for the developer Kanban board)
+- Filament 4 or 5 (optional). Without it, "My reports" and the developer board are pages of the package itself; see [Link the pages](#5-link-the-pages)
 
 ## Installation
 
@@ -151,6 +151,35 @@ FeedbackBoard::linkReportsUsing(fn (FeedbackItem $item, string $audience, ?objec
     ? route('admin.feedback', ['report' => $item->id])
     : route('portal.reports', ['report' => $item->id]));
 ```
+
+### 5. Link the pages
+
+"My reports" and the developer board are pages of the package itself, under your `route_prefix` and `route_middleware`. With the Filament plugin, panel users get the same pages inside the panel (see [Filament Integration](#filament-integration)); the standalone pages stay, for everyone else and for e-mail links when no panel fits.
+
+| Page | Path (default `route_prefix`) | Route name | Who may open it |
+|---|---|---|---|
+| My reports | `/feedback-board/feedback` | `feedback-board.page` | every signed-in user who may report, or has reports |
+| Feedback board | `/feedback-board/feedback/board` | `feedback-board.board.page` | developers; other users get 403 |
+
+A guest is sent to your login page. Both pages take `?report={id}` to open a report directly, which is how e-mail links open them. The report form links "My reports", but nothing links the board, so add it to your navigation for developers:
+
+```blade
+@can('feedback-board.manage')
+    <a href="{{ route('feedback-board.board.page') }}">Feedback board</a>
+@endcan
+```
+
+`@can` checks the user of your default guard. If your developers sign in with another guard (see [Reporters on another guard](#reporters-on-another-guard)), check the user the package sees instead:
+
+```blade
+@use('YousefAman\FeedbackBoard\Facades\FeedbackBoard')
+
+@if (FeedbackBoard::isDeveloper(FeedbackBoard::user()))
+    <a href="{{ route('feedback-board.board.page') }}">Feedback board</a>
+@endif
+```
+
+Each page has a bar with your app's name (`APP_NAME`) and a "Back to the app" link to `/`. With the default theme setting the pages stay light; set `FEEDBACK_BOARD_THEME=system` to follow the operating system (see [Styling & theming](#styling--theming)).
 
 ### Choosing who can report
 
@@ -377,13 +406,16 @@ is process-local (no cross-worker protection).
 
 Delivery failures are isolated per destination. On a real queue, a failed delivery is retried
 after 30 seconds, 2 minutes and 5 minutes, within 15 minutes; a GitHub rate-limit wait counts as
-an attempt. On the `sync` queue it is not retried. A delivery that still fails is recorded as a
-sanitized code in `external_refs.{driver}_last_error` (never the raw error, URL, or token), and
-the next delivery to that destination that gets through clears it. Developers see each failing
-destination in the card dialog, with the reason, the event and how long ago. With Filament
-installed, developers who are user models (`FeedbackBoard::notifyDevelopersUsing()`) also get a
-bell entry that names the destination and the reason; it needs the `notifications` table.
-Internal notes are never forwarded to any destination.
+an attempt. A refusal that waiting cannot fix fails at once, without retries: HTTP 400, 401,
+403, 404, 410 or 422, for example a revoked token or a wrong repository name. A GitHub rate
+limit, which can also come as a 403 or a 422, is still retried. On the `sync` queue nothing is
+retried. A delivery that still fails is recorded as a sanitized code in
+`external_refs.{driver}_last_error` (never the raw error, URL, or token), and the next delivery
+to that destination that gets through clears it. Developers see each failing destination in the
+card dialog, with the reason, the event and how long ago. With Filament installed, developers
+who are user models (`FeedbackBoard::notifyDevelopersUsing()`) also get a bell entry that names
+the destination and the reason; it needs the `notifications` table. Internal notes are never
+forwarded to any destination.
 
 ### Ingest endpoint (inbound)
 
@@ -496,8 +528,9 @@ process-local (fine for a single process / tests, not for multi-worker deploymen
 An optional, manual, opt-in extension that lets you connect an external AI coding agent
 (running in your own CI/CD or dev environment) to the Feedback Board.
 
-**How it works:** A developer triggers a runner task from the Filament board. The package
-dispatches a signed HTTPS POST (the "task envelope") to your configured `runner.endpoint`.
+**How it works:** A developer sends a report to the runner from the board's card dialog (or the
+All reports resource in Filament). The package dispatches a signed HTTPS POST (the "task
+envelope") to your configured `runner.endpoint`.
 Your receiver verifies the HMAC, forwards the task to a CI job (e.g. GitHub Actions via
 `repository_dispatch`), and the CI job runs your agent. Results are posted back to the
 package's signed ingest endpoint and appear in the board for developer review.

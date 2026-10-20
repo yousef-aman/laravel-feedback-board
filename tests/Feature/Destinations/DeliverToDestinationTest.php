@@ -104,3 +104,22 @@ it('DeliveryError maps throwables to a fixed vocabulary', function () {
         ->and(DeliveryError::code(new RuntimeException('boom')))->toBe('unknown');
 });
 
+
+it('names a throttled GitHub refusal a rate limit, not a rejected key', function (int $status, array $headers, string $body) {
+    $refusal = new \Illuminate\Http\Client\RequestException(new \Illuminate\Http\Client\Response(new \GuzzleHttp\Psr7\Response($status, $headers, $body)));
+
+    expect(DeliveryError::code($refusal))->toBe('http_429')
+        ->and(DeliveryError::permanent($refusal))->toBeFalse();
+})->with([
+    'primary limit spent' => [403, ['x-ratelimit-remaining' => '0'], '{"message":"API rate limit exceeded"}'],
+    'secondary limit' => [403, [], '{"message":"You have exceeded a secondary rate limit."}'],
+    'Retry-After' => [403, ['Retry-After' => '60'], '{}'],
+    'created too quickly' => [422, [], '{"message":"Validation Failed","errors":[{"message":"was submitted too quickly"}]}'],
+]);
+
+it('still names a plain 403 a rejected key', function () {
+    $refusal = new \Illuminate\Http\Client\RequestException(new \Illuminate\Http\Client\Response(new \GuzzleHttp\Psr7\Response(403, [], '{"message":"Resource not accessible by personal access token"}')));
+
+    expect(DeliveryError::code($refusal))->toBe('auth_401')
+        ->and(DeliveryError::permanent($refusal))->toBeTrue();
+});
