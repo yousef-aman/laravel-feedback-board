@@ -21,11 +21,13 @@ class IngestController
 {
     public function __invoke(Request $request, TransitionStatus $transition, ReplyToFeedback $reply): JsonResponse
     {
-        if (in_array($request->input('action'), ['runner_status', 'runner_result'], true)) {
-            return $this->runner($request);
+        $payload = self::signedPayload($request);
+
+        if (in_array($payload['action'] ?? null, ['runner_status', 'runner_result'], true)) {
+            return $this->runner($payload);
         }
 
-        $validator = Validator::make($request->all(), [
+        $validator = Validator::make($payload, [
             'item_id' => ['required', 'integer'],
             'action' => ['required', 'in:comment,status,external_ref'],
             // As long as an analysis may be: an AI comment is shown as Markdown, whose cost grows with it.
@@ -56,9 +58,10 @@ class IngestController
         return response()->json(['ok' => true]);
     }
 
-    private function runner(Request $request): JsonResponse
+    /** @param  array<array-key, mixed>  $payload */
+    private function runner(array $payload): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
+        $validator = Validator::make($payload, [
             'item_id' => ['required', 'integer'],
             'action' => ['required', 'in:runner_status,runner_result'],
             'task_id' => ['required', 'string', 'max:64'],
@@ -117,6 +120,19 @@ class IngestController
         }
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * The fields the signature covers, and nothing else: the JSON body, as the host's input
+     * middleware (TrimStrings, ConvertEmptyStringsToNull) left it. Never all() or input():
+     * VerifyIngestSignature signs the raw body only, and those merge in the unsigned query
+     * string, and for a non-JSON Content-Type read the form fields instead of the body.
+     *
+     * @return array<array-key, mixed>
+     */
+    private static function signedPayload(Request $request): array
+    {
+        return $request->isJson() ? $request->json()->all() : [];
     }
 
     /** Validation answers JSON itself: through the host's exception renderer it could become a 302. */

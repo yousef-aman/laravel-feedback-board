@@ -1,6 +1,7 @@
 <?php
 
 use YousefAman\FeedbackBoard\Enums\FeedbackStatus;
+use YousefAman\FeedbackBoard\Http\Middleware\VerifyIngestSignature;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
 
 function signed(array $payload): array {
@@ -28,6 +29,19 @@ it('applies a signed status change', function () {
         ->assertOk();
     expect($item->refresh()->status)->toBe(FeedbackStatus::Resolved);
 });
+
+it('acts on the JSON body only, never on the query string or form fields', function (string $contentType) {
+    // The middleware already refuses both; the controller must not depend on it.
+    $this->withoutMiddleware(VerifyIngestSignature::class);
+    $item = FeedbackItem::factory()->create(['status' => FeedbackStatus::New]);
+    // Shaped like a webhook delivery: no top-level item_id or action.
+    $body = json_encode(['event' => 'feedback.created', 'item' => ['id' => $item->id]]);
+    $url = route('feedback-board.ingest', ['item_id' => $item->id, 'action' => 'status', 'status' => 'closed']);
+
+    $this->call('POST', $url, ['item_id' => $item->id, 'action' => 'status', 'status' => 'closed'], [], [], ['CONTENT_TYPE' => $contentType], $body)
+        ->assertStatus(422);
+    expect($item->refresh()->status)->toBe(FeedbackStatus::New);
+})->with(['application/json', 'application/x-www-form-urlencoded']);
 
 it('rejects a replayed signature', function () {
     $item = FeedbackItem::factory()->create();
