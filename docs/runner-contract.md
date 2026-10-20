@@ -14,8 +14,8 @@ anything automatically. All results are suggestions that a developer reviews and
 Level B/C runner support extends the package's in-app AI triage (Level A) with an external,
 developer-controlled agent loop:
 
-1. A developer (or automation) triggers a runner task from the Filament UI or via the ingest
-   endpoint.
+1. A developer sends a report to the runner with "Send to agent" in the board's card dialog
+   (or the All reports resource in Filament), after a confirmation.
 2. The package dispatches a signed HTTPS POST to the operator's **runner endpoint** with a
    JSON envelope describing the feedback item.
 3. The runner endpoint (e.g. `receiver.example.php`) verifies the HMAC signature, then
@@ -24,7 +24,7 @@ developer-controlled agent loop:
    choice), produces analysis, a diff, and optionally opens a pull request.
 5. The CI job posts results back to the package's signed ingest endpoint using
    `runner_result` and `runner_status` actions.
-6. A developer reviews the suggestions in the Filament board and decides what to apply.
+6. A developer reviews the suggestions in the board's card dialog and decides what to apply.
 
 The package is a passive recipient of results — it never initiates a merge, never executes
 remote code, and never contacts a third-party AI provider on the runner's behalf.
@@ -258,8 +258,8 @@ package.
 
 ## 7. Worked End-to-End Example
 
-**Step 1 — Developer triggers the runner** from the Filament Feedback Board UI ("Run Agent"
-action on a feedback item).
+**Step 1 — Developer sends the report to the runner** with "Send to agent" in the board's card
+dialog (or the All reports resource in Filament).
 
 **Step 2 — Package dispatches to the receiver:**
 
