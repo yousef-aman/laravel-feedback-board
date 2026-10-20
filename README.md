@@ -2,6 +2,12 @@
 
 # Feedback Board
 
+[![Latest version on Packagist](https://img.shields.io/packagist/v/yousef-aman/laravel-feedback-board?label=packagist)](https://packagist.org/packages/yousef-aman/laravel-feedback-board)
+[![Tests](https://img.shields.io/github/actions/workflow/status/yousef-aman/laravel-feedback-board/tests.yml?branch=main&label=tests)](https://github.com/yousef-aman/laravel-feedback-board/actions/workflows/tests.yml)
+[![Total downloads](https://img.shields.io/packagist/dt/yousef-aman/laravel-feedback-board)](https://packagist.org/packages/yousef-aman/laravel-feedback-board/stats)
+[![PHP version](https://img.shields.io/packagist/dependency-v/yousef-aman/laravel-feedback-board/php)](https://packagist.org/packages/yousef-aman/laravel-feedback-board)
+[![License](https://img.shields.io/packagist/l/yousef-aman/laravel-feedback-board)](LICENSE)
+
 A self-hosted, embeddable feedback widget for Laravel applications. Clients submit bug reports and feature requests inside their own session — your data stays on your infrastructure, processed by your own runner.
 
 ![Demo: a user reports a bug with a pasted screenshot; on the board, AI suggests its priority and an AI agent sends back a fix and a pull request; the developer opens a GitHub issue, replies and drags the card to Resolved; the user gets an e-mail and reads the reply in My reports; then the same board in Arabic and dark mode](https://raw.githubusercontent.com/yousef-aman/laravel-feedback-board/main/.github/demo.gif)
