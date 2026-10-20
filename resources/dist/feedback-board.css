@@ -980,7 +980,7 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    inline-size: min(66.25rem, 100%);
+    inline-size: min(100rem, 100%);
     block-size: 100%;
     min-inline-size: 0;
     overflow: hidden;
