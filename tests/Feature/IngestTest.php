@@ -53,6 +53,8 @@ it('rejects a replayed signature', function () {
 });
 
 it('rejects a replay for as long as a timestamp from a fast clock is still accepted', function () {
+    // Frozen, so a second ticking over between signing and the first travel cannot shift the limits.
+    $this->freezeSecond();
     $item = FeedbackItem::factory()->create();
     // The sender's clock runs 200 seconds ahead; the timestamp passes until 500 seconds from now.
     [$body, $headers] = signed(['item_id' => $item->id, 'action' => 'comment', 'body' => 'hi'], now()->timestamp + 200);
