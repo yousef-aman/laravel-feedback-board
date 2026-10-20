@@ -67,19 +67,59 @@ it('sends no e-mail when Filament is installed, whose bell tells the developers'
     Notification::assertSentOnDemandTimes(DeliveryFailedNotification::class, 0);
 });
 
-it('tries again on the next failure when no developer could be e-mailed', function () {
+it('tries again 15 minutes later, not on every failure, when no developer could be e-mailed', function () {
     Exceptions::fake();
-    $calls = 0;
-    Notification::shouldReceive('send')->twice()->andReturnUsing(function () use (&$calls) {
-        if (++$calls === 1) {
+    $start = now();
+    $tries = [];
+    Notification::shouldReceive('send')->twice()->andReturnUsing(function () use ($start, &$tries) {
+        $tries[] = (int) $start->diffInMinutes(now());
+
+        if (count($tries) === 1) {
             throw new RuntimeException('smtp down');
         }
     });
 
     failedWithoutFilament(FeedbackItem::factory()->create(), 'slack');
     failedWithoutFilament(FeedbackItem::factory()->create(), 'slack');
+    $this->travel(15)->minutes();
+    failedWithoutFilament(FeedbackItem::factory()->create(), 'slack');
 
+    expect($tries)->toBe([0, 15]);
     Exceptions::assertReported(fn (RuntimeException $e) => $e->getMessage() === 'smtp down');
+});
+
+it("holds the day's e-mail once one developer got it", function () {
+    Exceptions::fake();
+    config()->set('feedback-board.notifications.developers', ['first@team.test', 'second@team.test']);
+    $calls = 0;
+    Notification::shouldReceive('send')->twice()->andReturnUsing(function () use (&$calls) {
+        if (++$calls === 1) {
+            throw new RuntimeException('mailbox full');
+        }
+    });
+
+    failedWithoutFilament(FeedbackItem::factory()->create(), 'slack');
+    failedWithoutFilament(FeedbackItem::factory()->create(), 'slack');
+});
+
+it('skips a developer with no e-mail address, without using up the day', function () {
+    $nameless = TestUser::create(['name' => 'No mail', 'email' => '']);
+    config()->set('feedback-board.notifications.developers', fn () => collect([$nameless]));
+    failedWithoutFilament(FeedbackItem::factory()->create(), 'slack');
+
+    config()->set('feedback-board.notifications.developers', ['dev@team.test']);
+    failedWithoutFilament(FeedbackItem::factory()->create(), 'slack');
+
+    Notification::assertNothingSentTo($nameless);
+    Notification::assertSentOnDemandTimes(DeliveryFailedNotification::class, 1);
+});
+
+it('sends no failure e-mail when the app turned developer e-mail off', function () {
+    config()->set('feedback-board.notifications.channels', ['database']);
+
+    failedWithoutFilament(FeedbackItem::factory()->create(), 'slack');
+
+    Notification::assertSentOnDemandTimes(DeliveryFailedNotification::class, 0);
 });
 
 it("keeps the day's e-mail while there is no developer to tell", function () {

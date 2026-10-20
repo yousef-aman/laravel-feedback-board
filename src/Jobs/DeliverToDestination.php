@@ -177,12 +177,20 @@ class DeliverToDestination implements ShouldQueue
     /**
      * Tells the developers (the ones a new report notifies) by e-mail, once a day per destination:
      * the day's first failure sends it, and every failing report still shows its own on its card.
-     * When no developer could be e-mailed, the next failure tries again.
+     * Nothing when the app sends its developers no mail (notifications.channels).
      */
     protected function mailDevelopers(FeedbackItem $item, string $code): void
     {
+        if (! in_array('mail', (array) config('feedback-board.notifications.channels', ['mail']), true)) {
+            return;
+        }
+
+        $notification = new DeliveryFailedNotification($item, $this->driver, $code);
+
         try {
-            $recipients = app(DeveloperRecipients::class)->resolve();
+            // Only developers with an address: one without would use up the day's e-mail.
+            $recipients = app(DeveloperRecipients::class)->resolve()->filter(fn (object $recipient): bool => method_exists($recipient, 'routeNotificationFor')
+                && filled($recipient->routeNotificationFor('mail', $notification)));
         } catch (Throwable) {
             return; // best-effort, as for the bell
         }
@@ -199,7 +207,6 @@ class DeliverToDestination implements ShouldQueue
             return; // e-mailed already today, or the cache is down
         }
 
-        $notification = new DeliveryFailedNotification($item, $this->driver, $code);
         $sent = false;
 
         foreach ($recipients as $recipient) {
@@ -210,8 +217,10 @@ class DeliverToDestination implements ShouldQueue
             }, false) || $sent;
         }
 
+        // Nobody got it (the mail server is down?): try again in 15 minutes rather than on every
+        // failure, so a mail server that hangs cannot hold up each failed delivery.
         if (! $sent) {
-            rescue(fn () => $cache->forget($key), report: false);
+            rescue(fn () => $cache->put($key, true, now()->addMinutes(15)), report: false);
         }
     }
 }
