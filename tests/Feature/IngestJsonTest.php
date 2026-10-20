@@ -43,6 +43,16 @@ it('answers a rejected runner result with 422 JSON, not a redirect', function ()
         ->assertJsonValidationErrors('analysis');
 });
 
+it('refuses a comment longer than an analysis may be', function () {
+    $item = FeedbackItem::factory()->create();
+
+    hIngestPost(['item_id' => $item->id, 'action' => 'comment', 'body' => str_repeat('a', 10001)])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('body');
+
+    hIngestPost(['item_id' => $item->id, 'action' => 'comment', 'body' => str_repeat('a', 10000)])->assertOk();
+});
+
 it('answers 422 JSON even when the host renders exceptions as HTML for this path', function () {
     app(ExceptionHandler::class)->shouldRenderJsonWhen(fn () => false);
     $item = hRunningItem();

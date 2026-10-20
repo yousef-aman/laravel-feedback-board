@@ -89,3 +89,45 @@ it('sets each block’s direction from its own text, and keeps code left to righ
         ->and($html)->toContain('<p dir="auto">ثم عربي.</p>')
         ->and($html)->toContain('<pre dir="ltr">');
 });
+
+it('keeps an http(s) link only when it names a site', function () {
+    $html = (string) Markdown::html('[a](https:/admin/logout) [b](https:///evil.com/x) <https:///evil.com/y> [c](http:evil.com)');
+
+    expect($html)->not->toContain('<a ');
+});
+
+it('drops unsafe targets however the link is written', function () {
+    $html = (string) Markdown::html("<javascript:alert(1)> [ref][x] [ent](&#106;avascript:alert(1)) ![img][y]\n\n[x]: javascript:alert(2)\n[y]: https://tracker.example/p.png");
+
+    expect($html)->not->toContain('<a ')
+        ->and($html)->not->toContain('<img')
+        ->and($html)->not->toContain('href="javascript');
+});
+
+it('opens bare www links in a new tab too', function () {
+    expect((string) Markdown::html('see www.example.com'))
+        ->toContain('<a rel="nofollow noopener noreferrer" target="_blank" href="http://www.example.com">');
+});
+
+it('shows a very long text as plain text, so formatting it cannot stall the page', function () {
+    $html = (string) Markdown::html(str_repeat('**a** ', 4000)."\n<b>x</b>");
+
+    expect($html)->not->toContain('<strong>')
+        ->and($html)->toContain('**a**')
+        ->and($html)->toContain('&lt;b&gt;x&lt;/b&gt;')
+        ->and($html)->toStartWith('<p dir="auto">');
+});
+
+it('marks task list items, so they show a checkbox instead of a bullet', function () {
+    expect((string) Markdown::html("- [x] done\n- [ ] next\n- plain"))
+        ->toContain('<li dir="auto" class="fb-md__task"><input checked="" disabled="" type="checkbox"> done</li>')
+        ->toContain('<li dir="auto" class="fb-md__task"><input disabled="" type="checkbox"> next</li>')
+        ->toContain('<li dir="auto">plain</li>');
+});
+
+it('lets a list item or a quote take its direction from the paragraphs inside it', function () {
+    $html = (string) Markdown::html("- أولاً\n\n- ثانياً\n\n> ملاحظة مهمة");
+
+    expect($html)->toContain("<li dir=\"auto\">\n<p>أولاً</p>")
+        ->and($html)->toContain("<blockquote dir=\"auto\">\n<p>ملاحظة مهمة</p>");
+});

@@ -547,8 +547,18 @@
     line-height: 1.4;
 }
 
+/* Each item is indented on its own start side: an item's direction follows its own text (dir="auto"). */
 .fb-md :is(ul, ol) {
-    padding-inline-start: 1.25rem;
+    padding-inline-start: 0;
+}
+
+.fb-md li {
+    margin-inline-start: 1.25rem;
+}
+
+.fb-md .fb-md__task {
+    margin-inline-start: 0;
+    list-style: none;
 }
 
 .fb-md ul {
@@ -615,6 +625,9 @@
 .fb-md :is(th, td) {
     padding: 0.25rem 0.5rem;
     border: 1px solid var(--_fb-border);
+}
+
+.fb-md :is(th, td):not([align]) {
     text-align: start;
 }
 

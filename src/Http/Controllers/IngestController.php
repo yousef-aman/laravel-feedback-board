@@ -28,7 +28,8 @@ class IngestController
         $validator = Validator::make($request->all(), [
             'item_id' => ['required', 'integer'],
             'action' => ['required', 'in:comment,status,external_ref'],
-            'body' => ['required_if:action,comment', 'string'],
+            // As long as an analysis may be: an AI comment is shown as Markdown, whose cost grows with it.
+            'body' => ['required_if:action,comment', 'string', 'max:'.(int) config('feedback-board.runner.max_analysis_chars', 10000)],
             'status' => ['required_if:action,status', 'string', 'in:new,in_review,in_progress,resolved,closed,declined'],
             'ref' => ['required_if:action,external_ref', 'array'],
             // `\z`, not `$`: `$` would accept a trailing newline. The package's own keys are reserved.
