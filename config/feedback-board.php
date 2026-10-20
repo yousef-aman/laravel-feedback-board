@@ -71,7 +71,8 @@ return [
         'enabled' => [],            // e.g. ['webhook', 'slack']
 
         // Cache store whose lock guards the per-item GitHub delivery, the *_last_error
-        // write and the runner's PR link. null = app default store. The lock must be
+        // write and the runner's PR link; it also counts the day of the developers'
+        // delivery-failure e-mail. null = app default store. The lock must be
         // shared by every worker: `file` only coordinates workers on one server, so with
         // several servers use redis|memcached|dynamodb|database. `array` is
         // process-local (tests use it).

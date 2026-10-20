@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\{Notification, View};
 use YousefAman\FeedbackBoard\Enums\AuthorRole;
 use YousefAman\FeedbackBoard\Models\{FeedbackComment, FeedbackItem};
-use YousefAman\FeedbackBoard\Notifications\{FeedbackClosedNotification, FeedbackRepliedNotification, FeedbackResolvedNotification, NewFeedbackNotification, ReporterRepliedNotification};
+use YousefAman\FeedbackBoard\Notifications\{DeliveryFailedNotification, FeedbackClosedNotification, FeedbackRepliedNotification, FeedbackResolvedNotification, NewFeedbackNotification, ReporterRepliedNotification};
 
 beforeEach(function () {
     config()->set('mail.default', 'array');
@@ -63,6 +63,7 @@ dataset('feedback mails', [
     'reporter reply' => fn () => new ReporterRepliedNotification(hLayoutComment(AuthorRole::Reporter)),
     'resolved' => fn () => new FeedbackResolvedNotification(FeedbackItem::factory()->create(['title' => 'زر الحفظ (Orders) رقم 15'])),
     'declined' => fn () => new FeedbackClosedNotification(FeedbackItem::factory()->create(['title' => 'زر الحفظ (Orders) رقم 15']), YousefAman\FeedbackBoard\Enums\FeedbackStatus::Declined),
+    'delivery failure' => fn () => new DeliveryFailedNotification(FeedbackItem::factory()->create(['title' => 'زر الحفظ (Orders) رقم 15']), 'slack', 'connection_error'),
 ]);
 
 it('lays the e-mail out right to left in Arabic', function (Illuminate\Notifications\Notification $notification) {
@@ -157,6 +158,17 @@ it('opens the report from a button, with the link spelled out under it and in th
         ->and($html)->toContain('If the “View report” button does not work, copy this link into your browser:')
         ->and($text)->toContain('View report: '.$url);
 })->with('feedback mails and their links');
+
+it('opens the report on the board from the delivery failure e-mail, which has no bell entry', function () {
+    $notification = new DeliveryFailedNotification(FeedbackItem::factory()->create(), 'github', 'auth_401');
+    $url = 'http://localhost/feedback-board/feedback/board?report='.$notification->item->id;
+
+    [$html, $text] = hLayoutMail($notification);
+
+    expect(hButton($html))->toBe(['href' => $url, 'text' => 'View report'])
+        ->and($text)->toContain('View report: '.$url)
+        ->and($notification->via(new Illuminate\Notifications\AnonymousNotifiable))->toBe(['mail']);
+});
 
 it('labels the button and the link help in Arabic, right to left', function () {
     app()->setLocale('ar');
