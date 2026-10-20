@@ -129,6 +129,8 @@ return [
     'runner' => [
         'send' => 'Send to agent',
         'resend' => 'Re-send to agent',
+        'send_confirm' => 'Send this report to the agent? It reads the title and description, and may open a pull request.',
+        'resend_confirm' => 'Send this report to the agent again? A new run starts, and may open another pull request.',
         'status' => 'Status',
         'dispatched' => 'Dispatched to agent',
         'running' => 'Agent is working…',
@@ -198,6 +200,7 @@ return [
         'internal_tag' => 'Internal · hidden from the reporter',
         'download' => 'Download :name',
         'send_github' => 'Send to GitHub',
+        'send_github_confirm' => 'Open a GitHub issue for this report? Its title and description are sent to GitHub.',
         'github_queued' => 'Sent to GitHub; the issue is being created.',
         'empty_feed' => 'No comments yet.',
     ],

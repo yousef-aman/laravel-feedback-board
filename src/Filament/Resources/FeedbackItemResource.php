@@ -99,6 +99,8 @@ class FeedbackItemResource extends Resource
 
             Action::make('sendToGithub')
                 ->label(__('feedback-board::feedback-board.detail.send_github'))
+                ->requiresConfirmation()
+                ->modalDescription(__('feedback-board::feedback-board.detail.send_github_confirm'))
                 ->visible(fn (FeedbackItem $record): bool =>
                     FeedbackItemPolicy::isDeveloper(FeedbackBoard::user())
                     && (bool) config('feedback-board.destinations.github.token')
@@ -148,6 +150,10 @@ class FeedbackItemResource extends Resource
 
             Action::make('sendToRunner')
                 ->label(__('feedback-board::feedback-board.runner.send'))
+                ->requiresConfirmation()
+                ->modalDescription(fn (FeedbackItem $record): string => __(isset($record->ai_state['runner'])
+                    ? 'feedback-board::feedback-board.runner.resend_confirm'
+                    : 'feedback-board::feedback-board.runner.send_confirm'))
                 ->visible(fn (FeedbackItem $record): bool =>
                     FeedbackItemPolicy::isDeveloper(FeedbackBoard::user())
                     && RunnerGate::configured()

@@ -168,7 +168,7 @@
                         <p class="fb-notice fb-notice--warning">{{ __('feedback-board::feedback-board.runner.ingest_disabled') }}</p>
                     @elseif (($runner['status'] ?? null) === null)
                         <div class="fb-actions">
-                            <button type="button" class="fb-btn fb-btn--sm" wire:click="dispatchToRunner">{{ __('feedback-board::feedback-board.runner.send') }}</button>
+                            <button type="button" class="fb-btn fb-btn--sm" wire:click="dispatchToRunner" wire:confirm="{{ __('feedback-board::feedback-board.runner.send_confirm') }}">{{ __('feedback-board::feedback-board.runner.send') }}</button>
                         </div>
                     @else
                         @if (in_array($runner['status'], ['dispatched','running'], true))
@@ -202,7 +202,7 @@
 
                         @if (\YousefAman\FeedbackBoard\Runner\Support\RunnerState::canDispatch($runner))
                             <div class="fb-actions">
-                                <button type="button" class="fb-btn fb-btn--sm" wire:click="dispatchToRunner">{{ __('feedback-board::feedback-board.runner.resend') }}</button>
+                                <button type="button" class="fb-btn fb-btn--sm" wire:click="dispatchToRunner" wire:confirm="{{ __('feedback-board::feedback-board.runner.resend_confirm') }}">{{ __('feedback-board::feedback-board.runner.resend') }}</button>
                             </div>
                         @endif
                     @endif
@@ -221,7 +221,7 @@
                     <p class="fb-notice">{{ __('feedback-board::feedback-board.detail.github_queued') }}</p>
                 @elseif ($canGithub)
                     <div class="fb-actions">
-                        <button type="button" class="fb-btn fb-btn--sm" wire:click="sendToGithub" wire:loading.attr="disabled" wire:target="sendToGithub">
+                        <button type="button" class="fb-btn fb-btn--sm" wire:click="sendToGithub" wire:confirm="{{ __('feedback-board::feedback-board.detail.send_github_confirm') }}" wire:loading.attr="disabled" wire:target="sendToGithub">
                             <x-feedback-board::icon name="code-bracket" />{{ __('feedback-board::feedback-board.detail.send_github') }}
                         </button>
                     </div>
