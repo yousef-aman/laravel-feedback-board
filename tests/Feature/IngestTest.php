@@ -1,12 +1,13 @@
 <?php
 
+use Illuminate\Support\Facades\Cache;
 use YousefAman\FeedbackBoard\Enums\FeedbackStatus;
 use YousefAman\FeedbackBoard\Http\Middleware\VerifyIngestSignature;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
 
-function signed(array $payload): array {
+function signed(array $payload, ?int $ts = null): array {
     $body = json_encode($payload);
-    $ts = (string) now()->timestamp;
+    $ts = (string) ($ts ?? now()->timestamp);
     $sig = hash_hmac('sha256', $ts.'.'.$body, 'shhh');
     return [$body, ['X-Feedback-Timestamp' => $ts, 'X-Feedback-Signature' => $sig, 'Content-Type' => 'application/json']];
 }
@@ -49,6 +50,57 @@ it('rejects a replayed signature', function () {
     $server = $this->transformHeadersToServerVars($headers);
     $this->call('POST', route('feedback-board.ingest'), [], [], [], $server, $body)->assertOk();
     $this->call('POST', route('feedback-board.ingest'), [], [], [], $server, $body)->assertStatus(403);
+});
+
+it('rejects a replay for as long as a timestamp from a fast clock is still accepted', function () {
+    $item = FeedbackItem::factory()->create();
+    // The sender's clock runs 200 seconds ahead; the timestamp passes until 500 seconds from now.
+    [$body, $headers] = signed(['item_id' => $item->id, 'action' => 'comment', 'body' => 'hi'], now()->timestamp + 200);
+    $server = $this->transformHeadersToServerVars($headers);
+    $send = fn () => $this->call('POST', route('feedback-board.ingest'), [], [], [], $server, $body);
+
+    $send()->assertOk();
+    $this->travel(400)->seconds();
+    $send()->assertStatus(403)->assertExactJson(['message' => 'Replay']);
+    $this->travel(100)->seconds();
+    $send()->assertStatus(403)->assertExactJson(['message' => 'Replay']);
+    $this->travel(1)->seconds();
+    $send()->assertStatus(403)->assertExactJson(['message' => 'Stale timestamp']);
+    expect($item->comments()->count())->toBe(1);
+});
+
+it('still refuses every signed request when the tolerance is 0', function () {
+    config()->set('feedback-board.ingest.tolerance', 0);
+    $item = FeedbackItem::factory()->create();
+    [$body, $headers] = signed(['item_id' => $item->id, 'action' => 'comment', 'body' => 'hi']);
+
+    $this->call('POST', route('feedback-board.ingest'), [], [], [], $this->transformHeadersToServerVars($headers), $body)
+        ->assertStatus(403)->assertExactJson(['message' => 'Replay']);
+    expect($item->comments()->count())->toBe(0);
+});
+
+it('keeps the replay nonces in ingest.nonce_store', function () {
+    config()->set('cache.stores.ingest-nonces', ['driver' => 'array']);
+    config()->set('feedback-board.ingest.nonce_store', 'ingest-nonces');
+    $item = FeedbackItem::factory()->create();
+    [$body, $headers] = signed(['item_id' => $item->id, 'action' => 'comment', 'body' => 'hi']);
+    $server = $this->transformHeadersToServerVars($headers);
+    $nonceKey = 'feedback-board:ingest:'.$headers['X-Feedback-Signature'];
+
+    $this->call('POST', route('feedback-board.ingest'), [], [], [], $server, $body)->assertOk();
+    expect(Cache::store('ingest-nonces')->has($nonceKey))->toBeTrue()
+        ->and(Cache::has($nonceKey))->toBeFalse();
+    $this->call('POST', route('feedback-board.ingest'), [], [], [], $server, $body)->assertStatus(403);
+});
+
+it('applies nothing when ingest.nonce_store cannot be used', function () {
+    config()->set('feedback-board.ingest.nonce_store', 'missing');
+    $item = FeedbackItem::factory()->create(['status' => FeedbackStatus::New]);
+    [$body, $headers] = signed(['item_id' => $item->id, 'action' => 'status', 'status' => 'resolved']);
+
+    $this->call('POST', route('feedback-board.ingest'), [], [], [], $this->transformHeadersToServerVars($headers), $body)
+        ->assertStatus(500);
+    expect($item->refresh()->status)->toBe(FeedbackStatus::New);
 });
 
 it('returns 404 when ingest is disabled', function () {

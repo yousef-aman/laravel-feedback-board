@@ -355,6 +355,7 @@ Key configuration options in `config/feedback-board.php`:
 | `ingest.enabled` | bool | Enable the signed ingest endpoint (`FEEDBACK_BOARD_INGEST_ENABLED`, default: `false`) |
 | `ingest.secret` | string\|null | HMAC secret for ingest signature verification (`FEEDBACK_BOARD_INGEST_SECRET`) |
 | `ingest.tolerance` | int | Timestamp drift tolerance in seconds (default: `300`); rate limiting is handled by the route (`throttle:60,1`) |
+| `ingest.nonce_store` | string\|null | Cache store that remembers each signature, so it is accepted once (`FEEDBACK_BOARD_INGEST_NONCE_STORE`; `null` = app default). With several servers, use a shared store such as `redis` or `database`, or a request can be replayed on another server |
 | `ai.enabled` | bool | Enable AI triage (`FEEDBACK_BOARD_AI_ENABLED`, default: `false`) — see [AI Triage](#ai-triage-level-a) |
 | `ai.default` | string | Triage driver: `anthropic`, `gemini`, `openai` or one added with `FeedbackBoard::extendTriage()` (`FEEDBACK_BOARD_AI_DRIVER`, default: `'anthropic'`) |
 | `ai.queue` | string\|null | Queue the triage jobs are pushed to (`FEEDBACK_BOARD_AI_QUEUE`; `null` or empty = the connection's default queue); make sure a worker listens on it, e.g. `php artisan queue:work --queue=ai,default` |
@@ -425,7 +426,7 @@ day. Internal notes are never forwarded to any destination.
 
 ### Ingest endpoint (inbound)
 
-Off by default (`FEEDBACK_BOARD_INGEST_ENABLED`). External systems, such as CI or your agent runner, POST JSON to `/feedback-board/ingest` (under your `route_prefix`), signed like the webhook: `X-Feedback-Timestamp` and `X-Feedback-Signature`, HMAC-SHA256 over `"{timestamp}.{rawBody}"` with `FEEDBACK_BOARD_INGEST_SECRET`. Each signature is accepted once.
+Off by default (`FEEDBACK_BOARD_INGEST_ENABLED`). External systems, such as CI or your agent runner, POST JSON to `/feedback-board/ingest` (under your `route_prefix`), signed like the webhook: `X-Feedback-Timestamp` and `X-Feedback-Signature`, HMAC-SHA256 over `"{timestamp}.{rawBody}"` with `FEEDBACK_BOARD_INGEST_SECRET`. Each signature is accepted once; with several servers, point `FEEDBACK_BOARD_INGEST_NONCE_STORE` at a shared cache store so that holds across them.
 
 | `action` | Fields | Effect |
 |---|---|---|

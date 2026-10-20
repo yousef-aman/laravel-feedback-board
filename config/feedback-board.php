@@ -103,6 +103,12 @@ return [
         'enabled' => env('FEEDBACK_BOARD_INGEST_ENABLED', false),
         'secret' => env('FEEDBACK_BOARD_INGEST_SECRET'),
         'tolerance' => 300, // seconds
+
+        // Cache store for the replay nonces: each signature is accepted once. null = app
+        // default store. Same rule as destinations.lock_store: with several servers use a
+        // shared store, or a request can be replayed on another server; `file` covers one
+        // server, and `array` forgets between requests (tests use it).
+        'nonce_store' => env('FEEDBACK_BOARD_INGEST_NONCE_STORE'),
     ],
 
     'ai' => [

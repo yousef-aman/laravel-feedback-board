@@ -29,8 +29,9 @@ class VerifyIngestSignature
         }
 
         $tolerance = (int) config('feedback-board.ingest.tolerance', 300);
+        $now = now()->timestamp;
 
-        if (abs(now()->timestamp - (int) $ts) > $tolerance) {
+        if (abs($now - (int) $ts) > $tolerance) {
             return self::deny(403, 'Stale timestamp');
         }
 
@@ -48,8 +49,12 @@ class VerifyIngestSignature
         }
 
         $nonceKey = 'feedback-board:ingest:'.$sig;
+        // Kept until one second after the timestamp stops passing, which for a sender whose clock
+        // runs ahead is later than $tolerance from now. A tolerance of 0 keeps a TTL of 0, which
+        // add() refuses, as before. A store that cannot be used throws: nothing is applied.
+        $nonceTtl = $tolerance > 0 ? (int) $ts - $now + $tolerance + 1 : 0;
 
-        if (! Cache::add($nonceKey, true, $tolerance)) {
+        if (! Cache::store(config('feedback-board.ingest.nonce_store'))->add($nonceKey, true, $nonceTtl)) {
             return self::deny(403, 'Replay');
         }
 
