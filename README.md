@@ -2,11 +2,11 @@
 
 # Feedback Board
 
-[![Latest version on Packagist](https://img.shields.io/packagist/v/yousef-aman/laravel-feedback-board?label=packagist)](https://packagist.org/packages/yousef-aman/laravel-feedback-board)
+[![Latest version on Packagist](https://img.shields.io/packagist/v/yousefaman/laravel-feedback-board?label=packagist)](https://packagist.org/packages/yousefaman/laravel-feedback-board)
 [![Tests](https://img.shields.io/github/actions/workflow/status/yousef-aman/laravel-feedback-board/tests.yml?branch=main&label=tests)](https://github.com/yousef-aman/laravel-feedback-board/actions/workflows/tests.yml)
-[![Total downloads](https://img.shields.io/packagist/dt/yousef-aman/laravel-feedback-board)](https://packagist.org/packages/yousef-aman/laravel-feedback-board/stats)
-[![PHP version](https://img.shields.io/packagist/dependency-v/yousef-aman/laravel-feedback-board/php)](https://packagist.org/packages/yousef-aman/laravel-feedback-board)
-[![License](https://img.shields.io/packagist/l/yousef-aman/laravel-feedback-board)](LICENSE)
+[![Total downloads](https://img.shields.io/packagist/dt/yousefaman/laravel-feedback-board)](https://packagist.org/packages/yousefaman/laravel-feedback-board/stats)
+[![PHP version](https://img.shields.io/packagist/dependency-v/yousefaman/laravel-feedback-board/php)](https://packagist.org/packages/yousefaman/laravel-feedback-board)
+[![License](https://img.shields.io/packagist/l/yousefaman/laravel-feedback-board)](LICENSE)
 
 A self-hosted, embeddable feedback widget for Laravel applications. Clients submit bug reports and feature requests inside their own session — your data stays on your infrastructure, processed by your own runner.
 
@@ -26,7 +26,7 @@ Feedback Board is self-hosted by design. Reports are captured inside the authent
 ## Installation
 
 ```bash
-composer require yousef-aman/laravel-feedback-board
+composer require yousefaman/laravel-feedback-board
 php artisan feedback-board:install
 ```
 

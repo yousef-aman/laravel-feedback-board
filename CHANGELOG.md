@@ -1,11 +1,17 @@
 # Changelog
 
-All notable changes to `yousef-aman/laravel-feedback-board` are documented in this file.
+All notable changes to `yousefaman/laravel-feedback-board` are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [1.0.2] - 2026-10-21
+
+### Changed
+
+- The package is now `yousefaman/laravel-feedback-board` on Packagist. To move an existing install, run `composer remove yousef-aman/laravel-feedback-board` and then `composer require yousefaman/laravel-feedback-board`. The PHP namespace, the config file, the routes and the database tables are unchanged.
 
 ## [1.0.1] - 2026-10-21
 
@@ -71,6 +77,7 @@ These notes apply only to apps that installed the package from its development b
 - **Closed and declined reports.** The reporter now gets `FeedbackClosedNotification` (payload `kind: closed` or `declined`) when an open report is closed or declined.
 - **AI providers.** A published `config/feedback-board.php` replaces the package's whole `ai` array, so it has no `gemini` or `openai` settings. To use either provider, copy the `ai.gemini` and `ai.openai` blocks from the package's config file into yours.
 
-[Unreleased]: https://github.com/yousef-aman/laravel-feedback-board/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/yousef-aman/laravel-feedback-board/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/yousef-aman/laravel-feedback-board/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/yousef-aman/laravel-feedback-board/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/yousef-aman/laravel-feedback-board/releases/tag/v1.0.0
