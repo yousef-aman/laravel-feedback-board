@@ -148,11 +148,25 @@ it('fails at once, without retries, when the destination refuses for good', func
     'unreadable payload' => [422, 'validation_422'],
 ]);
 
-it('still retries a GitHub 403 that reports a spent rate limit', function () {
+it('fails a GitHub delivery at once when the token is refused', function () {
     $worker = deliveryQueueWorker();
     config()->set('feedback-board.destinations.github.token', 'ghp_test');
     config()->set('feedback-board.destinations.github.repo', 'acme/app');
-    Http::fake(['*' => Http::response(['message' => 'API rate limit exceeded'], 403, ['x-ratelimit-remaining' => '0'])]);
+    Http::fake(['*' => Http::response(['message' => 'Bad credentials'], 401)]);
+    $item = FeedbackItem::factory()->create();
+    Bus::dispatch(new DeliverToDestination(new FeedbackItemCreated($item), 'github', 'dlv-token'));
+
+    $worker->runNextJob('database', 'default', new WorkerOptions());
+
+    expect(DB::table('jobs')->count())->toBe(0)
+        ->and($item->fresh()->external_refs['github_last_error']['code'] ?? null)->toBe('auth_401');
+});
+
+it('still retries a GitHub refusal that is a rate limit', function (int $status, array $headers, array $body) {
+    $worker = deliveryQueueWorker();
+    config()->set('feedback-board.destinations.github.token', 'ghp_test');
+    config()->set('feedback-board.destinations.github.repo', 'acme/app');
+    Http::fake(['*' => Http::response($body, $status, $headers)]);
     $item = FeedbackItem::factory()->create();
     Bus::dispatch(new DeliverToDestination(new FeedbackItemCreated($item), 'github', 'dlv-limit'));
 
@@ -160,6 +174,23 @@ it('still retries a GitHub 403 that reports a spent rate limit', function () {
 
     expect(DB::table('jobs')->count())->toBe(1)
         ->and($item->fresh()->external_refs['github_last_error'] ?? null)->toBeNull();
+})->with([
+    'primary limit spent' => [403, ['x-ratelimit-remaining' => '0'], ['message' => 'API rate limit exceeded for user ID 1.']],
+    'secondary limit, no headers' => [403, [], ['message' => 'You have exceeded a secondary rate limit. Please wait a few minutes before you try again.']],
+    'created too quickly' => [422, [], ['message' => 'Validation Failed', 'errors' => [['resource' => 'Issue', 'code' => 'custom', 'field' => 'body', 'message' => 'was submitted too quickly']]]],
+]);
+
+it('still retries a webhook 403 that says when to try again', function () {
+    $worker = deliveryQueueWorker();
+    config()->set('feedback-board.destinations.webhook.url', 'https://hooks.example.test/in');
+    config()->set('feedback-board.destinations.webhook.secret', 'shh');
+    Http::fake(['*' => Http::response('slow down', 403, ['Retry-After' => '60'])]);
+    $item = FeedbackItem::factory()->create();
+    Bus::dispatch(new DeliverToDestination(new FeedbackItemCreated($item), 'webhook', 'dlv-wait'));
+
+    $worker->runNextJob('database', 'default', new WorkerOptions());
+
+    expect(DB::table('jobs')->count())->toBe(1);
 });
 
 it('records a refused delivery and reports it once on the sync queue', function () {
