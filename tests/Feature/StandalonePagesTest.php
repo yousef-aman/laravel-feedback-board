@@ -100,3 +100,12 @@ it('gives both standalone pages an app bar with the app name and a way back', fu
             ->and(substr_count($html, '<h1'))->toBe(1);
     }
 });
+
+it('serves the pages at the paths and route names the README gives', function () {
+    $readme = file_get_contents(dirname(__DIR__, 2).'/README.md');
+
+    expect(route('feedback-board.page', absolute: false))->toBe('/feedback-board/feedback')
+        ->and(route('feedback-board.board.page', absolute: false))->toBe('/feedback-board/feedback/board')
+        ->and($readme)->toContain('| My reports | `/feedback-board/feedback` | `feedback-board.page` |')
+        ->and($readme)->toContain('| Feedback board | `/feedback-board/feedback/board` | `feedback-board.board.page` |');
+});

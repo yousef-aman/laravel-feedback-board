@@ -15,7 +15,7 @@ Feedback Board is self-hosted by design. Reports are captured inside the authent
 - PHP 8.2+ (8.3+ for Laravel 13)
 - Laravel 12 or 13
 - Livewire 3.8.3+ or 4.3.4+
-- Filament 4 or 5 (optional, for the developer Kanban board)
+- Filament 4 or 5 (optional). Without it, "My reports" and the developer board are pages of the package itself; see [Link the pages](#5-link-the-pages)
 
 ## Installation
 
@@ -151,6 +151,25 @@ FeedbackBoard::linkReportsUsing(fn (FeedbackItem $item, string $audience, ?objec
     ? route('admin.feedback', ['report' => $item->id])
     : route('portal.reports', ['report' => $item->id]));
 ```
+
+### 5. Link the pages
+
+"My reports" and the developer board are pages of the package itself, under your `route_prefix` and `route_middleware`. Inside a Filament panel, the plugin adds them to the panel instead (see [Filament Integration](#filament-integration)).
+
+| Page | Path | Route name | Who may open it |
+|---|---|---|---|
+| My reports | `/feedback-board/feedback` | `feedback-board.page` | every signed-in user who may report, or has reports |
+| Feedback board | `/feedback-board/feedback/board` | `feedback-board.board.page` | developers; anyone else gets 403 |
+
+Both take `?report={id}` to open a report directly, which is how e-mail links open them. The report form links "My reports", but nothing links the board, so add it to your navigation for developers:
+
+```blade
+@can('feedback-board.manage')
+    <a href="{{ route('feedback-board.board.page') }}">Feedback board</a>
+@endcan
+```
+
+Each page has a bar with your app's name (`APP_NAME`) and a "Back to the app" link to `/`. With the default theme setting the pages stay light; set `FEEDBACK_BOARD_THEME=system` to follow the operating system (see [Styling & theming](#styling--theming)).
 
 ### Choosing who can report
 
@@ -499,7 +518,8 @@ process-local (fine for a single process / tests, not for multi-worker deploymen
 An optional, manual, opt-in extension that lets you connect an external AI coding agent
 (running in your own CI/CD or dev environment) to the Feedback Board.
 
-**How it works:** A developer triggers a runner task from the Filament board. The package
+**How it works:** A developer sends a report to the runner from the board's card dialog (or the
+All reports resource in Filament). The package
 dispatches a signed HTTPS POST (the "task envelope") to your configured `runner.endpoint`.
 Your receiver verifies the HMAC, forwards the task to a CI job (e.g. GitHub Actions via
 `repository_dispatch`), and the CI job runs your agent. Results are posted back to the
