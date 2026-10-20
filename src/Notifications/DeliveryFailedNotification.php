@@ -12,9 +12,10 @@ use YousefAman\FeedbackBoard\Models\FeedbackItem;
 use YousefAman\FeedbackBoard\Support\{MailLayout, MailText};
 
 /**
- * Tells the developers that a delivery to a destination failed, in an app without Filament's bell.
- * By mail only, at most once a day per destination (see DeliverToDestination::mailDevelopers()). It
- * carries only the destination and the error code, never the error itself.
+ * Tells the developers whom no Filament bell reaches that a delivery to a destination failed. By
+ * mail only, at most once a day per destination and reason (see
+ * DeliverToDestination::mailDevelopers()). It carries only the destination and the error code,
+ * never the error itself.
  */
 class DeliveryFailedNotification extends Notification
 {

@@ -16,17 +16,22 @@ beforeEach(function () {
 });
 
 // The delivery job as it runs in an app without Filament (the test suite has Filament installed).
-function failedWithoutFilament(FeedbackItem $item, string $driver): void
+function failedWithoutFilament(FeedbackItem $item, string $driver, ?Throwable $error = null): void
 {
     $job = Mockery::mock(DeliverToDestination::class, [new FeedbackItemCreated($item), $driver, 'dlv-'.$item->id.'-'.$driver])
         ->makePartial()
         ->shouldAllowMockingProtectedMethods();
     $job->shouldReceive('usesFilamentBell')->andReturn(false);
 
-    $job->failed(new ConnectionException('cURL error 6: Could not resolve host'));
+    $job->failed($error ?? new ConnectionException('cURL error 6: Could not resolve host'));
 }
 
-it('e-mails the developers once a day for each failing destination when Filament is not installed', function () {
+function refusedWith(int $status): Illuminate\Http\Client\RequestException
+{
+    return new Illuminate\Http\Client\RequestException(new Illuminate\Http\Client\Response(new GuzzleHttp\Psr7\Response($status)));
+}
+
+it('e-mails the developers once a day for each failing destination and reason when Filament is not installed', function () {
     $first = FeedbackItem::factory()->create();
     $second = FeedbackItem::factory()->create();
 
@@ -48,6 +53,18 @@ it('e-mails the developers once a day for each failing destination when Filament
     Notification::assertSentOnDemandTimes(DeliveryFailedNotification::class, 3);
 });
 
+it('e-mails again the same day when a destination fails for another reason', function () {
+    $item = FeedbackItem::factory()->create();
+
+    failedWithoutFilament($item, 'slack', refusedWith(503));
+    failedWithoutFilament($item, 'slack', refusedWith(500));
+    Notification::assertSentOnDemandTimes(DeliveryFailedNotification::class, 1);
+
+    failedWithoutFilament($item, 'slack', refusedWith(404));
+    Notification::assertSentOnDemandTimes(DeliveryFailedNotification::class, 2);
+    Notification::assertSentOnDemand(DeliveryFailedNotification::class, fn ($notification) => $notification->code === 'not_found_404');
+});
+
 it('e-mails developers who are user models by mail only, whatever the notification channels', function () {
     config()->set('feedback-board.notifications.channels', ['mail', 'database']);
     $dev = TestUser::create(['name' => 'Dev', 'email' => 'dev@team.test']);
@@ -58,13 +75,23 @@ it('e-mails developers who are user models by mail only, whatever the notificati
     Notification::assertSentTo($dev, DeliveryFailedNotification::class, fn ($notification, $channels) => $channels === ['mail']);
 });
 
-it('sends no e-mail when Filament is installed, whose bell tells the developers', function () {
-    $item = FeedbackItem::factory()->create();
+it('with Filament, rings the bell for developers who are user models and e-mails no one else', function () {
+    $dev = TestUser::create(['name' => 'Dev', 'email' => 'dev@team.test']);
+    config()->set('feedback-board.notifications.developers', fn () => collect([$dev]));
 
-    (new DeliverToDestination(new FeedbackItemCreated($item), 'slack', 'dlv-filament'))
+    (new DeliverToDestination(new FeedbackItemCreated(FeedbackItem::factory()->create()), 'slack', 'dlv-filament'))
         ->failed(new ConnectionException('cURL error 6: Could not resolve host'));
 
+    Notification::assertSentTo($dev, Filament\Notifications\DatabaseNotification::class);
+    Notification::assertNotSentTo($dev, DeliveryFailedNotification::class);
     Notification::assertSentOnDemandTimes(DeliveryFailedNotification::class, 0);
+});
+
+it('with Filament, e-mails the developers listed only by address, whom the bell cannot reach', function () {
+    (new DeliverToDestination(new FeedbackItemCreated(FeedbackItem::factory()->create()), 'slack', 'dlv-addresses'))
+        ->failed(new ConnectionException('cURL error 6: Could not resolve host'));
+
+    Notification::assertSentOnDemand(DeliveryFailedNotification::class, fn ($notification, $channels, $notifiable) => $notifiable->routes['mail'] === 'dev@team.test');
 });
 
 it('tries again 15 minutes later, not on every failure, when no developer could be e-mailed', function () {
@@ -142,7 +169,7 @@ it('names the destination, the reason, the report and the pause until the next e
         ->and($html)->toContain('Delivery to GitHub failed: access was refused; check the token and its permissions.')
         ->and($html)->toContain('It happened while sending report #'.$item->id.':')
         ->and($html)->not->toContain('<b>breaks</b>')
-        ->and($html)->toContain('You will get no other e-mail about GitHub for 24 hours.')
+        ->and($html)->toContain('You will get no other e-mail about this GitHub error for 24 hours.')
         ->and($html)->toContain('/feedback-board/feedback/board?report='.$item->id);
 });
 
@@ -153,5 +180,5 @@ it('writes the failure e-mail in Arabic', function () {
     $mail = (new DeliveryFailedNotification($item, 'slack', 'not_found_404'))->toMail(new AnonymousNotifiable);
 
     expect($mail->subject)->toBe('تعذّر الإرسال إلى Slack')
-        ->and((string) $mail->render())->toContain('لن يصلك بريد آخر عن Slack قبل 24 ساعة.');
+        ->and((string) $mail->render())->toContain('لن يصلك بريد آخر عن هذا الخطأ في Slack قبل 24 ساعة.');
 });

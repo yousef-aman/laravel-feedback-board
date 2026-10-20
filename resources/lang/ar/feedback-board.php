@@ -56,7 +56,7 @@ return [
         'closed_subject' => 'تم الإغلاق: :title', 'closed_line' => 'تم إغلاق ملاحظتك.',
         'declined_subject' => 'تم الرفض: :title', 'declined_line' => 'تم رفض ملاحظتك.',
         'failure_report' => 'حدث ذلك أثناء إرسال البلاغ رقم :id:',
-        'failure_pause' => 'كل بلاغ تعذّر إرساله تظهر على بطاقته ملاحظة بذلك. لن يصلك بريد آخر عن :destination قبل 24 ساعة.',
+        'failure_pause' => 'كل بلاغ تعذّر إرساله تظهر على بطاقته ملاحظة بذلك. لن يصلك بريد آخر عن هذا الخطأ في :destination قبل 24 ساعة.',
     ],
     'board' => [
         'my_reports' => 'بلاغاتي',

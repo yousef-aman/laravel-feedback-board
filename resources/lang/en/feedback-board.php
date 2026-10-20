@@ -56,7 +56,7 @@ return [
         'closed_subject' => 'Closed: :title', 'closed_line' => 'Your report was closed.',
         'declined_subject' => 'Declined: :title', 'declined_line' => 'Your report was declined.',
         'failure_report' => 'It happened while sending report #:id:',
-        'failure_pause' => 'Each report that could not be sent says so on its card. You will get no other e-mail about :destination for 24 hours.',
+        'failure_pause' => 'Each report that could not be sent says so on its card. You will get no other e-mail about this :destination error for 24 hours.',
     ],
     'board' => [
         'my_reports' => 'My reports',

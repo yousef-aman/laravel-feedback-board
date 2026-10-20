@@ -8,10 +8,12 @@ use DateTimeInterface;
 use GuzzleHttp\Exception\TransferException;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification as NotificationFacade;
 use Illuminate\Support\Str;
@@ -124,44 +126,47 @@ class DeliverToDestination implements ShouldQueue
     }
 
     /**
-     * A Filament bell entry for each developer who is a user model; without Filament, an e-mail a
-     * day per destination (mailDevelopers()). Best-effort: never throws, never leaks secrets.
+     * Each developer hears of the failure once: a Filament bell entry for those who are user models,
+     * when Filament is installed, and the day's e-mail for everyone else (mailDevelopers()): all of
+     * them without Filament, the ones listed only by address with it. Best-effort: never throws,
+     * never leaks secrets.
      */
     protected function notifyDevelopers(FeedbackItem $item, string $code): void
     {
-        if (! $this->usesFilamentBell()) {
-            $this->mailDevelopers($item, $code);
-
-            return;
-        }
-
-        // Reuse the existing recipient resolver (it owns the
-        // feedback-board.notifications.developers key — intentionally NOT under
-        // destinations.*; do not "correct" it). Keep only DB-routable model
-        // notifiables: the array-of-emails config yields AnonymousNotifiable
-        // (mail route), which sendToDatabase() cannot persist.
+        // The recipient resolver owns the feedback-board.notifications.developers key, which is
+        // intentionally NOT under destinations.*; do not "correct" it.
         try {
-            $notifiables = app(DeveloperRecipients::class)
-                ->resolve()
-                ->filter(fn ($n) => $n instanceof \Illuminate\Database\Eloquent\Model);
-            if ($notifiables->isEmpty()) {
-                return; // email-only recipients have no database notification target
-            }
-
+            $developers = app(DeveloperRecipients::class)->resolve();
         } catch (Throwable) {
             return; // best-effort: a notification failure must not mask the delivery failure
         }
 
-        // One entry per developer, each with the link to the board they can open; one failing
-        // recipient does not stop the others.
-        foreach ($notifiables as $notifiable) {
+        // sendToDatabase() persists only models: an address from the config (an AnonymousNotifiable,
+        // mail route) has no bell.
+        [$bell, $mail] = $this->usesFilamentBell()
+            ? $developers->partition(fn (object $developer): bool => $developer instanceof Model)->all()
+            : [collect(), $developers];
+
+        $this->ringBell($bell, $item, $code);
+        $this->mailDevelopers($mail, $item, $code);
+    }
+
+    /**
+     * One bell entry per developer, each with the link to the board they can open; one failing
+     * recipient does not stop the others.
+     *
+     * @param  Collection<int, object>  $developers
+     */
+    protected function ringBell(Collection $developers, FeedbackItem $item, string $code): void
+    {
+        foreach ($developers as $developer) {
             try {
                 \Filament\Notifications\Notification::make()
                     ->title(__('feedback-board::feedback-board.destinations.failed_title', ['destination' => DeliveryError::destination($this->driver)]))
                     ->body(Str::ucfirst(DeliveryError::reason($code)))
                     ->danger()
-                    ->actions(MailLayout::bellButton(app(\YousefAman\FeedbackBoard\FeedbackBoard::class)->reportUrl($item, 'developer', $notifiable)))
-                    ->sendToDatabase($notifiable);
+                    ->actions(MailLayout::bellButton(app(\YousefAman\FeedbackBoard\FeedbackBoard::class)->reportUrl($item, 'developer', $developer)))
+                    ->sendToDatabase($developer);
             } catch (Throwable) {
                 // best-effort, as above
             }
@@ -175,11 +180,13 @@ class DeliverToDestination implements ShouldQueue
     }
 
     /**
-     * Tells the developers (the ones a new report notifies) by e-mail, once a day per destination:
-     * the day's first failure sends it, and every failing report still shows its own on its card.
+     * Tells these developers by e-mail, once a day per destination and reason: the day's first
+     * failure of a kind sends it, and every failing report still shows its own on its card.
      * Nothing when the app sends its developers no mail (notifications.channels).
+     *
+     * @param  Collection<int, object>  $developers
      */
-    protected function mailDevelopers(FeedbackItem $item, string $code): void
+    protected function mailDevelopers(Collection $developers, FeedbackItem $item, string $code): void
     {
         if (! in_array('mail', (array) config('feedback-board.notifications.channels', ['mail']), true)) {
             return;
@@ -189,7 +196,7 @@ class DeliverToDestination implements ShouldQueue
 
         try {
             // Only developers with an address: one without would use up the day's e-mail.
-            $recipients = app(DeveloperRecipients::class)->resolve()->filter(fn (object $recipient): bool => method_exists($recipient, 'routeNotificationFor')
+            $recipients = $developers->filter(fn (object $recipient): bool => method_exists($recipient, 'routeNotificationFor')
                 && filled($recipient->routeNotificationFor('mail', $notification)));
         } catch (Throwable) {
             return; // best-effort, as for the bell
@@ -201,7 +208,7 @@ class DeliverToDestination implements ShouldQueue
 
         // The cache that holds the delivery locks, so every worker counts the same day.
         $cache = Cache::store(config('feedback-board.destinations.lock_store'));
-        $key = 'feedback-board:failure-mail:'.$this->driver;
+        $key = 'feedback-board:failure-mail:'.$this->driver.':'.$code;
 
         if (! rescue(fn () => $cache->add($key, true, now()->addDay()), false)) {
             return; // e-mailed already today, or the cache is down

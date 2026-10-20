@@ -350,7 +350,7 @@ Key configuration options in `config/feedback-board.php`:
 | `notifications.channels` | array | Notification channels (default: `['mail']`; add `'database'` after `make:notifications-table` and `migrate`) |
 | `destinations.default` | string | Kept for contract parity; the `mail` driver is a no-op (default: `'mail'`) |
 | `destinations.enabled` | array | Automatic destination drivers, e.g. `['webhook', 'slack']` — empty by default. Do not add `github` here: its first issue is created by a developer, and later comments are posted without it (see [Destinations](#destinations-outbound)) |
-| `destinations.lock_store` | string\|null | Cache store for the locks around GitHub delivery, delivery-failure records and the runner's PR link, and, without Filament, for the day of the developers' delivery-failure e-mail (`FEEDBACK_DESTINATIONS_LOCK_STORE`; `null` = app default). With several servers, use a shared store such as `redis` or `database` |
+| `destinations.lock_store` | string\|null | Cache store for the locks around GitHub delivery, delivery-failure records and the runner's PR link, and for the day of the developers' delivery-failure e-mail (`FEEDBACK_DESTINATIONS_LOCK_STORE`; `null` = app default). With several servers, use a shared store such as `redis` or `database` |
 | `destinations.webhook` / `.slack` / `.github` | array | Per-driver URL, secret or token, and event list, plus Slack's message language (`slack.locale`) — see [Destinations](#destinations-outbound) |
 | `ingest.enabled` | bool | Enable the signed ingest endpoint (`FEEDBACK_BOARD_INGEST_ENABLED`, default: `false`) |
 | `ingest.secret` | string\|null | HMAC secret for ingest signature verification (`FEEDBACK_BOARD_INGEST_SECRET`) |
@@ -414,13 +414,14 @@ retried. A delivery that still fails is recorded as a sanitized code in
 to that destination that gets through clears it. Developers see each failing destination in the
 card dialog, with the reason, the event and how long ago. With Filament installed, developers
 who are user models (`FeedbackBoard::notifyDevelopersUsing()`) also get a bell entry that names
-the destination and the reason; it needs the `notifications` table. Without Filament, the
-developers a new report notifies get an e-mail instead (when `notifications.channels` has
-`mail`), at most one a day for each destination: the day's first failure sends it, and each
-failing report still shows the failure on its card. When the e-mail reached nobody (the mail
-server is down, say), the next failure tries again after 15 minutes. The day is counted in the
-cache store of `FEEDBACK_DESTINATIONS_LOCK_STORE`, so clearing that cache can send a second
-e-mail the same day. Internal notes are never forwarded to any destination.
+the destination and the reason; it needs the `notifications` table. The other developers a new
+report notifies (all of them without Filament, and those listed only by address with it) get an
+e-mail instead, when `notifications.channels` has `mail`: at most one a day for each destination
+and reason, so a new kind of failure is told the same day, and each failing report still shows
+the failure on its card. When the e-mail reached nobody (the mail server is down, say), the next
+failure tries again after 15 minutes. The day is counted in the cache store of
+`FEEDBACK_DESTINATIONS_LOCK_STORE`, so clearing that cache can send a second e-mail the same
+day. Internal notes are never forwarded to any destination.
 
 ### Ingest endpoint (inbound)
 
