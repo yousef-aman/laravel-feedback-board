@@ -12,11 +12,12 @@ use League\CommonMark\Extension\CommonMark\Node\Block\{BlockQuote, Heading, List
 use League\CommonMark\Extension\CommonMark\Node\Inline\{Image, Link};
 use League\CommonMark\Extension\ExternalLink\ExternalLinkExtension;
 use League\CommonMark\Extension\GithubFlavoredMarkdownExtension;
-use League\CommonMark\Extension\Table\TableCell;
+use League\CommonMark\Extension\Table\{Table, TableCell};
 use League\CommonMark\Extension\TaskList\TaskListItemMarker;
 use League\CommonMark\MarkdownConverter;
 use League\CommonMark\Node\Block\Paragraph;
 use League\CommonMark\Node\Node;
+use League\CommonMark\Node\StringContainerInterface;
 
 /**
  * Renders what the AI assistant wrote (a runner's analysis, an AI reply), which is usually Markdown.
@@ -102,8 +103,9 @@ final class Markdown
     /**
      * Gives each block dir="auto", so it takes its direction from its own text. A paragraph in a list
      * item or a quote gets none: dir="auto" skips text inside elements with their own dir, so the
-     * item or quote reads it. A task list item is marked: its checkbox replaces the bullet (the
-     * stylesheet cannot use :has()).
+     * item or quote reads it. A table gets the direction of its first letter, as dir="auto" would
+     * give it if its cells had none: its columns run that way, whatever the page around it. A task
+     * list item is marked: its checkbox replaces the bullet (the stylesheet cannot use :has()).
      */
     private static function direct(Node $node): void
     {
@@ -113,9 +115,28 @@ final class Markdown
             $node->data->set('attributes/dir', 'auto');
         }
 
+        if ($node instanceof Table && ($direction = self::direction($node)) !== null) {
+            $node->data->set('attributes/dir', $direction);
+        }
+
         if ($node instanceof ListItem && $node->firstChild()?->firstChild() instanceof TaskListItemMarker) {
             $node->data->append('attributes/class', 'fb-md__task');
         }
+    }
+
+    /**
+     * rtl or ltr from the first letter in a node's text; null when it has none. Letters of the
+     * right-to-left scripts (Hebrew, Arabic, Syriac, Thaana, NKo and their neighbours) are rtl.
+     */
+    private static function direction(Node $node): ?string
+    {
+        foreach ($node->iterator() as $child) {
+            if ($child instanceof StringContainerInterface && preg_match('/\p{L}/u', $child->getLiteral(), $letter) === 1) {
+                return preg_match('/^[\x{0590}-\x{08FF}\x{FB1D}-\x{FDFF}\x{FE70}-\x{FEFC}\x{10800}-\x{10FFF}\x{1E800}-\x{1EFFF}]$/u', $letter[0]) === 1 ? 'rtl' : 'ltr';
+            }
+        }
+
+        return null;
     }
 
     /** Puts a node's children (an image's alt text, a link's label) in its place. */
