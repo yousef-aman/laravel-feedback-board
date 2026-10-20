@@ -40,6 +40,13 @@ class VerifyIngestSignature
             return self::deny(403, 'Bad signature');
         }
 
+        // The signature covers the raw body only, but the controller reads $request->all(): the
+        // query string is merged into it, and the body is its source only under a JSON Content-Type.
+        // Refuse both, so it acts on the signed bytes alone. Checked before the nonce is spent.
+        if ($request->query->count() > 0 || ! $request->isJson()) {
+            return self::deny(403, 'Unsigned input');
+        }
+
         $nonceKey = 'feedback-board:ingest:'.$sig;
 
         if (! Cache::add($nonceKey, true, $tolerance)) {
