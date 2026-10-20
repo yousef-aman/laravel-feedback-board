@@ -135,7 +135,7 @@ Then add `'database'` to `notifications.channels` in `config/feedback-board.php`
 
 Notifications are sent, and destination deliveries (webhook, Slack, GitHub) queued, only after the report, reply or status change is saved. If sending or queueing fails (for example, the mail server is down, or a Slack outage on the `sync` queue), the failure is reported to your exception handler and the user's action is still kept.
 
-**Who is told what.** A new report and a reporter's reply notify your developers; the reply's notification names the report (`Reporter replied: {title}`, with its number). A developer's or the AI's public reply, and the Resolved status, notify the reporter, and so does an open report moved to Closed or Declined; filing a finished report away (for example Resolved to Closed) sends nothing. Text a reporter wrote is escaped in e-mails (Markdown), the Filament bell (HTML) and Slack (`<`, `>` and `&`); the webhook payload and GitHub issues and comments carry it unchanged. In the plain-text part of an e-mail, the escaping shows as a backslash before characters such as `[` or `*`. The new-report database notification's `feedback_title` key holds the raw report title.
+**Who is told what.** A new report and a reporter's reply notify your developers; the reply's notification names the report (`Reporter replied: {title}`, with its number). A developer's or the AI's public reply, and the Resolved status, notify the reporter, and so does an open report moved to Closed or Declined; filing a finished report away (for example Resolved to Closed) sends nothing. Text a reporter wrote is escaped in e-mails (Markdown), the Filament bell (HTML) and Slack (`<`, `>` and `&`), and quoted as code in GitHub issues and comments; the webhook payload and the GitHub issue's title carry it unchanged. In the plain-text part of an e-mail, the escaping shows as a backslash before characters such as `[` or `*`. The new-report database notification's `feedback_title` key holds the raw report title.
 
 **Links to the report.** Each e-mail has a "View report" button, with the link written out under it, and so does each Filament bell entry. The reporter's button opens "My reports" on the report; a developer's opens the board on the report. Database payloads also carry the link as `feedback_url`.
 
@@ -352,9 +352,11 @@ Key configuration options in `config/feedback-board.php`:
 | `destinations.enabled` | array | Automatic destination drivers, e.g. `['webhook', 'slack']` — empty by default. Do not add `github` here: its first issue is created by a developer, and later comments are posted without it (see [Destinations](#destinations-outbound)) |
 | `destinations.lock_store` | string\|null | Cache store for the locks around GitHub delivery, delivery-failure records and the runner's PR link, and for the day of the developers' delivery-failure e-mail (`FEEDBACK_DESTINATIONS_LOCK_STORE`; `null` = app default). With several servers, use a shared store such as `redis` or `database` |
 | `destinations.webhook` / `.slack` / `.github` | array | Per-driver URL, secret or token, and event list, plus Slack's message language (`slack.locale`) — see [Destinations](#destinations-outbound) |
+| `destinations.github.reporter_replies` | bool | Post reporters' replies on the GitHub issue, quoted as code (`FEEDBACK_GITHUB_REPORTER_REPLIES`, default: `true`); `false` posts only your team's and the AI's replies |
 | `ingest.enabled` | bool | Enable the signed ingest endpoint (`FEEDBACK_BOARD_INGEST_ENABLED`, default: `false`) |
 | `ingest.secret` | string\|null | HMAC secret for ingest signature verification (`FEEDBACK_BOARD_INGEST_SECRET`) |
 | `ingest.tolerance` | int | Timestamp drift tolerance in seconds (default: `300`); rate limiting is handled by the route (`throttle:60,1`) |
+| `ingest.nonce_store` | string\|null | Cache store that remembers each signature, so it is accepted once (`FEEDBACK_BOARD_INGEST_NONCE_STORE`; `null` = app default). With several servers, use a shared store such as `redis` or `database`, or a request can be replayed on another server |
 | `ai.enabled` | bool | Enable AI triage (`FEEDBACK_BOARD_AI_ENABLED`, default: `false`) — see [AI Triage](#ai-triage-level-a) |
 | `ai.default` | string | Triage driver: `anthropic`, `gemini`, `openai` or one added with `FeedbackBoard::extendTriage()` (`FEEDBACK_BOARD_AI_DRIVER`, default: `'anthropic'`) |
 | `ai.queue` | string\|null | Queue the triage jobs are pushed to (`FEEDBACK_BOARD_AI_QUEUE`; `null` or empty = the connection's default queue); make sure a worker listens on it, e.g. `php artisan queue:work --queue=ai,default` |
@@ -396,6 +398,7 @@ broader access, avoid it) and `FEEDBACK_GITHUB_REPO` (`owner/name`). GitHub is *
 added to `destinations.enabled`: the first issue is created by the developer's manual
 "Send to GitHub" action; later replies and status changes auto-comment on it.
 Each reply comment starts with its author's role, for example `**Reporter** replied:`; no person's name is sent. Once the issue exists, the card dialog and the All reports table link it.
+A reporter's description and replies are posted as a code block, with an invisible word joiner after each `/` and `@`: GitHub makes no mention, reference or link of them, and a bot that looks for a `/command` or an `@name` in a comment finds none. A link copied from there carries the joiner too; the original text is on the report. A bot that acts on other text anywhere in a comment, such as `!deploy`, is not stopped; set `destinations.github.reporter_replies` to `false` (`FEEDBACK_GITHUB_REPORTER_REPLIES`) to post only your team's and the AI's replies. When the quoting alone would take a text past GitHub's 65,536-character limit, it is shortened, with a note; the full text stays in the app.
 Set `feedback-board.destinations.github.close_on_resolved` to close the issue on resolve. Comments and closing always go to the repo where the issue was opened, even after `FEEDBACK_GITHUB_REPO` changes; if the token can no longer reach that repo, the delivery fails with `not_found_404` or `auth_401`.
 
 GitHub idempotency, delivery-failure records and the runner's PR link are guarded by a cache
@@ -425,7 +428,7 @@ day. Internal notes are never forwarded to any destination.
 
 ### Ingest endpoint (inbound)
 
-Off by default (`FEEDBACK_BOARD_INGEST_ENABLED`). External systems, such as CI or your agent runner, POST JSON to `/feedback-board/ingest` (under your `route_prefix`), signed like the webhook: `X-Feedback-Timestamp` and `X-Feedback-Signature`, HMAC-SHA256 over `"{timestamp}.{rawBody}"` with `FEEDBACK_BOARD_INGEST_SECRET`. Each signature is accepted once.
+Off by default (`FEEDBACK_BOARD_INGEST_ENABLED`). External systems, such as CI or your agent runner, POST JSON to `/feedback-board/ingest` (under your `route_prefix`), signed like the webhook: `X-Feedback-Timestamp` and `X-Feedback-Signature`, HMAC-SHA256 over `"{timestamp}.{rawBody}"` with `FEEDBACK_BOARD_INGEST_SECRET`. Each signature is accepted once; with several servers, point `FEEDBACK_BOARD_INGEST_NONCE_STORE` at a shared cache store so that holds across them.
 
 | `action` | Fields | Effect |
 |---|---|---|
@@ -436,7 +439,7 @@ Off by default (`FEEDBACK_BOARD_INGEST_ENABLED`). External systems, such as CI o
 
 `ref.key` must match `^[a-z][a-z0-9_.-]{0,63}$`. `github`, `pr_url` and keys ending in `_last_error` are reserved for the package. `ref.value` is a string of at most 2048 characters.
 
-Every answer has its real status: `200 {"ok":true}`; 403 (missing or bad signature, stale timestamp, replay); 404 (ingest disabled, unknown report); 409 (runner task mismatch); 422 (validation, with `errors`); 429 (more than 60 requests a minute); 503 (busy). The package's own answers have JSON bodies. Answers given before the route runs (maintenance mode's 503, 413 for an oversized body, 405) follow your app's error rendering: JSON when the sender asks for it with `Accept: application/json`, as `post-back.sh` does. A host rule set with `shouldRenderJsonWhen()` can still turn the body of a 404 for an unknown report, a 409, 429 or 503 into HTML; the status stays. Re-sign before retrying. String values are trimmed of leading and trailing whitespace.
+Every answer has its real status: `200 {"ok":true}`; 403 (missing or bad signature, stale timestamp, replay, a query string or a Content-Type that is not JSON); 404 (ingest disabled, unknown report); 409 (runner task mismatch); 422 (validation, with `errors`); 429 (more than 60 requests a minute); 503 (busy). The package's own answers have JSON bodies. Answers given before the route runs (maintenance mode's 503, 413 for an oversized body, 405) follow your app's error rendering: JSON when the sender asks for it with `Accept: application/json`, as `post-back.sh` does. A host rule set with `shouldRenderJsonWhen()` can still turn the body of a 404 for an unknown report, a 409, 429 or 503 into HTML; the status stays. Re-sign before retrying. String values are trimmed of leading and trailing whitespace.
 
 ## AI Triage (Level A)
 

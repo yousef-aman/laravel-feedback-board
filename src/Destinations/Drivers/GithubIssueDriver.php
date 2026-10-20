@@ -17,6 +17,7 @@ use YousefAman\FeedbackBoard\Events\FeedbackItemCreated;
 use YousefAman\FeedbackBoard\Events\FeedbackReplied;
 use YousefAman\FeedbackBoard\Events\FeedbackStatusChanged;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
+use YousefAman\FeedbackBoard\Support\GithubText;
 
 class GithubIssueDriver implements Destination
 {
@@ -159,7 +160,13 @@ class GithubIssueDriver implements Destination
 
     private function issueBody(FeedbackItem $item): string
     {
-        return trim(($item->description ?? '')."\n\n—\nfeedback-board #{$item->id} ({$item->project})");
+        $footer = "—\nfeedback-board #{$item->id} ({$item->project})";
+        $description = trim((string) $item->description);
+
+        // The reporter wrote it: quoted as code, after a line of our own, so it never starts the body.
+        return $description === ''
+            ? $footer
+            : GithubText::body("**Reporter** wrote:\n\n", $description, "\n\n".$footer);
     }
 
     private function commentBody(object $event): string
@@ -172,7 +179,13 @@ class GithubIssueDriver implements Destination
                 default => 'Developer', // the column's default
             };
 
-            return "**{$author}** replied:\n\n".($event->comment->body ?? '');
+            $head = "**{$author}** replied:\n\n";
+            $body = (string) $event->comment->body;
+
+            // A reporter's text is quoted as code; the team's and the AI's are posted as written.
+            return $event->comment->author_role === AuthorRole::Reporter
+                ? GithubText::body($head, $body)
+                : $head.$body;
         }
         if ($event instanceof FeedbackStatusChanged) {
             return "Status: {$event->from->value} → {$event->to->value}";

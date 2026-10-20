@@ -96,6 +96,9 @@ return [
             'repo' => env('FEEDBACK_GITHUB_REPO'),          // "owner/name"
             'events' => ['feedback.replied', 'feedback.status_changed'],  // auto-comment gate only
             'close_on_resolved' => false,
+            // Mirror reporters' replies to the issue, quoted as code. false = only the
+            // team's and the AI's replies (a reporter's text is posted under your token).
+            'reporter_replies' => env('FEEDBACK_GITHUB_REPORTER_REPLIES', true),
         ],
     ],
 
@@ -103,6 +106,12 @@ return [
         'enabled' => env('FEEDBACK_BOARD_INGEST_ENABLED', false),
         'secret' => env('FEEDBACK_BOARD_INGEST_SECRET'),
         'tolerance' => 300, // seconds
+
+        // Cache store for the replay nonces: each signature is accepted once. null = app
+        // default store. Same rule as destinations.lock_store: with several servers use a
+        // shared store, or a request can be replayed on another server; `file` covers one
+        // server, and `array` forgets between requests (tests use it).
+        'nonce_store' => env('FEEDBACK_BOARD_INGEST_NONCE_STORE'),
     ],
 
     'ai' => [

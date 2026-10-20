@@ -10,5 +10,6 @@ it('exposes the destinations config shape with safe defaults', function () {
         ->and(config('feedback-board.destinations.github.events'))
             ->toBe(['feedback.replied', 'feedback.status_changed'])
         ->and(config('feedback-board.destinations.github.close_on_resolved'))->toBeFalse()
+        ->and(config('feedback-board.destinations.github.reporter_replies'))->toBeTrue()
         ->and(array_key_exists('lock_store', config('feedback-board.destinations')))->toBeTrue();
 });

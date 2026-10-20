@@ -1,11 +1,13 @@
 <?php
 
+use Illuminate\Support\Facades\Cache;
 use YousefAman\FeedbackBoard\Enums\FeedbackStatus;
+use YousefAman\FeedbackBoard\Http\Middleware\VerifyIngestSignature;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
 
-function signed(array $payload): array {
+function signed(array $payload, ?int $ts = null): array {
     $body = json_encode($payload);
-    $ts = (string) now()->timestamp;
+    $ts = (string) ($ts ?? now()->timestamp);
     $sig = hash_hmac('sha256', $ts.'.'.$body, 'shhh');
     return [$body, ['X-Feedback-Timestamp' => $ts, 'X-Feedback-Signature' => $sig, 'Content-Type' => 'application/json']];
 }
@@ -29,6 +31,19 @@ it('applies a signed status change', function () {
     expect($item->refresh()->status)->toBe(FeedbackStatus::Resolved);
 });
 
+it('acts on the JSON body only, never on the query string or form fields', function (string $contentType) {
+    // The middleware already refuses both; the controller must not depend on it.
+    $this->withoutMiddleware(VerifyIngestSignature::class);
+    $item = FeedbackItem::factory()->create(['status' => FeedbackStatus::New]);
+    // Shaped like a webhook delivery: no top-level item_id or action.
+    $body = json_encode(['event' => 'feedback.created', 'item' => ['id' => $item->id]]);
+    $url = route('feedback-board.ingest', ['item_id' => $item->id, 'action' => 'status', 'status' => 'closed']);
+
+    $this->call('POST', $url, ['item_id' => $item->id, 'action' => 'status', 'status' => 'closed'], [], [], ['CONTENT_TYPE' => $contentType], $body)
+        ->assertStatus(422);
+    expect($item->refresh()->status)->toBe(FeedbackStatus::New);
+})->with(['application/json', 'application/x-www-form-urlencoded']);
+
 it('rejects a replayed signature', function () {
     $item = FeedbackItem::factory()->create();
     [$body, $headers] = signed(['item_id' => $item->id, 'action' => 'comment', 'body' => 'hi']);
@@ -37,9 +52,89 @@ it('rejects a replayed signature', function () {
     $this->call('POST', route('feedback-board.ingest'), [], [], [], $server, $body)->assertStatus(403);
 });
 
+it('rejects a replay for as long as a timestamp from a fast clock is still accepted', function () {
+    $item = FeedbackItem::factory()->create();
+    // The sender's clock runs 200 seconds ahead; the timestamp passes until 500 seconds from now.
+    [$body, $headers] = signed(['item_id' => $item->id, 'action' => 'comment', 'body' => 'hi'], now()->timestamp + 200);
+    $server = $this->transformHeadersToServerVars($headers);
+    $send = fn () => $this->call('POST', route('feedback-board.ingest'), [], [], [], $server, $body);
+
+    $send()->assertOk();
+    $this->travel(400)->seconds();
+    $send()->assertStatus(403)->assertExactJson(['message' => 'Replay']);
+    $this->travel(100)->seconds();
+    $send()->assertStatus(403)->assertExactJson(['message' => 'Replay']);
+    $this->travel(1)->seconds();
+    $send()->assertStatus(403)->assertExactJson(['message' => 'Stale timestamp']);
+    expect($item->comments()->count())->toBe(1);
+});
+
+it('still refuses every signed request when the tolerance is 0', function () {
+    config()->set('feedback-board.ingest.tolerance', 0);
+    $item = FeedbackItem::factory()->create();
+    [$body, $headers] = signed(['item_id' => $item->id, 'action' => 'comment', 'body' => 'hi']);
+
+    $this->call('POST', route('feedback-board.ingest'), [], [], [], $this->transformHeadersToServerVars($headers), $body)
+        ->assertStatus(403)->assertExactJson(['message' => 'Replay']);
+    expect($item->comments()->count())->toBe(0);
+});
+
+it('keeps the replay nonces in ingest.nonce_store', function () {
+    config()->set('cache.stores.ingest-nonces', ['driver' => 'array']);
+    config()->set('feedback-board.ingest.nonce_store', 'ingest-nonces');
+    $item = FeedbackItem::factory()->create();
+    [$body, $headers] = signed(['item_id' => $item->id, 'action' => 'comment', 'body' => 'hi']);
+    $server = $this->transformHeadersToServerVars($headers);
+    $nonceKey = 'feedback-board:ingest:'.$headers['X-Feedback-Signature'];
+
+    $this->call('POST', route('feedback-board.ingest'), [], [], [], $server, $body)->assertOk();
+    expect(Cache::store('ingest-nonces')->has($nonceKey))->toBeTrue()
+        ->and(Cache::has($nonceKey))->toBeFalse();
+    $this->call('POST', route('feedback-board.ingest'), [], [], [], $server, $body)->assertStatus(403);
+});
+
+it('applies nothing when ingest.nonce_store cannot be used', function () {
+    config()->set('feedback-board.ingest.nonce_store', 'missing');
+    $item = FeedbackItem::factory()->create(['status' => FeedbackStatus::New]);
+    [$body, $headers] = signed(['item_id' => $item->id, 'action' => 'status', 'status' => 'resolved']);
+
+    $this->call('POST', route('feedback-board.ingest'), [], [], [], $this->transformHeadersToServerVars($headers), $body)
+        ->assertStatus(500);
+    expect($item->refresh()->status)->toBe(FeedbackStatus::New);
+});
+
 it('returns 404 when ingest is disabled', function () {
     config()->set('feedback-board.ingest.enabled', false);
     [$body, $headers] = signed(['item_id' => 1, 'action' => 'comment', 'body' => 'x']);
     $this->call('POST', route('feedback-board.ingest'), [], [], [], $this->transformHeadersToServerVars($headers), $body)
         ->assertNotFound();
+});
+
+it('refuses a signed body sent with a query string, without spending the signature', function () {
+    $item = FeedbackItem::factory()->create(['status' => FeedbackStatus::New]);
+    [$body, $headers] = signed(['item_id' => $item->id, 'action' => 'comment', 'body' => 'hi']);
+    $server = $this->transformHeadersToServerVars($headers);
+
+    // Query keys the body lacks would be merged into the input the controller reads.
+    $this->call('POST', route('feedback-board.ingest').'?status=closed', [], [], [], $server, $body)
+        ->assertStatus(403);
+    expect($item->refresh()->status)->toBe(FeedbackStatus::New)
+        ->and($item->comments()->count())->toBe(0);
+
+    $this->call('POST', route('feedback-board.ingest'), [], [], [], $server, $body)->assertOk();
+    expect($item->comments()->count())->toBe(1);
+});
+
+it('refuses a signed body sent without a JSON Content-Type', function () {
+    $item = FeedbackItem::factory()->create(['status' => FeedbackStatus::New]);
+    [$body, $headers] = signed(['item_id' => $item->id, 'action' => 'comment', 'body' => 'hi']);
+    // Without a JSON Content-Type the input would come from the unsigned query string, not the body.
+    $server = $this->transformHeadersToServerVars(['Content-Type' => 'text/plain'] + $headers);
+
+    $this->call('POST', route('feedback-board.ingest').'?item_id='.$item->id.'&action=status&status=closed', [], [], [], $server, $body)
+        ->assertStatus(403);
+    $this->call('POST', route('feedback-board.ingest'), [], [], [], $server, $body)
+        ->assertStatus(403);
+    expect($item->refresh()->status)->toBe(FeedbackStatus::New)
+        ->and($item->comments()->count())->toBe(0);
 });

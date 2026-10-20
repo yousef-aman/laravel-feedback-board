@@ -153,7 +153,7 @@ it('skips the auto-comment for an image-only reply', function () {
     Http::assertNothingSent();
 });
 
-it("says who wrote a reply, by role only, above the reply's text", function (\YousefAman\FeedbackBoard\Enums\AuthorRole $role, string $label) {
+it("says who wrote a reply, by role only, above the reply's text", function (\YousefAman\FeedbackBoard\Enums\AuthorRole $role, string $body) {
     Http::fake(['api.github.com/*' => Http::response(['id' => 1], 201)]);
     $item = FeedbackItem::factory()->create([
         'external_refs' => ['github' => ['issue_number' => 7, 'node_id' => 'N', 'html_url' => 'u', 'repo' => 'acme/app', 'posted' => []]],
@@ -162,9 +162,44 @@ it("says who wrote a reply, by role only, above the reply's text", function (\Yo
 
     (new GithubIssueDriver())->send($item, new FeedbackReplied($comment), 'dlv-role');
 
-    Http::assertSent(fn ($r) => $r->data() === ['body' => "**{$label}** replied:\n\nStill broken"]);
+    Http::assertSent(fn ($r) => $r->data() === ['body' => $body]);
 })->with([
-    'reporter' => [\YousefAman\FeedbackBoard\Enums\AuthorRole::Reporter, 'Reporter'],
-    'developer' => [\YousefAman\FeedbackBoard\Enums\AuthorRole::Developer, 'Developer'],
-    'ai' => [\YousefAman\FeedbackBoard\Enums\AuthorRole::Ai, 'AI'],
+    'reporter, quoted as code' => [\YousefAman\FeedbackBoard\Enums\AuthorRole::Reporter, "**Reporter** replied:\n\n    Still broken"],
+    'developer' => [\YousefAman\FeedbackBoard\Enums\AuthorRole::Developer, "**Developer** replied:\n\nStill broken"],
+    'ai' => [\YousefAman\FeedbackBoard\Enums\AuthorRole::Ai, "**AI** replied:\n\nStill broken"],
 ]);
+
+it("posts a reporter's reply without a mention, reference, command or section of its own", function () {
+    Http::fake(['api.github.com/*' => Http::response(['id' => 1], 201)]);
+    $item = FeedbackItem::factory()->create([
+        'external_refs' => ['github' => ['issue_number' => 7, 'node_id' => 'N', 'html_url' => 'u', 'repo' => 'acme/app', 'posted' => []]],
+    ]);
+    $reply = "@acme/security see acme/app#3\u{2028}/deploy production\r\n**Developer** replied:\n![x](https://evil.example/t.png)";
+    $comment = FeedbackComment::factory()->create(['feedback_item_id' => $item->id, 'author_role' => \YousefAman\FeedbackBoard\Enums\AuthorRole::Reporter, 'body' => $reply, 'is_internal' => false]);
+
+    (new GithubIssueDriver())->send($item, new FeedbackReplied($comment), 'dlv-hostile');
+
+    Http::assertSent(fn ($r) => $r->data() === ['body' => "**Reporter** replied:\n\n"
+        ."    @\u{2060}acme/\u{2060}security see acme/\u{2060}app#3\n"
+        ."    /\u{2060}deploy production\n"
+        ."    **Developer** replied:\n"
+        ."    ![x](https:/\u{2060}/\u{2060}evil.example/\u{2060}t.png)"]);
+});
+
+it("opens the issue with the reporter's description quoted as code above the footer", function () {
+    Http::fake(['api.github.com/repos/acme/app/issues' => githubCreated()]);
+    $item = FeedbackItem::factory()->create(['description' => "  @acme/eng it fails\n/deploy  ", 'project' => 'shop']);
+
+    (new GithubIssueDriver())->send($item, new FeedbackItemCreated($item), 'dlv-create');
+
+    Http::assertSent(fn ($r) => $r['body'] === "**Reporter** wrote:\n\n    @\u{2060}acme/\u{2060}eng it fails\n    /\u{2060}deploy\n\n—\nfeedback-board #{$item->id} (shop)");
+});
+
+it('opens the issue with the footer alone when there is no description', function (?string $description) {
+    Http::fake(['api.github.com/repos/acme/app/issues' => githubCreated()]);
+    $item = FeedbackItem::factory()->create(['description' => $description, 'project' => 'shop']);
+
+    (new GithubIssueDriver())->send($item, new FeedbackItemCreated($item), 'dlv-create');
+
+    Http::assertSent(fn ($r) => $r['body'] === "—\nfeedback-board #{$item->id} (shop)");
+})->with([null, " \n "]);

@@ -153,7 +153,7 @@ Include the same three headers:
 - `X-Feedback-Signature: {hex_hmac}`
 - `Content-Type: application/json`
 
-**Responses.** The endpoint answers with its real status and, for its own answers, a JSON body: `200 {"ok":true}`; 403 (missing or bad signature, stale timestamp, replay); 404 (ingest disabled, unknown item); 409 (`task_id` mismatch); 422 (validation; the body lists `errors`); 429 (more than 60 requests a minute); 503 (busy, for example a lock held by a GitHub delivery). Answers given before the route runs (maintenance mode's 503, 413, 405) follow the host app's error rendering; send `Accept: application/json` to get JSON there too. Retry 429, 503 and connection errors with a **fresh timestamp and signature**: a signature is accepted once. String values are trimmed of leading and trailing whitespace. [`examples/runner/post-back.sh`](examples/runner/post-back.sh) does all of this.
+**Responses.** The endpoint answers with its real status and, for its own answers, a JSON body: `200 {"ok":true}`; 403 (missing or bad signature, stale timestamp, replay, a query string or a Content-Type that is not JSON); 404 (ingest disabled, unknown item); 409 (`task_id` mismatch); 422 (validation; the body lists `errors`); 429 (more than 60 requests a minute); 503 (busy, for example a lock held by a GitHub delivery). Answers given before the route runs (maintenance mode's 503, 413, 405) follow the host app's error rendering; send `Accept: application/json` to get JSON there too. Retry 429, 503 and connection errors with a **fresh timestamp and signature**: a signature is accepted once. String values are trimmed of leading and trailing whitespace. [`examples/runner/post-back.sh`](examples/runner/post-back.sh) does all of this.
 
 ### 4.2 Action: `runner_status`
 
