@@ -1,10 +1,10 @@
-![Feedback Board: in-app bug reports with screenshots, a developer Kanban board and two-way replies, for Laravel and Filament](https://raw.githubusercontent.com/yousef-aman/laravel-feedback-board/main/.github/banner.png)
+![Feedback Board: in-app bug reports with screenshots, AI triage, a developer Kanban board, an AI agent that opens pull requests, and two-way replies, for Laravel with or without Filament](https://raw.githubusercontent.com/yousef-aman/laravel-feedback-board/main/.github/banner.png)
 
 # Feedback Board
 
 A self-hosted, embeddable feedback widget for Laravel applications. Clients submit bug reports and feature requests inside their own session — your data stays on your infrastructure, processed by your own runner.
 
-![Demo: a user reports a bug with a pasted screenshot, a developer drags the card on the Kanban board and replies, and the user reads the reply in My reports](https://raw.githubusercontent.com/yousef-aman/laravel-feedback-board/main/.github/demo.gif)
+![Demo: a user reports a bug with a pasted screenshot; on the board, AI suggests its priority and an AI agent sends back a fix and a pull request; the developer opens a GitHub issue, replies and drags the card to Resolved; the user gets an e-mail and reads the reply in My reports; then the same board in Arabic and dark mode](https://raw.githubusercontent.com/yousef-aman/laravel-feedback-board/main/.github/demo.gif)
 
 ## Positioning
 

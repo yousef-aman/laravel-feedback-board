@@ -67,7 +67,7 @@
     left: 76px;
     top: 0;
     bottom: 0;
-    width: 540px;
+    width: 560px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -115,7 +115,7 @@
 
   .motto {
     margin-top: 18px;
-    font-size: 27px;
+    font-size: 23px;
     line-height: 1.2;
     font-weight: 700;
     letter-spacing: -.015em;
@@ -124,8 +124,8 @@
 
   .lede {
     margin-top: 14px;
-    max-width: 470px;
-    font-size: 17px;
+    max-width: 500px;
+    font-size: 16.5px;
     line-height: 1.55;
     font-weight: 500;
     color: rgba(224, 231, 255, .74);
@@ -133,7 +133,7 @@
 
   .cmd {
     align-self: flex-start;
-    margin-top: 28px;
+    margin-top: 24px;
     display: inline-flex;
     align-items: center;
     gap: 10px;
@@ -150,7 +150,9 @@
 
   .chips {
     margin-top: 16px;
+    max-width: 515px;
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     list-style: none;
   }
@@ -169,10 +171,10 @@
 
   .board {
     position: absolute;
-    left: 664px;
-    top: 62px;
-    width: 562px;
-    height: 418px;
+    left: 656px;
+    top: 38px;
+    width: 584px;
+    height: 392px;
     border-radius: 18px;
     background: var(--canvas);
     overflow: hidden;
@@ -252,7 +254,7 @@
     border: 1px solid var(--line);
     background: rgba(244, 244, 245, .7);
     padding: 10px;
-    min-height: 340px;
+    min-height: 312px;
   }
 
   .col header {
@@ -395,13 +397,137 @@
   .cover--login .panel i:nth-child(2) { top: 22px; }
   .cover--login .panel b { position: absolute; left: 10px; right: 10px; top: 36px; height: 11px; border-radius: 4px; background: #0ea5e9; }
 
+  .prio--urgent { color: #991b1b; background: #fee2e2; }
+
+  .fresh {
+    position: absolute;
+    left: 8px;
+    top: 7px;
+    z-index: 1;
+    font-size: 9.5px;
+    font-weight: 800;
+    color: #fff;
+    background: var(--accent);
+    padding: 2px 7px;
+    border-radius: 999px;
+  }
+
+  .bell {
+    position: absolute;
+    right: 7px;
+    top: 7px;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    font-weight: 800;
+    color: #fff;
+    background: #dc2626;
+    padding: 2px 7px 2px 5px;
+    border-radius: 999px;
+  }
+
+  .bell svg { width: 11px; height: 11px; }
+
+  .float {
+    position: absolute;
+    padding: 12px 13px 13px;
+    border-radius: 15px;
+    background: var(--surface);
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, .04),
+      0 30px 60px -18px rgba(0, 0, 0, .65);
+  }
+
+  .float header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .float header small { margin-left: auto; font-size: 10.5px; font-weight: 600; color: var(--faint); }
+
+  .badge-icon {
+    width: 22px;
+    height: 22px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: 7px;
+  }
+
+  .badge-icon svg { width: 13px; height: 13px; }
+
+  /* ---------- AI triage ---------- */
+
+  .ai { left: 1030px; top: 236px; width: 224px; }
+  .ai .badge-icon { background: linear-gradient(135deg, #6366f1, #a855f7); color: #fff; }
+  .ai .tags { margin-top: 9px; display: flex; gap: 6px; }
+  .ai .tags span { font-size: 10.5px; font-weight: 800; padding: 2px 8px; border-radius: 999px; }
+  .ai .tags .t-bug { background: #fee2e2; color: #b91c1c; }
+  .ai .tags .t-urgent { background: #fef3c7; color: #92400e; }
+  .ai p { margin-top: 7px; font-size: 11.5px; line-height: 1.45; font-weight: 500; color: #3f3f46; }
+  .ai .apply {
+    margin-top: 9px;
+    display: inline-flex;
+    font-size: 11px;
+    font-weight: 800;
+    color: #fff;
+    background: var(--accent);
+    padding: 5px 10px;
+    border-radius: 8px;
+  }
+
+  /* ---------- Agent ---------- */
+
+  .agent { left: 612px; top: 440px; width: 312px; }
+  .agent .badge-icon { background: #d1fae5; color: #047857; }
+  .diff {
+    margin-top: 9px;
+    padding: 7px 10px;
+    border-radius: 9px;
+    background: #111027;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10px;
+    line-height: 1.6;
+    color: #c7d2fe;
+    white-space: pre;
+    font-variant-ligatures: none;
+  }
+
+  .diff .del { color: #fca5a5; }
+  .diff .add { color: #86efac; }
+  .pr {
+    margin-top: 9px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .pr svg { width: 14px; height: 14px; }
+  .pr b {
+    margin-left: auto;
+    font-size: 10px;
+    font-weight: 800;
+    color: #6d28d9;
+    background: #ede9fe;
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+
   /* ---------- Reply ---------- */
 
   .reply {
     position: absolute;
-    left: 612px;
-    top: 462px;
-    width: 362px;
+    left: 934px;
+    top: 440px;
+    width: 306px;
     padding: 13px 14px 14px;
     border-radius: 16px;
     background: var(--surface);
@@ -447,8 +573,8 @@
   .shot {
     position: relative;
     flex: none;
-    width: 104px;
-    height: 58px;
+    width: 84px;
+    height: 52px;
     border-radius: 8px;
     overflow: hidden;
     background: #f8fafc;
@@ -464,17 +590,17 @@
 
   .launcher {
     position: absolute;
-    right: 56px;
-    top: 528px;
-    height: 54px;
+    right: 40px;
+    top: 588px;
+    height: 42px;
     display: inline-flex;
     align-items: center;
     gap: 10px;
-    padding: 0 24px 0 20px;
+    padding: 0 18px 0 15px;
     border-radius: 999px;
     background: var(--accent);
     color: #fff;
-    font-size: 16.5px;
+    font-size: 14px;
     font-weight: 700;
     letter-spacing: -.005em;
     box-shadow:
@@ -486,8 +612,8 @@
 
   .cursor {
     position: absolute;
-    left: 1178px;
-    top: 568px;
+    left: 1200px;
+    top: 610px;
     width: 26px;
     height: 26px;
     filter: drop-shadow(0 3px 4px rgba(0, 0, 0, .45));
@@ -501,13 +627,15 @@
   <div class="copy">
     <span class="eyebrow"><i></i>Laravel package</span>
     <h1>Feedback <span>Board</span></h1>
-    <p class="motto">Clients report. Developers resolve.</p>
-    <p class="lede">Self-hosted, in-app bug reports with screenshots, a Kanban board and two-way replies — for Laravel and Filament.</p>
+    <p class="motto">Clients report. AI triages. Developers resolve.</p>
+    <p class="lede">Self-hosted bug reports with screenshots, AI triage, a Kanban board, an AI agent that opens pull requests, and two-way replies, with or without Filament.</p>
     <div class="cmd"><b>$</b>composer require yousef-aman/laravel-feedback-board</div>
     <ul class="chips">
       <li>Livewire 3 &amp; 4</li>
-      <li>Filament 4 &amp; 5</li>
-      <li>Arabic &amp; RTL</li>
+      <li>Filament 4 &amp; 5, or standalone</li>
+      <li>GitHub · Slack · Webhooks</li>
+      <li>E-mail &amp; bell</li>
+      <li>Arabic, RTL &amp; dark mode</li>
     </ul>
   </div>
 
@@ -527,6 +655,7 @@
         <header><span class="dot" style="background:#a1a1aa"></span>New<em>2</em></header>
         <div class="card">
           <div class="cover cover--orders">
+            <span class="fresh">New</span>
             <div class="top"></div>
             <div class="row" style="top:20px;width:70px"></div>
             <div class="row" style="top:31px;width:46px"></div>
@@ -538,10 +667,11 @@
             <div class="type bug">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></svg>
               Bug
+              <span class="prio prio--urgent">Urgent</span>
             </div>
-            <div class="title">Save button covers the order total</div>
+            <div class="title">Coupon SAVE20 is taken off twice</div>
             <div class="meta">
-              #12
+              #6
               <span class="clip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m18.375 12.739-7.693 7.693a4.5 4.5 0 0 1-6.364-6.364l10.94-10.94A3 3 0 1 1 19.5 7.372L8.552 18.32m.009-.01-.01.01m5.699-9.941-7.81 7.81a1.5 1.5 0 0 0 2.112 2.13"/></svg>3</span>
               <span class="avatars"><span class="av r">R</span></span>
             </div>
@@ -563,6 +693,7 @@
         <header><span class="dot" style="background:#f59e0b"></span>In progress<em>1</em></header>
         <div class="card">
           <div class="cover cover--login">
+            <span class="bell"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"/></svg>1</span>
             <div class="panel"><i></i><i></i><b></b></div>
           </div>
           <div class="body">
@@ -600,15 +731,42 @@
     </div>
   </div>
 
+  <div class="float ai">
+    <header>
+      <span class="badge-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l1.9 5.6L19.5 10l-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.9L12 2.5zM19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9L19 15z"/></svg></span>
+      AI triage
+      <small>2 s</small>
+    </header>
+    <div class="tags"><span class="t-bug">Bug</span><span class="t-urgent">Urgent</span></div>
+    <p>The coupon is applied again whenever the cart is recalculated.</p>
+    <span class="apply">Apply priority</span>
+  </div>
+
+  <div class="float agent">
+    <header>
+      <span class="badge-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7"/></svg></span>
+      Agent finished
+      <small>App\Models\Cart</small>
+    </header>
+    <div class="diff"><span class="del">-  $total = $coupon->apply($total);</span>
+<span class="add">+  $discount = $coupons->unique('code')</span>
+<span class="add">+      ->sum(fn ($c) => $c->discount($sub));</span></div>
+    <div class="pr">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.2"/><circle cx="6" cy="18" r="2.2"/><circle cx="18" cy="18" r="2.2"/><path d="M6 8.2v7.6M18 15.8V10a3 3 0 0 0-3-3h-4m0 0 2.5-2.5M11 7l2.5 2.5"/></svg>
+      acme/shop · pull request #7
+      <b>Open</b>
+    </div>
+  </div>
+
   <div class="reply">
     <header>
-      <span class="av">D</span>
+      <span class="av">O</span>
       Support team
-      <small>2 min ago</small>
+      <small>just now</small>
       <span class="new">New</span>
     </header>
     <div class="bubble">
-      <p>Fixed — it ships in today’s release. Here’s the new screen.</p>
+      <p>Fixed: the coupon now applies once. Thanks, Sara!</p>
       <div class="shot">
         <div class="top"></div>
         <div class="row" style="top:15px;width:52px"></div>
