@@ -417,10 +417,10 @@ who are user models (`FeedbackBoard::notifyDevelopersUsing()`) also get a bell e
 the destination and the reason; it needs the `notifications` table. Without Filament, the
 developers a new report notifies get an e-mail instead (when `notifications.channels` has
 `mail`), at most one a day for each destination: the day's first failure sends it, and each
-failing report still shows the failure on its card. When nobody could be e-mailed, the next
-failure tries again after 15 minutes. The day is counted in the cache store of
-`FEEDBACK_DESTINATIONS_LOCK_STORE`, so clearing that cache can send a second e-mail the same
-day. Internal notes are never forwarded to any destination.
+failing report still shows the failure on its card. When the e-mail reached nobody (the mail
+server is down, say), the next failure tries again after 15 minutes. The day is counted in the
+cache store of `FEEDBACK_DESTINATIONS_LOCK_STORE`, so clearing that cache can send a second
+e-mail the same day. Internal notes are never forwarded to any destination.
 
 ### Ingest endpoint (inbound)
 
