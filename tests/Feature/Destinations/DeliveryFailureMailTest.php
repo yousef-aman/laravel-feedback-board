@@ -87,6 +87,18 @@ it('with Filament, rings the bell for developers who are user models and e-mails
     Notification::assertSentOnDemandTimes(DeliveryFailedNotification::class, 0);
 });
 
+it('passes over what a developer resolver returns that is not a recipient, and tells the rest', function () {
+    $dev = TestUser::create(['name' => 'Dev', 'email' => 'dev@team.test']);
+    config()->set('feedback-board.notifications.developers', fn () => [$dev, null, 'ops@team.test', Notification::route('mail', 'lead@team.test')]);
+
+    (new DeliverToDestination(new FeedbackItemCreated(FeedbackItem::factory()->create()), 'slack', 'dlv-mixed'))
+        ->failed(new ConnectionException('cURL error 6: Could not resolve host'));
+
+    Notification::assertSentTo($dev, Filament\Notifications\DatabaseNotification::class);
+    Notification::assertSentOnDemand(DeliveryFailedNotification::class, fn ($notification, $channels, $notifiable) => $notifiable->routes['mail'] === 'lead@team.test');
+    Notification::assertSentOnDemandTimes(DeliveryFailedNotification::class, 1);
+});
+
 it('with Filament, e-mails the developers listed only by address, whom the bell cannot reach', function () {
     (new DeliverToDestination(new FeedbackItemCreated(FeedbackItem::factory()->create()), 'slack', 'dlv-addresses'))
         ->failed(new ConnectionException('cURL error 6: Could not resolve host'));

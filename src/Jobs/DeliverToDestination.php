@@ -136,7 +136,8 @@ class DeliverToDestination implements ShouldQueue
         // The recipient resolver owns the feedback-board.notifications.developers key, which is
         // intentionally NOT under destinations.*; do not "correct" it.
         try {
-            $developers = app(DeveloperRecipients::class)->resolve();
+            // A resolver callback may return anything: only objects can be notified.
+            $developers = app(DeveloperRecipients::class)->resolve()->filter(fn ($developer): bool => is_object($developer));
         } catch (Throwable) {
             return; // best-effort: a notification failure must not mask the delivery failure
         }
