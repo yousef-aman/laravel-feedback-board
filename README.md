@@ -517,6 +517,8 @@ package's signed ingest endpoint and appear in the board for developer review.
 the production application context. The package never auto-merges; it stores a PR link and
 analysis for the developer to review. Secrets must never be written into a feedback item.
 
+The analysis, like every comment by the AI assistant, is shown as Markdown: headings, lists, code, tables and links. Raw HTML is escaped, only `http`, `https` and `mailto` links stay links (opening in a new tab, without a referrer), and images show their alt text, so nothing is loaded from elsewhere. Comments people write stay plain text.
+
 For the full protocol (envelope schema, HMAC formula, `runner_status` / `runner_result`
 post-back actions, security requirements, and a worked end-to-end example) see
 [`docs/runner-contract.md`](docs/runner-contract.md).

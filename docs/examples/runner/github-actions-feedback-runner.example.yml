@@ -32,7 +32,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
           sparse-checkout: .github/scripts
@@ -52,7 +52,7 @@ jobs:
     outputs:
       pr_url: ${{ steps.agent.outputs.pr_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Run the coding agent (Claude Code Action or your tool of choice)
         id: agent
@@ -69,7 +69,7 @@ jobs:
           echo "Replace this step with your agent." > "$RUNNER_TEMP/agent-output/analysis.md"
 
       - name: Hand the agent's output to the post-back job
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: agent-output
           path: ${{ runner.temp }}/agent-output/
@@ -82,13 +82,13 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: always()
         with:
           ref: ${{ github.sha }}
           sparse-checkout: .github/scripts
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         if: needs.run-agent.result == 'success'
         continue-on-error: true # an agent that wrote no files leaves no artifact; post the result without them
         with:

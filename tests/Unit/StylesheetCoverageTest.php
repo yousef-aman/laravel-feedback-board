@@ -54,6 +54,7 @@ it('styles nothing that no view uses', function () {
     $views = [
         ...glob(__DIR__.'/../../resources/views/*/*.blade.php'),
         ...glob(__DIR__.'/../../resources/views-filament/*/*.blade.php'),
+        __DIR__.'/../../src/Support/Markdown.php', // marks task list items in the AI assistant's Markdown
     ];
     $used = [];
 
