@@ -44,6 +44,26 @@ final class DeliveryError
         return 'unknown';
     }
 
+    /**
+     * A refusal that waiting cannot fix: a rejected key or permission (401, 403), a missing target
+     * (404, 410) or a request the destination cannot read (400, 422). A 403 that says the rate
+     * limit is spent (GitHub sends one with x-ratelimit-remaining: 0 or Retry-After) is not one.
+     */
+    public static function permanent(Throwable $e): bool
+    {
+        if (! $e instanceof RequestException || $e->response === null) {
+            return false;
+        }
+
+        $response = $e->response;
+
+        if ($response->status() === 403 && ($response->header('x-ratelimit-remaining') === '0' || $response->header('Retry-After') !== '')) {
+            return false;
+        }
+
+        return in_array($response->status(), [400, 401, 403, 404, 410, 422], true);
+    }
+
     /** A driver's name as people know it: GitHub, Slack, Webhook, else the name in title case. */
     public static function destination(string $driver): string
     {

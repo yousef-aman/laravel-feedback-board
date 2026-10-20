@@ -377,12 +377,15 @@ is process-local (no cross-worker protection).
 
 Delivery failures are isolated per destination. On a real queue, a failed delivery is retried
 after 30 seconds, 2 minutes and 5 minutes, within 15 minutes; a GitHub rate-limit wait counts as
-an attempt. On the `sync` queue it is not retried. A delivery that still fails is recorded as a
-sanitized code in `external_refs.{driver}_last_error` (never the raw error, URL, or token), and
-the next delivery to that destination that gets through clears it. Developers see each failing
-destination in the card dialog, with the reason, the event and how long ago. With Filament
-installed, developers who are user models (`FeedbackBoard::notifyDevelopersUsing()`) also get a
-bell entry that names the destination and the reason; it needs the `notifications` table.
+an attempt. A refusal that waiting cannot fix fails at once, without retries: HTTP 400, 401, 403,
+404, 410 or 422, for example a revoked token or a wrong repository name (a GitHub 403 for a spent
+rate limit is still retried). On the `sync` queue nothing is retried. A delivery that still fails
+is recorded as a sanitized code in `external_refs.{driver}_last_error` (never the raw error, URL,
+or token), and the next delivery to that destination that gets through clears it. Developers see
+each failing destination in the card dialog, with the reason, the event and how long ago. With
+Filament installed, developers who are user models (`FeedbackBoard::notifyDevelopersUsing()`)
+also get a bell entry that names the destination and the reason; it needs the `notifications`
+table.
 Internal notes are never forwarded to any destination.
 
 ### Ingest endpoint (inbound)

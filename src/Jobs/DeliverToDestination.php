@@ -10,6 +10,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
@@ -44,7 +45,8 @@ class DeliverToDestination implements ShouldQueue
     /**
      * Seconds before attempts 2, 3 and 4 (the last value repeats). Picked by attempt number, so a
      * RetryAfter release uses one up; with $maxExceptions = 4 a failing delivery gives up after its
-     * 4th error. The job's backoff() overrides `queue:work --backoff`.
+     * 4th error. A refusal that waiting cannot fix fails at its first (see handle()). The job's
+     * backoff() overrides `queue:work --backoff`.
      *
      * @return array<int, int>
      */
@@ -67,6 +69,15 @@ class DeliverToDestination implements ShouldQueue
             $driver->send($item, $this->event, $this->deliveryId);
         } catch (RetryAfter $e) {
             $this->release($e->seconds);
+        } catch (RequestException $e) {
+            // A revoked key or a wrong repository: fail now, so the card names the reason at once.
+            // Rethrown either way, so the exception is reported as before and the worker retries
+            // only what may still get through.
+            if (DeliveryError::permanent($e)) {
+                $this->fail($e);
+            }
+
+            throw $e;
         } catch (ConnectionException) {
             // Its message ends with the URL: never let it reach a log or failed_jobs.
             throw new DeliveryFailed($this->driver, 'connection_error');
