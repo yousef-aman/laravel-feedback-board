@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Bus;
 use YousefAman\FeedbackBoard\Events\{FeedbackItemCreated, FeedbackReplied, FeedbackStatusChanged};
-use YousefAman\FeedbackBoard\Enums\FeedbackStatus;
+use YousefAman\FeedbackBoard\Enums\{AuthorRole, FeedbackStatus};
 use YousefAman\FeedbackBoard\Jobs\DeliverToDestination;
 use YousefAman\FeedbackBoard\Listeners\DispatchToDestinations;
 use YousefAman\FeedbackBoard\Models\{FeedbackComment, FeedbackItem};
@@ -47,6 +47,22 @@ it('auto-dispatches GitHub only when a github ref already exists', function () {
 
     $with = FeedbackItem::factory()->create(['external_refs' => ['github' => ['issue_number' => 1]]]);
     fanout()->onStatusChanged(new FeedbackStatusChanged($with, FeedbackStatus::New, FeedbackStatus::Resolved, null));
+    Bus::assertDispatched(DeliverToDestination::class, fn ($j) => $j->driver === 'github');
+});
+
+it("leaves reporters' replies out of GitHub when github.reporter_replies is false", function () {
+    config()->set('feedback-board.destinations.github.token', 'ghp');
+    config()->set('feedback-board.destinations.github.repo', 'a/b');
+    config()->set('feedback-board.destinations.github.reporter_replies', false);
+    Bus::fake();
+    $item = FeedbackItem::factory()->create(['external_refs' => ['github' => ['issue_number' => 1]]]);
+    $reporter = FeedbackComment::factory()->create(['feedback_item_id' => $item->id, 'author_role' => AuthorRole::Reporter, 'is_internal' => false]);
+    $developer = FeedbackComment::factory()->create(['feedback_item_id' => $item->id, 'author_role' => AuthorRole::Developer, 'is_internal' => false]);
+
+    fanout()->onReplied(new FeedbackReplied($reporter));
+    Bus::assertNotDispatched(DeliverToDestination::class, fn ($j) => $j->driver === 'github');
+
+    fanout()->onReplied(new FeedbackReplied($developer));
     Bus::assertDispatched(DeliverToDestination::class, fn ($j) => $j->driver === 'github');
 });
 

@@ -96,6 +96,9 @@ return [
             'repo' => env('FEEDBACK_GITHUB_REPO'),          // "owner/name"
             'events' => ['feedback.replied', 'feedback.status_changed'],  // auto-comment gate only
             'close_on_resolved' => false,
+            // Mirror reporters' replies to the issue, quoted as code. false = only the
+            // team's and the AI's replies (a reporter's text is posted under your token).
+            'reporter_replies' => env('FEEDBACK_GITHUB_REPORTER_REPLIES', true),
         ],
     ],
 

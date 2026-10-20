@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use YousefAman\FeedbackBoard\Destinations\Support\DestinationEvent;
+use YousefAman\FeedbackBoard\Enums\AuthorRole;
 use YousefAman\FeedbackBoard\Events\FeedbackItemCreated;
 use YousefAman\FeedbackBoard\Events\FeedbackReplied;
 use YousefAman\FeedbackBoard\Events\FeedbackStatusChanged;
@@ -67,8 +68,11 @@ class DispatchToDestinations
             && (string) config('feedback-board.destinations.github.repo') !== '';
         $events = (array) config('feedback-board.destinations.github.events', []);
         $hasRef = isset(($item->external_refs ?? [])['github']);
+        $leftOut = $event instanceof FeedbackReplied
+            && $event->comment->author_role === AuthorRole::Reporter
+            && ! config('feedback-board.destinations.github.reporter_replies', true);
 
-        if ($configured && $hasRef && in_array($name, $events, true)) {
+        if ($configured && $hasRef && ! $leftOut && in_array($name, $events, true)) {
             $this->dispatchAfterCommit(new DeliverToDestination($event, 'github', (string) Str::uuid()));
         }
     }
