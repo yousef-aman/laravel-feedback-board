@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-21
+
+### Fixed
+
+- Installing 1.0.0 from Packagist fails, because its archive cannot be downloaded. 1.0.1 ships the same code.
+
 ## [1.0.0] - 2026-10-20
 
 The first public release.
@@ -65,5 +71,6 @@ These notes apply only to apps that installed the package from its development b
 - **Closed and declined reports.** The reporter now gets `FeedbackClosedNotification` (payload `kind: closed` or `declined`) when an open report is closed or declined.
 - **AI providers.** A published `config/feedback-board.php` replaces the package's whole `ai` array, so it has no `gemini` or `openai` settings. To use either provider, copy the `ai.gemini` and `ai.openai` blocks from the package's config file into yours.
 
-[Unreleased]: https://github.com/yousef-aman/laravel-feedback-board/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/yousef-aman/laravel-feedback-board/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/yousef-aman/laravel-feedback-board/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/yousef-aman/laravel-feedback-board/releases/tag/v1.0.0
