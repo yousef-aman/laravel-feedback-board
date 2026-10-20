@@ -414,8 +414,11 @@ retried. A delivery that still fails is recorded as a sanitized code in
 to that destination that gets through clears it. Developers see each failing destination in the
 card dialog, with the reason, the event and how long ago. With Filament installed, developers
 who are user models (`FeedbackBoard::notifyDevelopersUsing()`) also get a bell entry that names
-the destination and the reason; it needs the `notifications` table. Internal notes are never
-forwarded to any destination.
+the destination and the reason; it needs the `notifications` table. Without Filament, the
+developers a new report notifies get an e-mail instead, at most one a day for each destination:
+the day's first failure sends it, and each failing report still shows the failure on its card.
+The day is counted in the cache store of `FEEDBACK_DESTINATIONS_LOCK_STORE`. Internal notes are
+never forwarded to any destination.
 
 ### Ingest endpoint (inbound)
 

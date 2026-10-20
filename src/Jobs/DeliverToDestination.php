@@ -13,6 +13,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Notification as NotificationFacade;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Throwable;
@@ -22,7 +23,8 @@ use YousefAman\FeedbackBoard\Destinations\Exceptions\RetryAfter;
 use YousefAman\FeedbackBoard\Destinations\Support\DeliveryError;
 use YousefAman\FeedbackBoard\Destinations\Support\DestinationEvent;
 use YousefAman\FeedbackBoard\Models\FeedbackItem;
-use YousefAman\FeedbackBoard\Support\MailLayout;
+use YousefAman\FeedbackBoard\Notifications\DeliveryFailedNotification;
+use YousefAman\FeedbackBoard\Support\{DeveloperRecipients, MailLayout};
 
 class DeliverToDestination implements ShouldQueue
 {
@@ -121,10 +123,15 @@ class DeliverToDestination implements ShouldQueue
         $this->notifyDevelopers($item, $code);
     }
 
-    /** Best-effort Filament database notification; never throws, never leaks secrets. */
+    /**
+     * A Filament bell entry for each developer who is a user model; without Filament, an e-mail a
+     * day per destination (mailDevelopers()). Best-effort: never throws, never leaks secrets.
+     */
     protected function notifyDevelopers(FeedbackItem $item, string $code): void
     {
-        if (! class_exists(\Filament\Notifications\Notification::class)) {
+        if (! $this->usesFilamentBell()) {
+            $this->mailDevelopers($item, $code);
+
             return;
         }
 
@@ -134,7 +141,7 @@ class DeliverToDestination implements ShouldQueue
         // notifiables: the array-of-emails config yields AnonymousNotifiable
         // (mail route), which sendToDatabase() cannot persist.
         try {
-            $notifiables = app(\YousefAman\FeedbackBoard\Support\DeveloperRecipients::class)
+            $notifiables = app(DeveloperRecipients::class)
                 ->resolve()
                 ->filter(fn ($n) => $n instanceof \Illuminate\Database\Eloquent\Model);
             if ($notifiables->isEmpty()) {
@@ -158,6 +165,53 @@ class DeliverToDestination implements ShouldQueue
             } catch (Throwable) {
                 // best-effort, as above
             }
+        }
+    }
+
+    /** Whether Filament is installed, whose database notifications fill a panel's bell. */
+    protected function usesFilamentBell(): bool
+    {
+        return class_exists(\Filament\Notifications\Notification::class);
+    }
+
+    /**
+     * Tells the developers (the ones a new report notifies) by e-mail, once a day per destination:
+     * the day's first failure sends it, and every failing report still shows its own on its card.
+     * When no developer could be e-mailed, the next failure tries again.
+     */
+    protected function mailDevelopers(FeedbackItem $item, string $code): void
+    {
+        try {
+            $recipients = app(DeveloperRecipients::class)->resolve();
+        } catch (Throwable) {
+            return; // best-effort, as for the bell
+        }
+
+        if ($recipients->isEmpty()) {
+            return;
+        }
+
+        // The cache that holds the delivery locks, so every worker counts the same day.
+        $cache = Cache::store(config('feedback-board.destinations.lock_store'));
+        $key = 'feedback-board:failure-mail:'.$this->driver;
+
+        if (! rescue(fn () => $cache->add($key, true, now()->addDay()), false)) {
+            return; // e-mailed already today, or the cache is down
+        }
+
+        $notification = new DeliveryFailedNotification($item, $this->driver, $code);
+        $sent = false;
+
+        foreach ($recipients as $recipient) {
+            $sent = rescue(function () use ($recipient, $notification): bool {
+                NotificationFacade::send($recipient, $notification);
+
+                return true;
+            }, false) || $sent;
+        }
+
+        if (! $sent) {
+            rescue(fn () => $cache->forget($key), report: false);
         }
     }
 }
